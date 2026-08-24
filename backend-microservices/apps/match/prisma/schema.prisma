@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("MATCH_DATABASE_URL")
+}
+
+enum TipoEvento {
+  VIEW
+  CLICK
+  FAVORITE
+  HIRE
+  SEARCH
+}
+
+model InteraccionServicio {
+  idInteraccion    Int        @id @default(autoincrement()) @map("id_interaccion")
+  idUsuario        Int        @map("id_usuario")     // ID Lógico IAM
+  idPublicacion    Int        @map("id_publicacion") // ID Lógico Catalog
+  tipoEvento       TipoEvento @map("tipo_evento")
+  fechaInteraccion DateTime   @default(now()) @map("fecha_interaccion")
+
+  @@index([idUsuario])
+  @@index([idPublicacion])
+  @@map("interacciones_servicios")
+}
+
+model RecomendacionLog {
+  idRecomendacion          Int      @id @default(autoincrement()) @map("id_recomendacion")
+  idUsuario                Int      @map("id_usuario")                 // ID Lógico IAM
+  idPublicacionRecomendada Int      @map("id_publicacion_recomendada") // ID Lógico Catalog
+  scoreAfinidad            Decimal  @map("score_afinidad") @db.Decimal(5, 4)
+  fechaGeneracion          DateTime @default(now()) @map("fecha_generacion")
+
+  @@index([idUsuario])
+  @@index([idPublicacionRecomendada])
+  @@map("recomendaciones_log")
+}

@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("GEO_DATABASE_URL")
+}
+
+model UbicacionRegistrada {
+  idUbicacion    Int      @id @default(autoincrement()) @map("id_ubicacion")
+  idUsuario      Int      @map("id_usuario") // ID Lógico IAM
+  etiqueta       String?  @db.VarChar(50)
+  direccionTexto String   @map("direccion_texto") @db.VarChar(255)
+  latitud        Decimal  @db.Decimal(10, 8)
+  longitud       Decimal  @db.Decimal(11, 8)
+
+  @@index([idUsuario])
+  @@map("ubicaciones_registradas")
+}
+
+model ZonaCobertura {
+  idZona             Int      @id @default(autoincrement()) @map("id_zona")
+  idUsuarioProveedor Int      @map("id_usuario_proveedor") // ID Lógico IAM
+  nombreZona         String   @map("nombre_zona") @db.VarChar(100)
+  radioKm            Decimal  @map("radio_km") @db.Decimal(6, 2)
+  disponibleAhora    Boolean  @default(true) @map("disponible_ahora")
+  poligonoJson       Json?    @map("poligono_json")
+
+  @@index([idUsuarioProveedor])
+  @@map("zonas_cobertura")
+}
+
+model HistorialTrackingOrden {
+  idTracking    Int      @id @default(autoincrement()) @map("id_tracking")
+  idOrden       Int      @map("id_orden") // ID Lógico Payments
+  latitud       Decimal  @db.Decimal(10, 8)
+  longitud      Decimal  @db.Decimal(11, 8)
+  fechaRegistro DateTime @default(now()) @map("fecha_registro")
+
+  @@index([idOrden])
+  @@map("historial_tracking_orden")
+}

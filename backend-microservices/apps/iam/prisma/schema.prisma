@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("IAM_DATABASE_URL")
+}
+
+enum RolUsuario {
+  CLIENTE
+  PROVEEDOR
+  ADMIN
+}
+
+enum TipoDocumento {
+  CARNET_FRENTE
+  CARNET_DORSO
+  CERTIFICADO_ANTECEDENTES
+  LICENCIA_CONDUCIR
+}
+
+enum EstadoVerificacion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+model Usuario {
+  idUsuario      Int                     @id @default(autoincrement()) @map("id_usuario")
+  rut            String                  @unique @db.VarChar(25)
+  nombres        String                  @db.VarChar(200)
+  apellidos      String                  @db.VarChar(200)
+  correo         String                  @unique @db.VarChar(150)
+  passwordHash   String                  @map("password_hash") @db.VarChar(255)
+  rol            RolUsuario              @default(CLIENTE)
+  estadoActivo   Boolean                 @default(true) @map("estado_activo")
+  fechaCreacion  DateTime                @default(now()) @map("fecha_creacion")
+
+  perfil         Perfil?
+  documentos     DocumentoVerificacion[]
+
+  @@map("usuarios")
+}
+
+model Perfil {
+  idPerfil             Int      @id @default(autoincrement()) @map("id_perfil")
+  idUsuario            Int      @unique @map("id_usuario")
+  bioExperiencia       String?  @map("bio_experiencia") @db.Text
+  habilidades          String?  @db.Text
+  disponibilidad       String?  @db.VarChar(200)
+  ciudad               String?  @db.VarChar(100)
+  region               String?  @db.VarChar(100)
+  fotoPerfilUrl        String?  @map("foto_perfil_url") @db.VarChar(255)
+
+  usuario              Usuario  @relation(fields: [idUsuario], references: [idUsuario], onDelete: Cascade)
+
+  @@map("perfiles")
+}
+
+model DocumentoVerificacion {
+  idDocumento          Int                @id @default(autoincrement()) @map("id_documento")
+  idUsuario            Int                @map("id_usuario")
+  tipoDocumento        TipoDocumento      @map("tipo_documento")
+  archivoUrl           String             @map("archivo_url") @db.VarChar(255)
+  estadoVerificacion   EstadoVerificacion @default(PENDIENTE) @map("estado_verificacion")
+  fechaSubida          DateTime           @default(now()) @map("fecha_subida")
+
+  usuario              Usuario            @relation(fields: [idUsuario], references: [idUsuario], onDelete: Cascade)
+
+  @@index([idUsuario])
+  @@map("documentos_verificacion")
+}

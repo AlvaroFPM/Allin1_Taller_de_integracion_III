@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SEARCH_DATABASE_URL")
+}
+
+model HistorialBusqueda {
+  idBusqueda       Int      @id @default(autoincrement()) @map("id_busqueda")
+  idUsuario        Int?     @map("id_usuario") // ID Lógico IAM (opcional)
+  terminoBusqueda  String   @map("termino_busqueda") @db.VarChar(150)
+  filtrosAplicados Json?    @map("filtros_aplicados")
+  fechaBusqueda    DateTime @default(now()) @map("fecha_busqueda")
+
+  @@index([idUsuario])
+  @@index([terminoBusqueda])
+  @@map("historial_busquedas")
+}
+
+model SugerenciaPopular {
+  idSugerencia      Int    @id @default(autoincrement()) @map("id_sugerencia")
+  palabraClave      String @unique @map("palabra_clave") @db.VarChar(100)
+  contadorBusquedas Int    @default(1) @map("contador_busquedas")
+
+  @@map("sugerencias_populares")
+}

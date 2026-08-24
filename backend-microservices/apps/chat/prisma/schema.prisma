@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CHAT_DATABASE_URL")
+}
+
+model Conversacion {
+  idConversacion  Int       @id @default(autoincrement()) @map("id_conversacion")
+  idParticipante1 Int       @map("id_participante_1") // ID Lógico IAM
+  idParticipante2 Int       @map("id_participante_2") // ID Lógico IAM
+  fechaCreacion   DateTime  @default(now()) @map("fecha_creacion")
+  ultimoMensajeAt DateTime? @map("ultimo_mensaje_at")
+
+  mensajes        Mensaje[]
+
+  @@index([idParticipante1])
+  @@index([idParticipante2])
+  @@map("conversaciones")
+}
+
+model Mensaje {
+  idMensaje      Int          @id @default(autoincrement()) @map("id_mensaje")
+  idConversacion Int          @map("id_conversacion")
+  idRemitente    Int          @map("id_remitente") // ID Lógico IAM
+  contenido      String       @db.Text
+  leido          Boolean      @default(false)
+  fechaEnvio     DateTime     @default(now()) @map("fecha_envio")
+
+  conversacion   Conversacion @relation(fields: [idConversacion], references: [idConversacion], onDelete: Cascade)
+
+  @@index([idConversacion])
+  @@index([idRemitente])
+  @@map("mensajes")
+}

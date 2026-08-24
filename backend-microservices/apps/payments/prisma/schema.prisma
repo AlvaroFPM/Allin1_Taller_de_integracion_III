@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PAYMENTS_DATABASE_URL")
+}
+
+enum EstadoOrden {
+  CREADA
+  PAGADA
+  EN_PROGRESO
+  COMPLETADA
+  CANCELADA
+  DISPUTA
+}
+
+enum MetodoPago {
+  MERCADOPAGO
+  STRIPE
+  WEBPAY
+  TRANSFERENCIA
+}
+
+enum EstadoPago {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+enum EstadoCustodia {
+  RETENIDO
+  LIBERADO
+  REEMBOLSADO_TOTAL
+  REEMBOLSADO_PARCIAL
+}
+
+model OrdenServicio {
+  idOrden             Int                @id @default(autoincrement()) @map("id_orden")
+  idPublicacion       Int                @map("id_publicacion") // ID Lógico Catalog
+  idCliente           Int                @map("id_cliente")     // ID Lógico IAM
+  idProveedor         Int                @map("id_proveedor")   // ID Lógico IAM
+  montoTotal          Decimal            @map("monto_total") @db.Decimal(12, 2)
+  comisionPlataforma  Decimal            @map("comision_plataforma") @db.Decimal(12, 2)
+  estadoOrden         EstadoOrden        @default(CREADA) @map("estado_orden")
+  fechaCreacion       DateTime           @default(now()) @map("fecha_creacion")
+  fechaFinalizacion   DateTime?          @map("fecha_finalizacion")
+
+  pagos               PagoTransaccion[]
+  escrow              CustodiaEscrow?
+
+  @@index([idPublicacion])
+  @@index([idCliente])
+  @@index([idProveedor])
+  @@map("ordenes_servicio")
+}
+
+model PagoTransaccion {
+  idPago          Int           @id @default(autoincrement()) @map("id_pago")
+  idOrden         Int           @map("id_orden")
+  gatewayIdMp     String?       @map("gateway_id_mp") @db.VarChar(100)
+  metodoPago      MetodoPago    @default(MERCADOPAGO) @map("metodo_pago")
+  monto           Decimal       @db.Decimal(12, 2)
+  estadoPago      EstadoPago    @default(PENDING) @map("estado_pago")
+  fechaPago       DateTime      @default(now()) @map("fecha_pago")
+  metadataGateway Json?         @map("metadata_gateway")
+
+  orden           OrdenServicio @relation(fields: [idOrden], references: [idOrden], onDelete: Cascade)
+
+  @@index([idOrden])
+  @@map("pagos_transacciones")
+}
+
+model CustodiaEscrow {
+  idEscrow        Int            @id @default(autoincrement()) @map("id_escrow")
+  idOrden         Int            @unique @map("id_orden")
+  montoRetenido   Decimal        @map("monto_retenido") @db.Decimal(12, 2)
+  estadoCustodia  EstadoCustodia @default(RETENIDO) @map("estado_custodia")
+  fechaRetencion  DateTime       @default(now()) @map("fecha_retencion")
+  fechaLiberacion DateTime?      @map("fecha_liberacion")
+
+  orden           OrdenServicio  @relation(fields: [idOrden], references: [idOrden], onDelete: Cascade)
+
+  @@map("custodia_escrow")
+}
