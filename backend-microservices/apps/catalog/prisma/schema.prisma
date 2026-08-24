@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CATALOG_DATABASE_URL")
+}
+
+enum TipoServicio {
+  OFERTA
+  DEMANDA
+}
+
+enum EstadoPublicacion {
+  ACTIVO
+  PAUSADO
+  FINALIZADO
+  ELIMINADO
+}
+
+enum TipoMultimedia {
+  IMAGEN
+  VIDEO
+  DOCUMENTO
+}
+
+model Categoria {
+  idCategoria   Int            @id @default(autoincrement()) @map("id_categoria")
+  nombre        String         @unique @db.VarChar(100)
+  slug          String         @unique @db.VarChar(120)
+  iconoUrl      String?        @map("icono_url") @db.VarChar(255)
+
+  publicaciones Publicacion[]
+
+  @@map("categorias")
+}
+
+model Publicacion {
+  idPublicacion      Int                     @id @default(autoincrement()) @map("id_publicacion")
+  idUsuarioVendedor  Int                     @map("id_usuario_vendedor") // ID Lógico IAM
+  idCategoria        Int                     @map("id_categoria")
+  titulo             String                  @db.VarChar(200)
+  descripcion        String                  @db.Text
+  tipoServicio       TipoServicio            @default(OFERTA) @map("tipo_servicio")
+  precioBase         Decimal                 @map("precio_base") @db.Decimal(12, 2)
+  ciudad             String                  @db.VarChar(100)
+  region             String                  @db.VarChar(100)
+  estado             EstadoPublicacion       @default(ACTIVO)
+  fechaCreacion      DateTime                @default(now()) @map("fecha_creacion")
+
+  categoria          Categoria               @relation(fields: [idCategoria], references: [idCategoria])
+  multimedia         MultimediaPublicacion[]
+  etiquetas          PublicacionEtiqueta[]
+  guardados          GuardadoFavorito[]
+
+  @@index([idUsuarioVendedor])
+  @@index([idCategoria])
+  @@map("publicaciones")
+}
+
+model MultimediaPublicacion {
+  idMultimedia   Int            @id @default(autoincrement()) @map("id_multimedia")
+  idPublicacion  Int            @map("id_publicacion")
+  archivoUrl     String         @map("archivo_url") @db.VarChar(255)
+  tipoArchivo    TipoMultimedia @default(IMAGEN) @map("tipo_archivo")
+
+  publicacion    Publicacion    @relation(fields: [idPublicacion], references: [idPublicacion], onDelete: Cascade)
+
+  @@index([idPublicacion])
+  @@map("multimedia_publicaciones")
+}
+
+model Etiqueta {
+  idEtiqueta     Int                   @id @default(autoincrement()) @map("id_etiqueta")
+  nombre         String                @unique @db.VarChar(100)
+
+  publicaciones  PublicacionEtiqueta[]
+
+  @@map("etiquetas")
+}
+
+model PublicacionEtiqueta {
+  idPublicacion Int         @map("id_publicacion")
+  idEtiqueta    Int         @map("id_etiqueta")
+
+  publicacion   Publicacion @relation(fields: [idPublicacion], references: [idPublicacion], onDelete: Cascade)
+  etiqueta      Etiqueta    @relation(fields: [idEtiqueta], references: [idEtiqueta], onDelete: Cascade)
+
+  @@id([idPublicacion, idEtiqueta])
+  @@map("publicaciones_etiquetas")
+}
+
+model GuardadoFavorito {
+  idGuardado    Int         @id @default(autoincrement()) @map("id_guardado")
+  idUsuario     Int         @map("id_usuario") // ID Lógico IAM
+  idPublicacion Int         @map("id_publicacion")
+  fechaGuardado DateTime    @default(now()) @map("fecha_guardado")
+
+  publicacion   Publicacion @relation(fields: [idPublicacion], references: [idPublicacion], onDelete: Cascade)
+
+  @@unique([idUsuario, idPublicacion])
+  @@index([idUsuario])
+  @@map("guardados_favoritos")
+}

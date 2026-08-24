@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIFY_DATABASE_URL")
+}
+
+enum TipoNotificacion {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum EstadoEnvio {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+}
+
+enum PlataformaDispositivo {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum CanalNotificacion {
+  EMAIL
+  PUSH
+  SMS
+}
+
+model Notificacion {
+  idNotificacion Int              @id @default(autoincrement()) @map("id_notificacion")
+  idUsuario      Int              @map("id_usuario") // ID Lógico IAM
+  tipo           TipoNotificacion @default(IN_APP)
+  titulo         String           @db.VarChar(150)
+  contenido      String           @db.Text
+  leido          Boolean          @default(false)
+  estadoEnvio    EstadoEnvio      @default(ENVIADO) @map("estado_envio")
+  fechaCreacion  DateTime         @default(now()) @map("fecha_creacion")
+
+  @@index([idUsuario])
+  @@map("notificaciones")
+}
+
+model DispositivoPush {
+  idDispositivo Int                   @id @default(autoincrement()) @map("id_dispositivo")
+  idUsuario     Int                   @map("id_usuario") // ID Lógico IAM
+  tokenFcm      String                @unique @map("token_fcm") @db.Text
+  plataforma    PlataformaDispositivo @default(WEB)
+  ultimoAcceso  DateTime              @default(now()) @map("ultimo_acceso")
+
+  @@index([idUsuario])
+  @@map("dispositivos_push")
+}
+
+model PreferenciaNotificacion {
+  idPreferencia Int               @id @default(autoincrement()) @map("id_preferencia")
+  idUsuario     Int               @map("id_usuario") // ID Lógico IAM
+  canal         CanalNotificacion
+  habilitado    Boolean           @default(true)
+
+  @@unique([idUsuario, canal])
+  @@index([idUsuario])
+  @@map("preferencias_notificacion")
+}

@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SUPPORT_DATABASE_URL")
+}
+
+enum EstadoDisputa {
+  ABIERTA
+  EN_MEDIACION
+  RESUELTA_LIBERACION
+  RESUELTA_REEMBOLSO_TOTAL
+  RESUELTA_REEMBOLSO_PARCIAL
+  CERRADA
+}
+
+enum TipoResolucion {
+  LIBERACION_FONDOS_PROVEEDOR
+  REEMBOLSO_TOTAL_CLIENTE
+  REEMBOLSO_PARCIAL
+  DESESTIMADA
+}
+
+enum EstadoReporte {
+  PENDIENTE
+  EN_REVISION
+  SANCIONADO
+  DESESTIMADO
+}
+
+model Disputa {
+  idDisputa      Int                @id @default(autoincrement()) @map("id_disputa")
+  idOrden        Int                @unique @map("id_orden") // ID Lógico Payments
+  idReclamante   Int                @map("id_reclamante")    // ID Lógico IAM
+  idDemandado    Int                @map("id_demandado")     // ID Lógico IAM
+  motivo         String             @db.VarChar(200)
+  estadoDisputa  EstadoDisputa      @default(ABIERTA) @map("estado_disputa")
+  tipoResolucion TipoResolucion?    @map("tipo_resolucion")
+  idReembolso    Int?               @map("id_reembolso")     // ID Lógico Payments (si hubo devolución)
+  resolucion     String?            @db.Text
+  fechaApertura  DateTime           @default(now()) @map("fecha_apertura")
+
+  evidencias     EvidenciaDisputa[]
+
+  @@index([idOrden])
+  @@index([idReclamante])
+  @@index([idDemandado])
+  @@map("disputas")
+}
+
+model EvidenciaDisputa {
+  idEvidencia Int      @id @default(autoincrement()) @map("id_evidencia")
+  idDisputa   Int      @map("id_disputa")
+  archivoUrl  String   @map("archivo_url") @db.VarChar(255)
+  descripcion String?  @db.Text
+  fechaSubida DateTime @default(now()) @map("fecha_subida")
+
+  disputa     Disputa  @relation(fields: [idDisputa], references: [idDisputa], onDelete: Cascade)
+
+  @@index([idDisputa])
+  @@map("evidencias_disputa")
+}
+
+model ReporteUsuario {
+  idReporte      Int           @id @default(autoincrement()) @map("id_reporte")
+  idDenunciante  Int           @map("id_denunciante") // ID Lógico IAM
+  idReportado    Int           @map("id_reportado")   // ID Lógico IAM
+  motivo         String        @db.VarChar(200)
+  estado         EstadoReporte @default(PENDIENTE)
+  fechaCreacion  DateTime      @default(now()) @map("fecha_creacion")
+
+  @@index([idDenunciante])
+  @@index([idReportado])
+  @@map("reportes_usuarios")
+}

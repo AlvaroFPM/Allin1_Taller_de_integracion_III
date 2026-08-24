@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("REPUTATION_DATABASE_URL")
+}
+
+model MetricaReputacion {
+  idMetrica           Int                  @id @default(autoincrement()) @map("id_metrica")
+  idUsuario           Int                  @unique @map("id_usuario") // ID Lógico IAM
+  promedioEstrellas   Decimal              @default(5.0) @map("promedio_estrellas") @db.Decimal(3, 2)
+  totalResenas        Int                  @default(0) @map("total_resenas")
+  trabajosCompletados Int                  @default(0) @map("trabajos_completados")
+
+  resenas             CalificacionResena[]
+
+  @@index([idUsuario])
+  @@map("metricas_reputacion")
+}
+
+model CalificacionResena {
+  idCalificacion Int               @id @default(autoincrement()) @map("id_calificacion")
+  idMetrica      Int               @map("id_metrica")
+  idOrden        Int               @map("id_orden")     // ID Lógico Payments
+  idEvaluador    Int               @map("id_evaluador") // ID Lógico IAM
+  idEvaluado     Int               @map("id_evaluado")  // ID Lógico IAM
+  puntuacion     Int               @db.SmallInt         // 1 a 5
+  comentario     String?           @db.Text
+  fechaCreacion  DateTime          @default(now()) @map("fecha_creacion")
+
+  metrica        MetricaReputacion @relation(fields: [idMetrica], references: [idMetrica], onDelete: Cascade)
+
+  @@unique([idOrden, idEvaluador])
+  @@index([idOrden])
+  @@index([idEvaluador])
+  @@index([idEvaluado])
+  @@map("calificaciones_resenas")
+}
