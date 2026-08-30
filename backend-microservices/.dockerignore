@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Compilados
+dist/
+
+# Git
+.git/
+.gitignore
+
+# Entornos
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+*.log
+
+# Tests y cobertura
+coverage/
