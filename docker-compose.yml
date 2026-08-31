@@ -1,0 +1,345 @@
+version: '3.8'
+
+networks:
+  allin1_network:
+    driver: bridge
+
+services:
+  # ==========================================
+  # Bases de datos PostgreSQL
+  # ==========================================
+
+  postgres_iam:
+    image: postgres:16-alpine
+    container_name: postgres_iam
+    ports:
+      - "5433:5432" # Puerto host 5433 -> Puerto interno 5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_IAM}
+      POSTGRES_DB: iam_db
+    volumes:
+      - iam_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_catalog:
+    image: postgres:16-alpine
+    container_name: postgres_catalog
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CATALOG}
+      POSTGRES_DB: catalog_db
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_payments:
+    image: postgres:16-alpine
+    container_name: postgres_payments
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PAYMENTS}
+      POSTGRES_DB: payments_db
+    volumes:
+      - payments_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_reputation:
+    image: postgres:16-alpine
+    container_name: postgres_reputation
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_REPUTATION}
+      POSTGRES_DB: reputation_db
+    volumes:
+      - reputation_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_chat:
+    image: postgres:16-alpine
+    container_name: postgres_chat
+    ports:
+      - "5437:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CHAT}
+      POSTGRES_DB: chat_db
+    volumes:
+      - chat_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_support:
+    image: postgres:16-alpine
+    container_name: postgres_support
+    ports:
+      - "5438:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_SUPPORT}
+      POSTGRES_DB: support_db
+    volumes:
+      - support_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_notify:
+    image: postgres:16-alpine
+    container_name: postgres_notify
+    ports:
+      - "5439:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_NOTIFY}
+      POSTGRES_DB: notify_db
+    volumes:
+      - notify_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_geo:
+    image: postgres:16-alpine
+    container_name: postgres_geo
+    ports:
+      - "5440:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_GEO}
+      POSTGRES_DB: geo_db
+    volumes:
+      - geo_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_search:
+    image: postgres:16-alpine
+    container_name: postgres_search
+    ports:
+      - "5441:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_SEARCH}
+      POSTGRES_DB: search_db
+    volumes:
+      - search_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  postgres_match:
+    image: postgres:16-alpine
+    container_name: postgres_match
+    ports:
+      - "5442:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MATCH}
+      POSTGRES_DB: match_db
+    volumes:
+      - match_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+
+  # ==========================================
+  # Microservicios de Backend
+  # ==========================================
+
+  # Estos microservicios NO exponen puertos al host dado que se comunican 
+  # internamente a través de la red de Docker. Dependen de su respectiva BD.
+
+  iam:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: iam
+    container_name: iam
+    depends_on:
+      - postgres_iam
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_IAM}@postgres_iam:5432/iam_db"
+    networks:
+      - allin1_network
+
+  catalog:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: catalog
+    container_name: catalog
+    depends_on:
+      - postgres_catalog
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_CATALOG}@postgres_catalog:5432/catalog_db"
+    networks:
+      - allin1_network
+
+  payments:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: payments
+    container_name: payments
+    depends_on:
+      - postgres_payments
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_PAYMENTS}@postgres_payments:5432/payments_db"
+    networks:
+      - allin1_network
+
+  reputation:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: reputation
+    container_name: reputation
+    depends_on:
+      - postgres_reputation
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_REPUTATION}@postgres_reputation:5432/reputation_db"
+    networks:
+      - allin1_network
+
+  chat:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: chat
+    container_name: chat
+    depends_on:
+      - postgres_chat
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_CHAT}@postgres_chat:5432/chat_db"
+    networks:
+      - allin1_network
+
+  support:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: support
+    container_name: support
+    depends_on:
+      - postgres_support
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_SUPPORT}@postgres_support:5432/support_db"
+    networks:
+      - allin1_network
+
+  notify:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: notify
+    container_name: notify
+    depends_on:
+      - postgres_notify
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_NOTIFY}@postgres_notify:5432/notify_db"
+    networks:
+      - allin1_network
+
+  geo:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: geo
+    container_name: geo
+    depends_on:
+      - postgres_geo
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_GEO}@postgres_geo:5432/geo_db"
+    networks:
+      - allin1_network
+
+  search:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: search
+    container_name: search
+    depends_on:
+      - postgres_search
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_SEARCH}@postgres_search:5432/search_db"
+    networks:
+      - allin1_network
+
+  match:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: match
+    container_name: match
+    depends_on:
+      - postgres_match
+    environment:
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD_MATCH}@postgres_match:5432/match_db"
+    networks:
+      - allin1_network
+
+  # ==========================================
+  # API Gateway (backend-microservices)
+  # ==========================================
+
+  # Este es el punto de entrada de la API para los clientes.
+  # Utiliza el puerto interno 3001 (confirmado en apps/backend-microservices/src/main.ts).
+  # SÍ expone su puerto al exterior para ser accesible desde el frontend.
+  backend-microservices:
+    build:
+      context: ./backend-microservices
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: backend-microservices
+    container_name: backend-microservices
+    ports:
+      - "3001:3001"
+    networks:
+      - allin1_network
+
+  # ==========================================
+  # Frontend Next.js (frontend-marketplace)
+  # ==========================================
+
+  # El cliente web de la aplicación.
+  # Expone el puerto 3000 para poder acceder a la interfaz desde el navegador.
+  frontend-marketplace:
+    build:
+      context: ./frontend-marketplace
+      dockerfile: Dockerfile
+    container_name: frontend-marketplace
+    ports:
+      - "3000:3000"
+    networks:
+      - allin1_network
+
+# Definimos los volúmenes nombrados para la persistencia de datos de PostgreSQL
+volumes:
+  iam_db_data:
+  catalog_db_data:
+  payments_db_data:
+  reputation_db_data:
+  chat_db_data:
+  support_db_data:
+  notify_db_data:
+  geo_db_data:
+  search_db_data:
+  match_db_data:
