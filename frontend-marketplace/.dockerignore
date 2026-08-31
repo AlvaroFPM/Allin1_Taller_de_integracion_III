@@ -1,0 +1,25 @@
+# Dependencias
+node_modules/
+
+# Archivos compilados y cacheados de Next.js
+.next/
+out/
+build/
+
+# Entornos
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+*.log
+
+# Cobertura y testing
+coverage/
