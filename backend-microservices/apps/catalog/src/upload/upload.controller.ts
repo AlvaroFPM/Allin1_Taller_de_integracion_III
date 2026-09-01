@@ -15,7 +15,10 @@ export class UploadController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    const result = await this.uploadService.uploadImage(file, 'marketplace/catalog');
+    const result = await this.uploadService.uploadImage(
+      file,
+      'marketplace/catalog',
+    );
 
     return {
       success: true,

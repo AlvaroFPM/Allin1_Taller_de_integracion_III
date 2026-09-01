@@ -1,12 +1,21 @@
 import type { Express } from 'express';
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 @Injectable()
 export class UploadService {
-  private readonly maxFileSizeBytes = 10 * 1024 * 1024; 
-  private readonly allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+  private readonly maxFileSizeBytes = 10 * 1024 * 1024;
+  private readonly allowedMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/avif',
+  ];
 
   constructor(private readonly configService: ConfigService) {
     cloudinary.config({
@@ -33,7 +42,10 @@ export class UploadService {
     }
   }
 
-  async uploadImage(file: Express.Multer.File, folder = 'marketplace'): Promise<UploadApiResponse> {
+  async uploadImage(
+    file: Express.Multer.File,
+    folder = 'marketplace',
+  ): Promise<UploadApiResponse> {
     this.validateFile(file);
 
     return new Promise((resolve, reject) => {
@@ -43,7 +55,9 @@ export class UploadService {
           if (error || !result) {
             console.error('Cloudinary upload_stream error:', error);
             return reject(
-              new InternalServerErrorException('Error al subir imagen a Cloudinary.'),
+              new InternalServerErrorException(
+                'Error al subir imagen a Cloudinary.',
+              ),
             );
           }
           resolve(result);
