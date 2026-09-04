@@ -6,17 +6,14 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class IamService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(IamService.name);
 
-  getHello(): string {
-    return 'Hello World!';
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async testDatabaseConnection() {
     const totalUsuarios = await this.prisma.usuario.count();
     return {
       status: 'success',
-      message: 'Conexión verificada con la base de datos PostgreSQL de IAM',
       registrosEnBaseDeDatos: totalUsuarios,
       timestamp: new Date().toISOString(),
     };

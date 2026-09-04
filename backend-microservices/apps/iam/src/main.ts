@@ -1,8 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { IamModule } from './iam.module';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(IamModule);
-  await app.listen(process.env.port ?? 3000);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Descarta campos sobrantes en silencio
+      transform: true, // Convierte query params a los tipos del DTO
+    }),
+  );
+  await app.listen(3000);
 }
 bootstrap();
