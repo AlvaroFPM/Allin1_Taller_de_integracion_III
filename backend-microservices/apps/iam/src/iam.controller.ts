@@ -9,4 +9,9 @@ export class IamController {
   getHello(): string {
     return this.iamService.getHello();
   }
+
+  @Get('test-db')
+  async testDb() {
+    return await this.iamService.testDatabaseConnection();
+  }
 }
