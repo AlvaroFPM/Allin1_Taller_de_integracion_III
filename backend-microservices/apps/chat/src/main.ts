@@ -5,4 +5,4 @@ async function bootstrap() {
   const app = await NestFactory.create(ChatModule);
   await app.listen(process.env.PORT ?? 3005);
 }
-bootstrap();
+bootstrap().catch(console.error);
