@@ -66,4 +66,14 @@ export class UploadService {
       stream.end(file.buffer);
     });
   }
+
+  async uploadMultipleImages(
+    files: Express.Multer.File[],
+    folder = 'marketplace',
+  ): Promise<UploadApiResponse[]> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No se recibió ningún archivo.');
+    }
+    return Promise.all(files.map((file) => this.uploadImage(file, folder)));
+  }
 }
