@@ -2,3 +2,8 @@ export * from "./navbar";
 export * from "./navbar-guest";
 export * from "./navbar-user";
 export * from "./footer";
+export * from "./home-categories";
+export * from "./home-hero";
+export * from "./home-how-it-works";
+export * from "./home-recent-activity";
+export * from "./home-reviews";
