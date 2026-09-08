@@ -1,0 +1,54 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  lint-backend:
+    name: Lint backend-microservices
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend-microservices/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: backend-microservices
+        run: npm ci
+
+      - name: Ejecutar lint
+        working-directory: backend-microservices
+        run: npm run lint
+
+  lint-frontend:
+    name: Lint frontend-marketplace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-marketplace/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend-marketplace
+        run: npm ci
+
+      - name: Ejecutar lint
+        working-directory: frontend-marketplace
+        run: npm run lint
