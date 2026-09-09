@@ -1,4 +1,4 @@
-# 🌿 Políticas de Ramas y Convenciones (GitFlow)
+#  Políticas de Ramas y Convenciones (GitFlow)
 
 Para asegurar la calidad y trazabilidad de nuestro código, este proyecto utiliza un modelo de Feature Branching enlazado a nuestro Tablero Ágil.
 
