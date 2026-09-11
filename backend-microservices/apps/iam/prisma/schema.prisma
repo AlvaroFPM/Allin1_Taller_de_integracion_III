@@ -37,7 +37,7 @@ model Usuario {
   rol            RolUsuario              @default(CLIENTE)
   estadoActivo   Boolean                 @default(true) @map("estado_activo")
   fechaCreacion  DateTime                @default(now()) @map("fecha_creacion")
-
+  kycVerificado  Boolean                 @default(false) @map("kyc_verificado")
   perfil         Perfil?
   documentos     DocumentoVerificacion[]
 

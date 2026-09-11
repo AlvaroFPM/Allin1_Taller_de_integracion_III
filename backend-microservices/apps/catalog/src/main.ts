@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { CatalogModule } from './catalog.module';
-import { PrismaExceptionFilter } from '@app/shared';
+import { AllExceptionsFilter } from '@app/shared';
 
 async function bootstrap() {
   const app = await NestFactory.create(CatalogModule);
 
-  app.useGlobalFilters(new PrismaExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   await app.listen(process.env.port ?? 3002);
 }
