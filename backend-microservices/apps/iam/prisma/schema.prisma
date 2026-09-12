@@ -36,6 +36,7 @@ model Usuario {
   passwordHash   String                  @map("password_hash") @db.VarChar(255)
   rol            RolUsuario              @default(CLIENTE)
   estadoActivo   Boolean                 @default(true) @map("estado_activo")
+  kycVerificado  Boolean                 @default(false) @map("kyc_verificado")
   fechaCreacion  DateTime                @default(now()) @map("fecha_creacion")
 
   perfil         Perfil?
