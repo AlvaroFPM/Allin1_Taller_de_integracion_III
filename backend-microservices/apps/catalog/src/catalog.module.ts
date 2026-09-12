@@ -4,9 +4,9 @@ import { SharedModule } from '@app/shared';
 import { CatalogController } from './catalog.controller';
 import { CatalogService } from './catalog.service';
 import { UploadController } from './upload/upload.controller';
-import { CatalogPrismaService } from './prisma.service';
-import { PostsService } from './posts.service';
 import { PostsController } from './posts.controller';
+import { PostsService } from './posts.service';
+import { CatalogPrismaService } from './prisma.service';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), SharedModule],
