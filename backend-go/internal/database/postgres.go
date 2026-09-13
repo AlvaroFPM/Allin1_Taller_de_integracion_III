@@ -1,4 +1,4 @@
-package main
+package database
 
 import (
 	"fmt"
@@ -23,8 +23,4 @@ func ConnectDB() {
 
 	DB = db
 	fmt.Println("¡Conexión a PostgreSQL (catalog_db) exitosa!")
-}
-
-func main() {
-	ConnectDB()
 }
