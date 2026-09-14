@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth";
+
+import "google/api/annotations.proto";
+
+// AuthService provee métodos para registro, login y perfil.
+service AuthService {
+  // Register registra a un nuevo usuario en el sistema.
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // Login autentica a un usuario y devuelve un token JWT.
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // GetProfile obtiene el perfil del usuario autenticado actual.
+  rpc GetProfile(ProfileRequest) returns (ProfileResponse) {
+    option (google.api.http) = {
+      get: "/v1/auth/profile"
+    };
+  }
+}
+
+// Mensajes para el Registro
+message RegisterRequest {
+  string first_name = 1;
+  string last_name = 2;
+  string email = 3;
+  string password = 4;
+}
+
+message RegisterResponse {
+  int64 user_id = 1;
+  string message = 2;
+  string token = 3;
+}
+
+// Mensajes para el Login
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+  string message = 2;
+}
+
+// Mensajes para obtener el perfil (Profile)
+message ProfileRequest {
+  // Vacío intencionalmente, tomaremos el ID del JWT en el interceptor o gateway.
+}
+
+message ProfileResponse {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+}
