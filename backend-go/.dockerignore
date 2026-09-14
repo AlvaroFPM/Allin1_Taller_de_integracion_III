@@ -1,0 +1,38 @@
+# ==========================================
+# Dockerignore para Backend Go (Monorepo)
+# ==========================================
+
+# Control de versiones
+.git/
+.gitignore
+.github/
+
+# Binarios y compilados locales
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+*.test
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Archivos temporales o de documentación no necesarios para la compilación
+*.md
+tmp/
