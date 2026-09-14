@@ -12,7 +12,7 @@ func main() {
 	fmt.Println("Iniciando microservicio Catalog...")
 	database.ConnectDB()
 
-	// Ejecutar migraciones para Catalog
+	// Ejecutar AutoMigrate
 	err := database.DB.AutoMigrate(
 		&models.Categoria{},
 		&models.Publicacion{},
@@ -20,5 +20,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error al migrar tablas de Catalog: %v", err)
 	}
-	fmt.Println(" Migracion exitosa: Tablas 'categorias' y 'publicaciones' sincronizadas.")
+	fmt.Println(" Migracion exitosa: Tablas 'categorias' y 'publicaciones' (con deleted_at) sincronizadas.")
+
+	// TODO: Inicializar servidor gRPC y grpc-gateway para Catalog
 }
