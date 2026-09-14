@@ -7,3 +7,4 @@ export * from "./home-hero";
 export * from "./home-how-it-works";
 export * from "./home-recent-activity";
 export * from "./home-reviews";
+export * from "./login-form";
