@@ -1,0 +1,40 @@
+package models
+
+import (
+	"time"
+)
+
+// Categoria mapea la tabla 'categorias' en PostgreSQL
+type Categoria struct {
+	IDCategoria uint      `gorm:"primaryKey;column:id_categoria;autoIncrement" json:"id_categoria"`
+	Nombre      string    `gorm:"type:varchar(100);not null;unique" json:"nombre"`
+	Slug        string    `gorm:"type:varchar(120);not null;unique" json:"slug"`
+	IconoURL    *string   `gorm:"type:varchar(255);column:icono_url" json:"icono_url"`
+	CreatedAt   time.Time `gorm:"column:fecha_creacion;autoCreateTime" json:"fecha_creacion"`
+}
+
+func (Categoria) TableName() string {
+	return "categorias"
+}
+
+// Publicacion mapea la tabla 'publicaciones' en PostgreSQL
+type Publicacion struct {
+	IDPublicacion     uint      `gorm:"primaryKey;column:id_publicacion;autoIncrement" json:"id_publicacion"`
+	IDUsuarioVendedor uint      `gorm:"column:id_usuario_vendedor;not null;index" json:"id_usuario_vendedor"` // ID logico de IAM
+	IDCategoria       uint      `gorm:"column:id_categoria;not null;index" json:"id_categoria"`
+	Titulo            string    `gorm:"type:varchar(200);not null" json:"titulo"`
+	Descripcion       string    `gorm:"type:text;not null" json:"descripcion"`
+	TipoServicio      string    `gorm:"type:varchar(50);default:'OFERTA'" json:"tipo_servicio"`
+	PrecioBase        float64   `gorm:"type:decimal(12,2);not null" json:"precio_base"`
+	Ciudad            string    `gorm:"type:varchar(100);not null" json:"ciudad"`
+	Region            string    `gorm:"type:varchar(100);not null" json:"region"`
+	Estado            string    `gorm:"type:varchar(30);default:'ACTIVO'" json:"estado"`
+	CreatedAt         time.Time `gorm:"column:fecha_creacion;autoCreateTime" json:"fecha_creacion"`
+	UpdatedAt         time.Time `gorm:"column:fecha_actualizacion;autoUpdateTime" json:"fecha_actualizacion"`
+
+	Categoria Categoria `gorm:"foreignKey:IDCategoria;constraint:OnDelete:CASCADE;" json:"categoria,omitempty"`
+}
+
+func (Publicacion) TableName() string {
+	return "publicaciones"
+}
