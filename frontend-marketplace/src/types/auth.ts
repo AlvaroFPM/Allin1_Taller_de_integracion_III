@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'CLIENTE' | 'PROVEEDOR' | 'ADMIN';
+  avatarUrl?: string;
+  isVerified?: boolean;
+}
 
 export const loginSchema = z.object({
   email: z
@@ -11,7 +19,6 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
-
 
 export const registerSchema = z
   .object({
