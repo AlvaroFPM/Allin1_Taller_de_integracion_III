@@ -5,6 +5,17 @@ import (
 
 	"gorm.io/gorm"
 )
+const (
+	TipoOferta  = "OFERTA"
+	TipoDemanda = "DEMANDA"
+)
+
+const (
+	EstadoActivo     = "ACTIVO"
+	EstadoPausado    = "PAUSADO"
+	EstadoCompletado = "COMPLETADO"
+	EstadoEliminado  = "ELIMINADO"
+)
 
 // Categoria mapea la tabla 'categorias' en PostgreSQL
 type Categoria struct {
@@ -27,7 +38,7 @@ type Publicacion struct {
 	Titulo            string         `gorm:"type:varchar(200);not null" json:"titulo"`
 	Descripcion       string         `gorm:"type:text;not null" json:"descripcion"`
 	TipoServicio      string         `gorm:"type:varchar(50);default:'OFERTA'" json:"tipo_servicio"`
-	PrecioBase        float64        `gorm:"type:decimal(12,2);not null" json:"precio_base"`
+	PrecioBase        int64          `gorm:"type:bigint;not null" json:"precio_base"` // RN-23: Entero positivo en CLP
 	Ciudad            string         `gorm:"type:varchar(100);not null" json:"ciudad"`
 	Region            string         `gorm:"type:varchar(100);not null" json:"region"`
 	Estado            string         `gorm:"type:varchar(30);default:'ACTIVO'" json:"estado"`
