@@ -19,11 +19,6 @@ func main() {
 		log.Println("No se encontró archivo .env, usando variables del sistema")
 	}
 
-	// TODO: ConnectDB() devuelve (*gorm.DB, error) intencionalmente para no
-	// terminar el proceso automáticamente. Este código actualmente ignora el
-	// error retornado, lo que causa un panic (nil pointer dereference) si la
-	// conexión a la base de datos falla. Falta manejar el error explícitamente
-	// antes de usar el *gorm.DB retornado. Detectado en PR #117.
 	if _, err := database.ConnectDB(); err != nil {
 		log.Printf("DB no disponible, continuando sin persistencia: %v", err)
 	}
