@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -10,12 +11,27 @@ import (
 // DB es la instancia global de la base de datos
 var DB *gorm.DB
 
-// ConnectDB inicializa la conexión con PostgreSQL.
+// getEnv obtiene una variable de entorno o retorna un valor por defecto si no está definida
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+// ConnectDB inicializa la conexión con PostgreSQL leyendo las variables de entorno.
 // Retorna el error en vez de terminar el proceso, para que cada
 // microservicio decida si la falta de DB es crítica o no.
 func ConnectDB() (*gorm.DB, error) {
-	// DSN configurado para el puerto 5434 (catalog_db) según tu docker-compose.yml
-	dsn := "host=localhost user=postgres password=postgres dbname=catalog_db port=5434 sslmode=disable"
+	host := getEnv("DB_HOST", "localhost")
+	port := getEnv("DB_PORT", "5432")
+	user := getEnv("DB_USER", "postgres")
+	password := getEnv("DB_PASSWORD", "postgres")
+	dbName := getEnv("DB_NAME", "postgres")
+	sslMode := getEnv("DB_SSLMODE", "disable")
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		host, user, password, dbName, port, sslMode)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -23,6 +39,6 @@ func ConnectDB() (*gorm.DB, error) {
 	}
 
 	DB = db
-	fmt.Println("¡Conexión a PostgreSQL (catalog_db) exitosa!")
+	fmt.Printf("¡Conexión a PostgreSQL (%s) exitosa!\n", dbName)
 	return db, nil
 }
