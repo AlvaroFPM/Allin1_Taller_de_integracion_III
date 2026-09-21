@@ -8,7 +8,7 @@ import (
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
-	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/services"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -39,7 +39,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 
 	// Inyectar el servicio Auth
-	authService := services.NewAuthService()
+	authService := service.NewAuthService()
 	auth.RegisterAuthServiceServer(grpcServer, authService)
 
 	// Habilitar reflexión para depuración
