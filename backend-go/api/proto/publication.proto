@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package publication;
+
+option go_package = "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication;publicationpb";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+enum TipoServicio {
+  TIPO_SERVICIO_UNSPECIFIED = 0;
+  OFERTA = 1;
+  DEMANDA = 2;
+}
+
+enum EstadoPublicacion {
+  ESTADO_PUBLICACION_UNSPECIFIED = 0;
+  ACTIVO = 1;
+  PAUSADO = 2;
+  COMPLETADO = 3;
+  ELIMINADO = 4;
+}
+
+message Category {
+  uint32 id_categoria = 1;
+  string nombre = 2;
+  string slug = 3;
+  optional string icono_url = 4;
+}
+
+// Entidad Publicación completa
+message Publication {
+  uint32 id_publicacion = 1;
+  uint32 id_usuario_vendedor = 2; 
+  uint32 categoria_id = 3;        
+  string titulo = 4;              
+  string descripcion = 5;         
+  TipoServicio tipo_servicio = 6; 
+  int64 precio_base = 7;         
+  string ciudad = 8;
+  string region = 9;
+  EstadoPublicacion estado = 10;
+  repeated string imagenes_urls = 11; // RN-25: 1 a 5 imágenes
+  optional Category categoria = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message PaginationMeta {
+  int64 total_records = 1;
+  int32 current_page = 2;
+  int32 total_pages = 3;
+  int32 limit = 4;
+}
+
+// Mensajes para RPC CreatePublication
+message CreatePublicationRequest {
+  uint32 id_usuario_vendedor = 1;
+  uint32 categoria_id = 2;
+  string titulo = 3;
+  string descripcion = 4;
+  TipoServicio tipo_servicio = 5;
+  int64 precio_base = 6;         
+  string ciudad = 7;
+  string region = 8;
+  repeated string imagenes_urls = 9;
+}
+
+message CreatePublicationResponse {
+  Publication publication = 1;
+  string message = 2;
+}
+
+// Mensajes para RPC GetPublication
+message GetPublicationRequest {
+  uint32 id_publicacion = 1;
+}
+
+message GetPublicationResponse {
+  Publication publication = 1;
+}
+
+// Mensajes para RPC ListPublications
+message ListPublicationsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  optional uint32 categoria_id = 3;
+  optional TipoServicio tipo_servicio = 4;
+  optional uint32 exclude_user_id = 5; 
+}
+
+message ListPublicationsResponse {
+  repeated Publication publications = 1;
+  PaginationMeta meta = 2;
+}
+
+// Servicio gRPC con endpoints REST vía grpc-gateway
+service PublicationService {
+  rpc CreatePublication(CreatePublicationRequest) returns (CreatePublicationResponse) {
+    option (google.api.http) = {
+      post: "/v1/publications"
+      body: "*"
+    };
+  }
+
+  rpc GetPublication(GetPublicationRequest) returns (GetPublicationResponse) {
+    option (google.api.http) = {
+      get: "/v1/publications/{id_publicacion}"
+    };
+  }
+
+  rpc ListPublications(ListPublicationsRequest) returns (ListPublicationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/publications"
+    };
+  }
+}
