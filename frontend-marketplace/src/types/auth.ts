@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-
+// --- Esquemas de Validación Frontend (Zod) ---
 export const loginSchema = z.object({
   email: z
     .string()
