@@ -5,21 +5,44 @@ import (
 	"fmt"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
+	"github.com/go-playground/validator/v10"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // AuthService implementa la interfaz gRPC AuthServiceServer
 type AuthService struct {
 	auth.UnimplementedAuthServiceServer
+	validate *validator.Validate
 }
 
 // NewAuthService crea una nueva instancia de AuthService
 func NewAuthService() *AuthService {
-	return &AuthService{}
+	return &AuthService{
+		validate: validator.New(),
+	}
 }
 
 // Register maneja la creación de nuevos usuarios
 func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (*auth.RegisterResponse, error) {
-	// TODO: Implementar validación de structs, hasheo de contraseña y guardado en DB
+	// 1. Validación de estructuras
+	input := struct {
+		FirstName string `validate:"required,min=2"`
+		LastName  string `validate:"required,min=2"`
+		Email     string `validate:"required,email"`
+		Password  string `validate:"required,min=6"`
+	}{
+		FirstName: req.GetFirstName(),
+		LastName:  req.GetLastName(),
+		Email:     req.GetEmail(),
+		Password:  req.GetPassword(),
+	}
+
+	if err := s.validate.Struct(input); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "datos de registro inválidos: %v", err)
+	}
+
+	// TODO: Implementar hasheo de contraseña y guardado en DB
 	fmt.Printf("Recibida petición de registro para email: %s\n", req.GetEmail())
 
 	return &auth.RegisterResponse{
@@ -31,6 +54,19 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 
 // Login maneja la autenticación de usuarios
 func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error) {
+	// 1. Validación de estructuras
+	input := struct {
+		Email    string `validate:"required,email"`
+		Password string `validate:"required"`
+	}{
+		Email:    req.GetEmail(),
+		Password: req.GetPassword(),
+	}
+
+	if err := s.validate.Struct(input); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "datos de login inválidos: %v", err)
+	}
+
 	// TODO: Implementar búsqueda en DB, comparación de bcrypt y generación de JWT real
 	fmt.Printf("Recibida petición de login para email: %s\n", req.GetEmail())
 
