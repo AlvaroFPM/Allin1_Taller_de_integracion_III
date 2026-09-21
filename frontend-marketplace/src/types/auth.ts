@@ -1,14 +1,6 @@
 import { z } from 'zod';
 
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: 'CLIENTE' | 'PROVEEDOR' | 'ADMIN';
-  avatarUrl?: string;
-  isVerified?: boolean;
-}
-
+// --- Esquemas de Validación Frontend (Zod) ---
 export const loginSchema = z.object({
   email: z
     .string()
