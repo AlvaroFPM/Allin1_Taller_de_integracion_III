@@ -10,3 +10,4 @@ export * from './home-reviews';
 export * from './login-form';
 export * from './login-card';
 export * from './register-form';
+export * from './register-card';
