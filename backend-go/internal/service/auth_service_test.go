@@ -1,4 +1,4 @@
-package services
+package service
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func TestAuthService_Register_Valid(t *testing.T) {
 	}
 
 	res, err := service.Register(context.Background(), req)
-	
+
 	if err != nil {
 		t.Fatalf("Se esperaba éxito, pero falló con error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestAuthService_Register_InvalidEmail(t *testing.T) {
 	}
 
 	_, err := service.Register(context.Background(), req)
-	
+
 	if err == nil {
 		t.Errorf("Se esperaba un error por email inválido, pero pasó la validación")
 	}
@@ -53,7 +53,7 @@ func TestAuthService_Register_ShortPassword(t *testing.T) {
 	}
 
 	_, err := service.Register(context.Background(), req)
-	
+
 	if err == nil {
 		t.Errorf("Se esperaba un error por contraseña muy corta, pero pasó la validación")
 	}
