@@ -13,7 +13,7 @@ func TestAuthService_Register_Valid(t *testing.T) {
 		FirstName: "Alvaro",
 		LastName:  "Perez",
 		Email:     "alvaro@example.com",
-		Password:  "secreta123",
+		Password:  "Secreta.123!", // Cumple RN-06: 8+ chars, Mayúscula, Minúscula, Número, Especial
 	}
 
 	res, err := service.Register(context.Background(), req)
@@ -33,7 +33,7 @@ func TestAuthService_Register_InvalidEmail(t *testing.T) {
 		FirstName: "Alvaro",
 		LastName:  "Perez",
 		Email:     "correo-invalido", // Falla la validación 'email'
-		Password:  "secreta123",
+		Password:  "Secreta.123!",
 	}
 
 	_, err := service.Register(context.Background(), req)
@@ -49,7 +49,7 @@ func TestAuthService_Register_ShortPassword(t *testing.T) {
 		FirstName: "Alvaro",
 		LastName:  "Perez",
 		Email:     "alvaro@example.com",
-		Password:  "123", // Falla la validación 'min=6'
+		Password:  "Secre1!", // Falla RN-06 por tener menos de 8 caracteres
 	}
 
 	_, err := service.Register(context.Background(), req)

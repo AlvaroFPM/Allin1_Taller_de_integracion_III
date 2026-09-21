@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/go-playground/validator/v10"
@@ -16,21 +17,36 @@ type AuthService struct {
 	validate *validator.Validate
 }
 
+// Custom validator para RN-06
+func passwordRuleValid(fl validator.FieldLevel) bool {
+	pwd := fl.Field().String()
+	if len(pwd) < 8 || len(pwd) > 64 {
+		return false
+	}
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(pwd)
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(pwd)
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(pwd)
+	hasSpecial := regexp.MustCompile(`[\W_]`).MatchString(pwd)
+	return hasUpper && hasLower && hasNumber && hasSpecial
+}
+
 // NewAuthService crea una nueva instancia de AuthService
 func NewAuthService() *AuthService {
+	v := validator.New()
+	v.RegisterValidation("password_rn06", passwordRuleValid)
 	return &AuthService{
-		validate: validator.New(),
+		validate: v,
 	}
 }
 
 // Register maneja la creación de nuevos usuarios
 func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (*auth.RegisterResponse, error) {
-	// 1. Validación de estructuras
+	// 1. Validación de estructuras (Regla de Negocio RN-06)
 	input := struct {
 		FirstName string `validate:"required,min=2"`
 		LastName  string `validate:"required,min=2"`
 		Email     string `validate:"required,email"`
-		Password  string `validate:"required,min=6"`
+		Password  string `validate:"required,password_rn06"`
 	}{
 		FirstName: req.GetFirstName(),
 		LastName:  req.GetLastName(),
