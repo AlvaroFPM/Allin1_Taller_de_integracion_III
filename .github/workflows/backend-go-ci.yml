@@ -1,0 +1,109 @@
+name: Backend Go CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      # Se ejecuta únicamente si hay cambios en backend-go o en este mismo workflow
+      - 'backend-go/**'
+      - '.github/workflows/backend-go-ci.yml'
+
+jobs:
+  backend-go-ci:
+    name: Backend Go CI (Protoc, Build & Test)
+    runs-on: ubuntu-latest
+
+    steps:
+      # =========================================================================
+      # Paso 1: Checkout del código fuente
+      # Clona el repositorio en el runner de GitHub Actions para disponer de los
+      # archivos del proyecto (incluyendo backend-go/, Makefile, protos y third_party/).
+      # =========================================================================
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # =========================================================================
+      # Paso 2: Configuración del entorno de Go
+      # Instala Go 1.27 (coincidente con go.mod y Dockerfile).
+      # setup-go@v5 configura variables de entorno como GOROOT, GOPATH y añade
+      # $(go env GOPATH)/bin al PATH. Además, activa el caché de módulos de Go
+      # (go.sum) para acelerar la resolución de librerías.
+      # =========================================================================
+      - name: Configurar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache: true
+          cache-dependency-path: backend-go/go.sum
+
+      # =========================================================================
+      # Paso 3: Instalación de protoc (compilador base)
+      # Se utiliza 'arduino/setup-protoc@v3', el estándar recomendado por la
+      # comunidad de GitHub Actions. Descarga el binario oficial precompilado
+      # desde los releases de Protocol Buffers y lo enlaza en el PATH junto con
+      # los tipos estándar (WKT - Well-Known Types como timestamp.proto).
+      # Usar repo-token evita bloqueos por rate limiting de la API de GitHub.
+      # =========================================================================
+      - name: Instalar protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # =========================================================================
+      # Paso 4: Caché de plugins de protoc en GOPATH/bin
+      # Almacena los binarios instalados por 'go install' (protoc-gen-go,
+      # protoc-gen-go-grpc, protoc-gen-grpc-gateway, protoc-gen-openapiv2)
+      # ubicados en ~/go/bin.
+      # La clave de caché depende del hash de backend-go/Makefile: si el Makefile
+      # no cambia, se restauran los binarios sin necesidad de recompilarlos.
+      # =========================================================================
+      - name: Cachear binarios de herramientas de Go (plugins protoc)
+        id: cache-proto-plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: ${{ runner.os }}-go-tools-${{ hashFiles('backend-go/Makefile') }}
+
+      # =========================================================================
+      # Paso 5: Instalación de plugins y dependencias (make install-deps)
+      # Si hubo un 'cache hit' en el paso anterior, los ejecutables ya están en
+      # ~/go/bin y este paso se salta automáticamente, ahorrando tiempo de CI.
+      # Si hay un 'cache miss' (primera corrida o cambio en el Makefile), se
+      # compilan e instalan los plugins requeridos.
+      # =========================================================================
+      - name: Instalar plugins y dependencias (make install-deps)
+        if: steps.cache-proto-plugins.outputs.cache-hit != 'true'
+        working-directory: backend-go
+        run: make install-deps
+
+      # =========================================================================
+      # Paso 6: Compilación de archivos .proto (make generate)
+      # Ejecuta el target 'generate' del Makefile en backend-go/.
+      # Compila auth.proto y publication.proto hacia internal/api/pb, resolviendo
+      # las anotaciones de google/api gracias a la carpeta third_party/.
+      # =========================================================================
+      - name: Generar código gRPC y Gateway (make generate)
+        working-directory: backend-go
+        run: make generate
+
+      # =========================================================================
+      # Paso 7: Compilación del proyecto completo (go build)
+      # Verifica que todos los paquetes (cmd/, internal/, api/pb, etc.) compilen
+      # correctamente y que no existan errores de tipado o discrepancias con el
+      # código generado. Si hay un fallo de compilación, el workflow se detiene aquí.
+      # =========================================================================
+      - name: Compilar proyecto (go build ./...)
+        working-directory: backend-go
+        run: go build ./...
+
+      # =========================================================================
+      # Paso 8: Ejecución de pruebas unitarias (go test)
+      # Ejecuta los tests de todos los paquetes de backend-go con '-v' para ver el
+      # desglose detallado de las pruebas. Si un paquete aún no tiene archivos
+      # _test.go, Go informará '[no test files]' y saldrá con código 0 (éxito).
+      # Aquellos paquetes con tests (como internal/service) se probarán normalmente.
+      # =========================================================================
+      - name: Ejecutar pruebas unitarias (go test -v ./...)
+        working-directory: backend-go
+        run: go test -v ./...
