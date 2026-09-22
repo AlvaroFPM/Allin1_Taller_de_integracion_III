@@ -1,0 +1,38 @@
+# ==============================================================================
+# ConfigMap: iam-db-config
+# ==============================================================================
+# Contiene las variables de entorno NO sensibles para la conexión a la
+# base de datos. Estas se inyectan al Deployment de IAM como variables
+# de entorno del contenedor.
+#
+# A diferencia del Secret, estos valores no requieren codificación base64
+# y pueden almacenarse en texto plano de forma segura.
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Nombre del ConfigMap — referenciado desde el Deployment
+  name: iam-db-config
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-apinilla
+  labels:
+    # Labels consistentes con el resto de recursos del proyecto
+    app: iam
+    project: allin1
+data:
+  # -----------------------------------------------------------------------
+  # DB_HOST: Host de la base de datos PostgreSQL.
+  #
+  # PLACEHOLDER: Actualmente apunta a "localhost", lo cual NO funcionará
+  # dentro del cluster. Cuando el equipo tenga un Pod/StatefulSet de
+  # PostgreSQL corriendo, deben actualizar este valor con el nombre
+  # del Service de Postgres. Por ejemplo:
+  #   - Si el Service se llama "postgres-service" en el mismo namespace:
+  #     DB_HOST: "postgres-service"
+  #   - Si está en otro namespace (ej: databases):
+  #     DB_HOST: "postgres-service.databases.svc.cluster.local"
+  # -----------------------------------------------------------------------
+  DB_HOST: "localhost"
+
+  # DB_PORT: Puerto estándar de PostgreSQL (5432)
+  DB_PORT: "5432"

@@ -1,0 +1,26 @@
+# ==============================================================================
+# Namespace: student-apinilla
+# ==============================================================================
+# Define el namespace asignado por el profesor para el equipo.
+# Aunque probablemente ya existe en el cluster (creado por el
+# administrador), lo documentamos aquí como parte del repositorio
+# para que quede versionado y como referencia para la defensa.
+#
+# Si el namespace ya existe, kubectl apply no lo modificará
+# (solo actualizará las annotations/labels si difieren).
+# ==============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  # Nombre del namespace asignado al equipo en el cluster universitario
+  name: student-apinilla
+  labels:
+    # Labels para identificación del proyecto
+    app: iam
+    project: allin1
+  annotations:
+    # Descripción del proyecto para documentación interna del cluster
+    kubernetes.io/description: >-
+      Namespace del equipo AllIn1 - Taller de Integración III.
+      Contiene los microservicios del backend en Go (iam, catalog, media)
+      y sus recursos asociados.

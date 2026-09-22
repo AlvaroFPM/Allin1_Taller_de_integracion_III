@@ -1,0 +1,82 @@
+# ==============================================================================
+# Ingress: iam
+# ==============================================================================
+# Ingress que expone el microservicio IAM al exterior del cluster a través
+# del nginx-ingress controller.
+#
+# El tráfico externo llega al dominio configurado, el nginx-ingress
+# lo recibe y lo redirige al Service de IAM dentro del cluster.
+#
+# Rutas expuestas (definidas en auth.proto):
+#   - POST /v1/auth/register  → Registro de usuarios
+#   - POST /v1/auth/login     → Inicio de sesión
+#   - GET  /v1/auth/profile   → Perfil del usuario autenticado
+#
+# TLS: No configurado por ahora. Si el cluster tiene cert-manager,
+# se puede agregar una sección tls: con un ClusterIssuer de Let's Encrypt.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  # Nombre del Ingress
+  name: iam
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-apinilla
+  labels:
+    # Labels consistentes con el resto de recursos del proyecto
+    app: iam
+    project: allin1
+    tier: backend
+  # ---------------------------------------------------------------------------
+  # NOTA sobre nginx.ingress.kubernetes.io/rewrite-target:
+  #
+  # NO se incluye la annotation rewrite-target en este Ingress.
+  #
+  # Motivo: El gRPC-Gateway del microservicio IAM ya maneja las rutas
+  # /v1/auth/* de forma nativa (definidas en auth.proto con la option
+  # google.api.http). El path que llega al Ingress (/v1/auth/login,
+  # /v1/auth/register, etc.) es exactamente el que el servidor Go
+  # espera recibir. Si usáramos rewrite-target: /, nginx reescribiría
+  # /v1/auth/login → /, y el gateway no encontraría la ruta.
+  #
+  # Solo sería necesario rewrite-target si quisiéramos un prefijo
+  # diferente en el Ingress al que el servicio maneja internamente
+  # (ej: /api/iam/v1/auth/* → /v1/auth/*).
+  # ---------------------------------------------------------------------------
+spec:
+  # ingressClassName: Especifica qué Ingress controller maneja este recurso.
+  # "nginx" corresponde al nginx-ingress controller estándar del cluster.
+  ingressClassName: nginx
+
+  rules:
+    # Host: Dominio bajo el cual se expone el servicio IAM.
+    # Debe coincidir con la configuración DNS del cluster universitario.
+    - host: api.student-apinilla.estudiantes.dev.censei.cl
+      http:
+        paths:
+          # Ruta: /v1/auth — captura todas las subrutas con pathType: Prefix
+          # Esto incluye: /v1/auth/register, /v1/auth/login, /v1/auth/profile
+          - path: /v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                # Nombre del Service de IAM (debe coincidir con service.yaml)
+                name: iam
+                port:
+                  # Puerto del Service (el que expone, no el del contenedor)
+                  number: 8080
+
+  # ---------------------------------------------------------------------------
+  # TLS (deshabilitado por ahora)
+  # ---------------------------------------------------------------------------
+  # Si el cluster tiene cert-manager con un ClusterIssuer configurado,
+  # descomentar la sección de abajo para habilitar HTTPS automático:
+  #
+  # tls:
+  #   - hosts:
+  #       - api.student-apinilla.estudiantes.dev.censei.cl
+  #     secretName: iam-tls-cert    # cert-manager creará este Secret automáticamente
+  #
+  # Y agregar la annotation del issuer:
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  # ---------------------------------------------------------------------------
