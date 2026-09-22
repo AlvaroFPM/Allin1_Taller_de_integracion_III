@@ -5,19 +5,17 @@ import (
 )
 
 const (
-	// DefaultMaxFileSize es el límite de 5MB por archivo.
+	// DefaultMaxFileSize es el límite de 5MB por archivo (HDU de validadores).
 	DefaultMaxFileSize int64 = 5 << 20 // 5 * 1024 * 1024
 
 	// DefaultMaxFiles limita cuántos archivos acepta una sola petición.
 	DefaultMaxFiles = 10
 
-	// sniffLen son los bytes que se le pasan al detector.
+	// sniffLen son los bytes que se le pasan al detector. Todos los formatos
+	// soportados tienen su firma en la cabecera, así que no hace falta más.
 	sniffLen = 3072
 )
 
-// ValidatorConfig permite inyectar los límites en vez de hardcodearlos, lo que
-// facilita escribir tests con un límite de 10 bytes en vez de generar un
-// archivo de 5MB.
 type ValidatorConfig struct {
 	MaxFileSize    int64
 	MaxFiles       int
@@ -65,11 +63,13 @@ func NewFileValidator(cfg ValidatorConfig) *FileValidator {
 // http.MaxBytesReader coherente antes de leer el cuerpo.
 func (v *FileValidator) MaxFileSize() int64 { return v.maxFileSize }
 
+// MaxFiles expone el límite de cantidad de archivos, para el mismo propósito
+// que MaxFileSize: el handler multiplica ambos para fijar el tope total del
+// cuerpo de la petición.
+func (v *FileValidator) MaxFiles() int { return v.maxFiles }
+
 // Validate verifica un archivo: que no esté vacío, que no exceda el peso
 // máximo y que sus magic bytes correspondan a un formato permitido.
-//
-// El orden importa: el peso se comprueba antes que el contenido para no gastar
-// CPU olfateando un archivo que igual va a ser rechazado.
 func (v *FileValidator) Validate(f File) (ValidatedFile, error) {
 	size := f.Size()
 
@@ -105,10 +105,6 @@ func (v *FileValidator) Validate(f File) (ValidatedFile, error) {
 }
 
 // ValidateAll valida un lote completo y falla al primer archivo inválido.
-//
-// Es deliberadamente "todo o nada": si el usuario sube 5 imágenes de un
-// producto y una es inválida, es preferible rechazar la petición entera a
-// dejarlo con una galería a medias y archivos huérfanos en Cloudinary.
 func (v *FileValidator) ValidateAll(files []File) ([]ValidatedFile, error) {
 	if len(files) == 0 {
 		return nil, ErrNoFiles
