@@ -1,0 +1,39 @@
+# ==============================================================================
+# Service: iam
+# ==============================================================================
+# Service de tipo ClusterIP que expone el microservicio IAM internamente
+# dentro del cluster de Kubernetes. No es accesible desde fuera del cluster
+# directamente — el acceso externo se maneja a través del Ingress.
+#
+# ClusterIP es el tipo por defecto y el más adecuado cuando se usa
+# un Ingress controller como nginx para exponer servicios al exterior.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  # Nombre del Service — referenciado por el Ingress
+  name: iam
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-apinilla
+  labels:
+    # Labels consistentes con el resto de recursos del proyecto
+    app: iam
+    project: allin1
+    tier: backend
+spec:
+  # ClusterIP: El Service solo es accesible dentro del cluster.
+  # Kubernetes le asigna una IP virtual interna automáticamente.
+  type: ClusterIP
+
+  # Selector: Define qué Pods recibirán el tráfico de este Service.
+  # Debe coincidir con los labels del template de Pod en el Deployment.
+  selector:
+    app: iam
+    project: allin1
+
+  ports:
+    # Puerto del servicio dentro del cluster
+    - name: http-gateway
+      protocol: TCP
+      port: 8080          # Puerto expuesto por el Service (al que se conectan otros Pods/Ingress)
+      targetPort: 8080     # Puerto del contenedor al que se redirige el tráfico

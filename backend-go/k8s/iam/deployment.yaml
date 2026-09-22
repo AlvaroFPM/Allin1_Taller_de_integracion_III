@@ -1,0 +1,145 @@
+# ==============================================================================
+# Deployment: iam
+# ==============================================================================
+# Despliega el microservicio IAM (Auth) del backend Go.
+# La imagen corre un servidor gRPC-Gateway que expone la API REST
+# en el puerto 8080, con endpoints en /v1/auth/*.
+#
+# Las variables de entorno para la conexión a PostgreSQL se inyectan
+# desde un ConfigMap (no sensibles) y un Secret (credenciales).
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Nombre del Deployment
+  name: iam
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-apinilla
+  labels:
+    # Labels consistentes en todos los recursos del proyecto
+    app: iam
+    project: allin1
+    tier: backend
+spec:
+  # Réplicas: 1 para el piloto inicial.
+  # Escalar a 2+ cuando se necesite alta disponibilidad.
+  replicas: 1
+
+  # Selector: define cómo el Deployment encuentra los Pods que gestiona.
+  # Debe coincidir con los labels del template de Pod.
+  selector:
+    matchLabels:
+      app: iam
+      project: allin1
+
+  # Template: define la especificación del Pod que se desplegará
+  template:
+    metadata:
+      labels:
+        # Labels que deben coincidir con el selector de arriba
+        # y con el selector del Service
+        app: iam
+        project: allin1
+        tier: backend
+    spec:
+      containers:
+        - name: iam
+          # Imagen publicada en Docker Hub por el equipo
+          image: am4roo/allin1-iam-go:latest
+
+          # Always: Fuerza a Kubernetes a descargar la imagen en cada
+          # rollout/restart, asegurando que siempre use la versión más
+          # reciente del tag :latest
+          imagePullPolicy: Always
+
+          # Puerto del contenedor: 8080 (gRPC-Gateway REST + CORS)
+          ports:
+            - containerPort: 8080
+              name: http-gateway
+              protocol: TCP
+
+          # -----------------------------------------------------------------
+          # Variables de entorno
+          # -----------------------------------------------------------------
+          env:
+            # Variables NO sensibles — desde el ConfigMap
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: iam-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: iam-db-config
+                  key: DB_PORT
+
+            # Variables SENSIBLES — desde el Secret
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: DB_NAME
+            - name: DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: DB_SSLMODE
+
+          # -----------------------------------------------------------------
+          # Resources: limits y requests razonables para cluster compartido
+          # -----------------------------------------------------------------
+          # Requests: mínimo garantizado que Kubernetes reserva para el Pod.
+          # Limits: máximo que el Pod puede consumir antes de ser throttled/killed.
+          resources:
+            requests:
+              cpu: "100m"       # 0.1 vCPU — suficiente para carga baja
+              memory: "256Mi"   # 256 MB de RAM
+            limits:
+              cpu: "200m"       # 0.2 vCPU — tope para no afectar otros estudiantes
+              memory: "512Mi"   # 512 MB de RAM — margen para picos
+
+          # -----------------------------------------------------------------
+          # Probes: Verificaciones de salud del contenedor
+          # -----------------------------------------------------------------
+          # Usamos tcpSocket en el puerto 8080 porque gRPC-Gateway no expone
+          # un endpoint HTTP dedicado de health check (como /healthz).
+          # tcpSocket verifica que el puerto esté aceptando conexiones TCP,
+          # lo cual confirma que el servidor HTTP está corriendo.
+          #
+          # NOTA: Si en el futuro se agrega un endpoint /healthz al gateway,
+          # se recomienda cambiar a httpGet para una verificación más precisa:
+          #   httpGet:
+          #     path: /healthz
+          #     port: 8080
+          # -----------------------------------------------------------------
+
+          # readinessProbe: Determina si el Pod está listo para recibir tráfico.
+          # Kubernetes NO enviará tráfico al Pod hasta que esta probe pase.
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5    # Esperar 5s después del arranque
+            periodSeconds: 10         # Verificar cada 10s
+            timeoutSeconds: 3         # Timeout de cada verificación
+            failureThreshold: 3       # Marcar como no-ready tras 3 fallos
+
+          # livenessProbe: Determina si el Pod está vivo y funcionando.
+          # Si falla, Kubernetes reiniciará el contenedor automáticamente.
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15   # Esperar 15s (más que readiness)
+            periodSeconds: 20         # Verificar cada 20s
+            timeoutSeconds: 3         # Timeout de cada verificación
+            failureThreshold: 3       # Reiniciar tras 3 fallos consecutivos

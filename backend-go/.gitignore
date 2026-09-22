@@ -1,0 +1,6 @@
+# ==============================================================================
+# .gitignore — backend-go
+# ==============================================================================
+
+# Secretos de Kubernetes con credenciales reales (usar secret.example.yaml como plantilla)
+k8s/**/secret.yaml
