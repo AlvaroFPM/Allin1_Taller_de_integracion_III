@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { getAccessToken } from '@/utils/authCookies';
+import { getAccessToken, removeAuthTokens } from '@/utils/authCookies';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
@@ -8,7 +9,6 @@ export const apiClient = axios.create({
   },
 });
 
-// Interceptor de Peticiones (Request)
 apiClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
@@ -18,4 +18,24 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Interceptor de Respuestas (Response) para capturar 401
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Limpiar tokens de las cookies
+      removeAuthTokens();
+
+      // Limpiar estado global de Zustand
+      useAuthStore.getState().clearAuth();
+
+      // Redirigir al usuario al login si no esta en rutas publicas
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login?session=expired';
+      }
+    }
+    return Promise.reject(error);
+  }
 );
