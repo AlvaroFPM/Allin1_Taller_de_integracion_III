@@ -1,22 +1,23 @@
-import * as React from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import * as React from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export function HomeHero() {
   return (
     <section className="mx-auto max-w-4xl text-center flex flex-col items-center gap-5 py-4">
       {/* Título de alto impacto con degradado */}
       <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-content-main leading-[1.15]">
-        All in 1:{" "}
+        All in 1:{' '}
         <span className="bg-linear-to-r from-brand-dark via-brand to-[#10B981] bg-clip-text text-transparent">
           todo lo que necesitas
-        </span>{" "}
+        </span>{' '}
         en un solo clic.
       </h1>
 
       {/* Bajada explicativa */}
       <p className="max-w-2xl text-base sm:text-lg text-content-muted leading-relaxed">
-        La plataforma unificada donde puedes solicitar desde un flete express o un arreglo doméstico hasta comprar productos y contratar asistencia profesional de forma directa.
+        La plataforma unificada donde puedes solicitar desde un flete express o un arreglo doméstico
+        hasta comprar productos y contratar asistencia profesional de forma directa.
       </p>
 
       {/* Botones de acción principales */}

@@ -1,16 +1,12 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export function Card({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "bg-surface-main rounded-xl border border-border-base shadow-xs overflow-hidden",
-        className
+        'bg-surface-main rounded-xl border border-border-base shadow-xs overflow-hidden',
+        className,
       )}
       {...props}
     >
@@ -25,7 +21,7 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-6 py-5 border-b border-border-base", className)} {...props}>
+    <div className={cn('px-6 py-5 border-b border-border-base', className)} {...props}>
       {children}
     </div>
   );
@@ -38,7 +34,7 @@ export function CardTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={cn("text-base font-semibold text-content-main tracking-tight", className)}
+      className={cn('text-base font-semibold text-content-main tracking-tight', className)}
       {...props}
     >
       {children}
@@ -52,7 +48,7 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn("text-xs text-content-muted mt-1", className)} {...props}>
+    <p className={cn('text-xs text-content-muted mt-1', className)} {...props}>
       {children}
     </p>
   );
@@ -64,7 +60,7 @@ export function CardContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-6 py-5", className)} {...props}>
+    <div className={cn('px-6 py-5', className)} {...props}>
       {children}
     </div>
   );
@@ -78,8 +74,8 @@ export function CardFooter({
   return (
     <div
       className={cn(
-        "px-6 py-4 border-t border-border-base bg-surface-base/50 flex items-center justify-end gap-3",
-        className
+        'px-6 py-4 border-t border-border-base bg-surface-base/50 flex items-center justify-end gap-3',
+        className,
       )}
       {...props}
     >

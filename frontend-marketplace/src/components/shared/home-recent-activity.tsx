@@ -1,39 +1,43 @@
-import * as React from "react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import type { RecentPublication } from "@/types/home";
+import * as React from 'react';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import type { RecentPublication } from '@/types/home';
 
 const defaultPublications: RecentPublication[] = [
   {
-    id: "1",
-    badgeLabel: "Servicio Solicitado",
-    badgeVariant: "serv",
-    title: "Reparación urgente de calefont e inspección de gas",
-    location: "📍 Providencia, RM",
-    price: "$40.000 CLP",
-    href: "/publicaciones/1",
+    id: '1',
+    badgeLabel: 'Servicio Solicitado',
+    badgeVariant: 'serv',
+    title: 'Reparación urgente de calefont e inspección de gas',
+    location: '📍 Providencia, RM',
+    price: '$40.000 CLP',
+    href: '/publicaciones/1',
   },
   {
-    id: "2",
-    badgeLabel: "Flete / Traslado",
-    badgeVariant: "trans",
-    title: "Flete express: Sillón 3 cuerpos + lavadora",
-    location: "📍 Ñuñoa a Santiago",
-    price: "$30.000 CLP",
-    href: "/publicaciones/2",
+    id: '2',
+    badgeLabel: 'Flete / Traslado',
+    badgeVariant: 'trans',
+    title: 'Flete express: Sillón 3 cuerpos + lavadora',
+    location: '📍 Ñuñoa a Santiago',
+    price: '$30.000 CLP',
+    href: '/publicaciones/2',
   },
   {
-    id: "3",
-    badgeLabel: "Artículo en Venta",
-    badgeVariant: "item",
-    title: "Kit Taladro Percutor Inalámbrico 20V + Baterías",
-    location: "📍 Las Condes, RM",
-    price: "$45.000 CLP",
-    href: "/publicaciones/3",
+    id: '3',
+    badgeLabel: 'Artículo en Venta',
+    badgeVariant: 'item',
+    title: 'Kit Taladro Percutor Inalámbrico 20V + Baterías',
+    location: '📍 Las Condes, RM',
+    price: '$45.000 CLP',
+    href: '/publicaciones/3',
   },
 ];
 
-export function HomeRecentActivity({ publications = defaultPublications }: { publications?: RecentPublication[] }) {
+export function HomeRecentActivity({
+  publications = defaultPublications,
+}: {
+  publications?: RecentPublication[];
+}) {
   return (
     <section className="space-y-6">
       {/* Cabecera con indicador en vivo */}
@@ -61,11 +65,11 @@ export function HomeRecentActivity({ publications = defaultPublications }: { pub
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {publications.map((pub) => {
           const badgeColor =
-            pub.badgeVariant === "serv"
-              ? "brand"
-              : pub.badgeVariant === "trans"
-              ? "warning"
-              : "neutral";
+            pub.badgeVariant === 'serv'
+              ? 'brand'
+              : pub.badgeVariant === 'trans'
+                ? 'warning'
+                : 'neutral';
 
           return (
             <Link

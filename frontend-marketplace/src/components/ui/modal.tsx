@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -10,15 +10,15 @@ export interface ModalProps {
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
 const sizeClasses = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-2xl",
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-2xl',
 };
 
 export function Modal({
@@ -28,25 +28,25 @@ export function Modal({
   description,
   children,
   footer,
-  size = "md",
+  size = 'md',
   className,
 }: ModalProps) {
   // Manejo de la tecla Escape para cerrar
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
+      if (event.key === 'Escape' && isOpen) {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
     }
 
     return () => {
-      document.body.style.overflow = "unset";
-      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -57,8 +57,8 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? "modal-title" : undefined}
-      aria-describedby={description ? "modal-description" : undefined}
+      aria-labelledby={title ? 'modal-title' : undefined}
+      aria-describedby={description ? 'modal-description' : undefined}
     >
       {/* Backdrop */}
       <div
@@ -70,10 +70,10 @@ export function Modal({
       {/* Modal Card */}
       <div
         className={cn(
-          "relative w-full bg-surface-main rounded-xl border border-border-base shadow-xl",
-          "flex flex-col max-h-[90vh] overflow-hidden z-10 transition-all",
+          'relative w-full bg-surface-main rounded-xl border border-border-base shadow-xl',
+          'flex flex-col max-h-[90vh] overflow-hidden z-10 transition-all',
           sizeClasses[size],
-          className
+          className,
         )}
       >
         {/* Header */}
@@ -89,10 +89,7 @@ export function Modal({
                 </h3>
               )}
               {description && (
-                <p
-                  id="modal-description"
-                  className="text-xs text-content-muted mt-1"
-                >
+                <p id="modal-description" className="text-xs text-content-muted mt-1">
                   {description}
                 </p>
               )}
@@ -104,12 +101,7 @@ export function Modal({
               className="text-content-muted hover:text-content-main p-1 rounded-md hover:bg-surface-base transition-colors"
               aria-label="Cerrar modal"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -122,9 +114,7 @@ export function Modal({
         )}
 
         {/* Body */}
-        <div className="px-6 py-4 overflow-y-auto text-sm text-content-main">
-          {children}
-        </div>
+        <div className="px-6 py-4 overflow-y-auto text-sm text-content-main">{children}</div>
 
         {/* Footer */}
         {footer && (

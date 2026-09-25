@@ -6,7 +6,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  
+
   // Acciones para mutar el estado
   setAuth: (user: User, token: string) => void;
   clearAuth: () => void;

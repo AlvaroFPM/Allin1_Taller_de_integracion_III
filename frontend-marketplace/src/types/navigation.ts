@@ -20,7 +20,7 @@ export interface UserSession {
   name: string;
   email: string;
   initials: string;
-  role: "CLIENTE" | "PROVEEDOR" | "ADMIN";
+  role: 'CLIENTE' | 'PROVEEDOR' | 'ADMIN';
   avatarUrl?: string;
   isVerified?: boolean;
 }

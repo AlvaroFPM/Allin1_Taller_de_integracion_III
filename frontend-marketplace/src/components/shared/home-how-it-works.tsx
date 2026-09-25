@@ -1,30 +1,30 @@
-import * as React from "react";
-import type { StepItem } from "@/types/home";
+import * as React from 'react';
+import type { StepItem } from '@/types/home';
 
 const defaultSteps: StepItem[] = [
   {
-    number: "01",
-    title: "Publica en 1 minuto",
-    tag: "Rápido y Gratis",
-    icon: "📝",
+    number: '01',
+    title: 'Publica en 1 minuto',
+    tag: 'Rápido y Gratis',
+    icon: '📝',
     description:
-      "Describe lo que necesitas (un flete, una reparación técnica o un artículo), tu comuna y fija tu presupuesto estimado sin costo alguno.",
+      'Describe lo que necesitas (un flete, una reparación técnica o un artículo), tu comuna y fija tu presupuesto estimado sin costo alguno.',
   },
   {
-    number: "02",
-    title: "Compara y coordina",
-    tag: "Perfiles Verificados",
-    icon: "💬",
+    number: '02',
+    title: 'Compara y coordina',
+    tag: 'Perfiles Verificados',
+    icon: '💬',
     description:
-      "Recibe propuestas de personas y técnicos calificados en tiempo real, revisa sus estrellas de reputación y chatea directamente.",
+      'Recibe propuestas de personas y técnicos calificados en tiempo real, revisa sus estrellas de reputación y chatea directamente.',
   },
   {
-    number: "03",
-    title: "Pago Seguro en Custodia",
-    tag: "Garantía Escrow",
-    icon: "🛡️",
+    number: '03',
+    title: 'Pago Seguro en Custodia',
+    tag: 'Garantía Escrow',
+    icon: '🛡️',
     description:
-      "Paga con total tranquilidad: tu dinero queda protegido en custodia Escrow y solo se libera al proveedor cuando confirmes tu conformidad.",
+      'Paga con total tranquilidad: tu dinero queda protegido en custodia Escrow y solo se libera al proveedor cuando confirmes tu conformidad.',
   },
 ];
 
@@ -51,9 +51,7 @@ export function HomeHowItWorks({ steps = defaultSteps }: { steps?: StepItem[] })
             <div>
               {/* Fila Superior: Número y Tag */}
               <div className="flex items-center justify-between mb-5">
-                <span className="text-2xl font-black text-brand tracking-tight">
-                  {step.number}
-                </span>
+                <span className="text-2xl font-black text-brand tracking-tight">{step.number}</span>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-light text-brand-hover border border-brand/20">
                   {step.tag}
                 </span>

@@ -3,12 +3,12 @@ export interface CategoryPill {
   label: string;
   icon: string;
   href: string;
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg';
   highlight?: boolean;
-  offset?: "top" | "bottom" | "none";
+  offset?: 'top' | 'bottom' | 'none';
 }
 
-export type PublicationBadgeVariant = "serv" | "trans" | "item";
+export type PublicationBadgeVariant = 'serv' | 'trans' | 'item';
 
 export interface RecentPublication {
   id: string;

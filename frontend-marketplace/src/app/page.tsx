@@ -4,7 +4,7 @@ import {
   HomeHowItWorks,
   HomeRecentActivity,
   HomeReviews,
-} from "@/components/shared";
+} from '@/components/shared';
 
 export default function HomePage() {
   return (
