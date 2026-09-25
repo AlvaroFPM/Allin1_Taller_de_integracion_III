@@ -94,12 +94,16 @@ message ListPublicationsResponse {
   PaginationMeta meta = 2;
 }
 
+message GetCategoriesRequest {}
+
+message GetCategoriesResponse {
+  repeated Category categories = 1;
+}
 // Servicio gRPC con endpoints REST vía grpc-gateway
 service PublicationService {
-  rpc CreatePublication(CreatePublicationRequest) returns (CreatePublicationResponse) {
+  rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse) {
     option (google.api.http) = {
-      post: "/v1/publications"
-      body: "*"
+      get: "/v1/categories"
     };
   }
 

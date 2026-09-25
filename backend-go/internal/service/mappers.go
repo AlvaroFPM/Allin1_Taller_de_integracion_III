@@ -86,12 +86,7 @@ func modelEstadoToProto(estado string) pb.EstadoPublicacion {
 func mapModelToProto(m *models.Publicacion) *pb.Publication {
 	var protoCategoria *pb.Category
 	if m.Categoria.IDCategoria != 0 {
-		protoCategoria = &pb.Category{
-			IdCategoria: uint32(m.Categoria.IDCategoria),
-			Nombre:      m.Categoria.Nombre,
-			Slug:        m.Categoria.Slug,
-			IconoUrl:    m.Categoria.IconoURL,
-		}
+		protoCategoria = mapCategoriaToProto(&m.Categoria)
 	}
 
 	return &pb.Publication{
@@ -109,4 +104,19 @@ func mapModelToProto(m *models.Publicacion) *pb.Publication {
 		CreatedAt:         timestamppb.New(m.CreatedAt),
 		UpdatedAt:         timestamppb.New(m.UpdatedAt),
 	}
+}
+
+// mapCategoriaToProto convierte un models.Categoria a su representación protobuf
+func mapCategoriaToProto(c *models.Categoria) *pb.Category {
+	category := &pb.Category{
+		IdCategoria: uint32(c.IDCategoria),
+		Nombre:      c.Nombre,
+		Slug:        c.Slug,
+	}
+
+	if c.IconoURL != nil {
+		category.IconoUrl = c.IconoURL
+	}
+
+	return category
 }
