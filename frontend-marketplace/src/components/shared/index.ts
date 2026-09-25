@@ -14,3 +14,7 @@ export * from './register-card';
 export * from './publication-type-selector';
 export * from './publication-live-preview';
 export * from './create-publication-form';
+export * from './publication-card';
+export * from './catalog-search-header';
+export * from './catalog-sidebar-filters';
+export * from './catalog-grid';
