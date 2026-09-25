@@ -80,7 +80,22 @@ func (s *PublicationServiceServer) GetPublication(ctx context.Context, req *pb.G
 		Publication: mapModelToProto(&pub),
 	}, nil
 }
+// GetCategories retorna todas las categorías disponibles, ordenadas alfabéticamente
+func (s *PublicationServiceServer) GetCategories(ctx context.Context, req *pb.GetCategoriesRequest) (*pb.GetCategoriesResponse, error) {
+	var categorias []models.Categoria
+	if err := s.db.WithContext(ctx).Order("nombre ASC").Find(&categorias).Error; err != nil {
+		return nil, status.Errorf(codes.Internal, "error al obtener categorías: %v", err)
+	}
 
+	protoCategories := make([]*pb.Category, 0, len(categorias))
+	for i := range categorias {
+		protoCategories = append(protoCategories, mapCategoriaToProto(&categorias[i]))
+	}
+
+	return &pb.GetCategoriesResponse{
+		Categories: protoCategories,
+	}, nil
+}
 // ListPublications consulta publicaciones activas paginadas con filtros opcionales
 func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb.ListPublicationsRequest) (*pb.ListPublicationsResponse, error) {
 	page := req.GetPage()
