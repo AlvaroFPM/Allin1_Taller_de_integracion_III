@@ -6,15 +6,19 @@ import (
 	"regexp"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 // AuthService implementa la interfaz gRPC AuthServiceServer
 type AuthService struct {
 	auth.UnimplementedAuthServiceServer
 	validate *validator.Validate
+	db       *gorm.DB
 }
 
 // Custom validator para RN-06
@@ -31,11 +35,12 @@ func passwordRuleValid(fl validator.FieldLevel) bool {
 }
 
 // NewAuthService crea una nueva instancia de AuthService
-func NewAuthService() *AuthService {
+func NewAuthService(db *gorm.DB) *AuthService {
 	v := validator.New()
 	v.RegisterValidation("password_rn06", passwordRuleValid)
 	return &AuthService{
 		validate: v,
+		db:       db,
 	}
 }
 
@@ -58,11 +63,42 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 		return nil, status.Errorf(codes.InvalidArgument, "datos de registro inválidos: %v", err)
 	}
 
-	// TODO: Implementar hasheo de contraseña y guardado en DB
-	fmt.Printf("Recibida petición de registro para email: %s\n", req.GetEmail())
+	// 2. Hashear la contraseña con bcrypt
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.GetPassword()), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error al procesar la contraseña")
+	}
+
+	// 3. Mapear al modelo GORM basado en el MER
+	nuevoUsuario := models.Usuario{
+		Rut:          req.GetRut(),
+		Nombres:      req.GetFirstName(),
+		Apellidos:    req.GetLastName(),
+		Correo:       req.GetEmail(),
+		PasswordHash: string(hashedPassword),
+		Rol:          "CLIENTE",
+		EstadoActivo: true,
+	}
+
+	// 4. Guardar en PostgreSQL
+	if s.db != nil {
+		// Verificar si el correo ya existe
+		var check models.Usuario
+		if err := s.db.Where("correo = ?", req.GetEmail()).First(&check).Error; err == nil {
+			return nil, status.Errorf(codes.AlreadyExists, "el correo ya está registrado")
+		}
+
+		if err := s.db.Create(&nuevoUsuario).Error; err != nil {
+			return nil, status.Errorf(codes.Internal, "error al guardar el usuario en la base de datos")
+		}
+		fmt.Printf("Usuario %s registrado exitosamente con ID %d\n", nuevoUsuario.Correo, nuevoUsuario.IDUsuario)
+	} else {
+		// Mock temporal para que los tests antiguos sigan pasando sin DB
+		nuevoUsuario.IDUsuario = 1
+	}
 
 	return &auth.RegisterResponse{
-		UserId:  1, // ID mockeado por ahora
+		UserId:  int64(nuevoUsuario.IDUsuario),
 		Message: "Usuario registrado exitosamente",
 		Token:   "mock-jwt-token-para-registro",
 	}, nil

@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 const (
 	TipoOferta  = "OFERTA"
 	TipoDemanda = "DEMANDA"

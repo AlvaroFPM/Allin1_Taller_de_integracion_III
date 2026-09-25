@@ -8,7 +8,7 @@ import (
 )
 
 func TestAuthService_Register_Valid(t *testing.T) {
-	service := NewAuthService()
+	service := NewAuthService(nil)
 	req := &auth.RegisterRequest{
 		FirstName: "Alvaro",
 		LastName:  "Perez",
@@ -28,7 +28,7 @@ func TestAuthService_Register_Valid(t *testing.T) {
 }
 
 func TestAuthService_Register_InvalidEmail(t *testing.T) {
-	service := NewAuthService()
+	service := NewAuthService(nil)
 	req := &auth.RegisterRequest{
 		FirstName: "Alvaro",
 		LastName:  "Perez",
@@ -44,7 +44,7 @@ func TestAuthService_Register_InvalidEmail(t *testing.T) {
 }
 
 func TestAuthService_Register_ShortPassword(t *testing.T) {
-	service := NewAuthService()
+	service := NewAuthService(nil)
 	req := &auth.RegisterRequest{
 		FirstName: "Alvaro",
 		LastName:  "Perez",

@@ -10,6 +10,7 @@ import (
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
@@ -27,7 +28,12 @@ func main() {
 		log.Fatalf("No se pudo conectar a la base de datos: %v", err)
 	}
 	fmt.Println("Conexión a la base de datos exitosa.")
-	_ = db // TODO: Pasar la instancia de DB al servicio cuando sea necesario
+
+	// Auto-migrar la tabla del diagrama MER
+	if err := db.AutoMigrate(&models.Usuario{}); err != nil {
+		log.Fatalf("Error al migrar la base de datos: %v", err)
+	}
+	fmt.Println("Migración de base de datos completada.")
 
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {
@@ -46,7 +52,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	authService := service.NewAuthService()
+	authService := service.NewAuthService(db)
 	auth.RegisterAuthServiceServer(grpcServer, authService)
 	reflection.Register(grpcServer)
 
