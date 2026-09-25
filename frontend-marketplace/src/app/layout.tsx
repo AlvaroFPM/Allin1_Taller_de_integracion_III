@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { DM_Sans } from 'next/font/google';
 import { Navbar, Footer } from '@/components/shared';
+import { ToastContainer } from '@/components/ui';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -26,6 +27,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
+        <ToastContainer />
       </body>
     </html>
   );
