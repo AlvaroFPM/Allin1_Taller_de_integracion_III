@@ -30,6 +30,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
       if (!window.location.pathname.includes('/login')) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login?expired=true';
       }
     }

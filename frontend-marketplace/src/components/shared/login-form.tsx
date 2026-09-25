@@ -20,7 +20,6 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    reset,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     mode: 'onTouched',

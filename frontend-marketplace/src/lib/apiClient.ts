@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAccessToken, removeAuthTokens } from '@/utils/authCookies';
+import { getAccessToken, removeAuthTokens } from '@/lib/authCookies';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export const apiClient = axios.create({
@@ -33,6 +33,7 @@ apiClient.interceptors.response.use(
 
       // Redirigir al usuario al login si no esta en rutas publicas
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login?session=expired';
       }
     }
