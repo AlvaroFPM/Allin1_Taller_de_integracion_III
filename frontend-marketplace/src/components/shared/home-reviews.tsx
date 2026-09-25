@@ -1,36 +1,36 @@
-import * as React from "react";
-import type { CustomerReview } from "@/types/home";
+import * as React from 'react';
+import type { CustomerReview } from '@/types/home';
 
 const defaultReviews: CustomerReview[] = [
   {
-    id: "1",
-    reviewerName: "Camila R.",
-    reviewerInitials: "CR",
-    serviceTag: "Gasfitería & Plomería",
+    id: '1',
+    reviewerName: 'Camila R.',
+    reviewerInitials: 'CR',
+    serviceTag: 'Gasfitería & Plomería',
     rating: 5,
     comment:
-      "Llegó en menos de 40 minutos para reparar una fuga en la cocina. El proceso de coordinación fue claro y sin complicaciones.",
-    completedDate: "Completado hace 2 horas",
+      'Llegó en menos de 40 minutos para reparar una fuga en la cocina. El proceso de coordinación fue claro y sin complicaciones.',
+    completedDate: 'Completado hace 2 horas',
   },
   {
-    id: "2",
-    reviewerName: "Matías V.",
-    reviewerInitials: "MV",
-    serviceTag: "Fletes & Mudanzas",
+    id: '2',
+    reviewerName: 'Matías V.',
+    reviewerInitials: 'MV',
+    serviceTag: 'Fletes & Mudanzas',
     rating: 5,
     comment:
-      "Excelente disposición para mover el sillón y las cajas hasta el departamento. Todo llegó en perfecto estado.",
-    completedDate: "Completado hoy",
+      'Excelente disposición para mover el sillón y las cajas hasta el departamento. Todo llegó en perfecto estado.',
+    completedDate: 'Completado hoy',
   },
   {
-    id: "3",
-    reviewerName: "Fernanda S.",
-    reviewerInitials: "FS",
-    serviceTag: "Compra de Herramientas",
+    id: '3',
+    reviewerName: 'Fernanda S.',
+    reviewerInitials: 'FS',
+    serviceTag: 'Compra de Herramientas',
     rating: 5,
     comment:
-      "El artículo venía sellado y con entrega coordinada el mismo día. Muy práctico tener todo integrado en una sola plataforma.",
-    completedDate: "Completado ayer",
+      'El artículo venía sellado y con entrega coordinada el mismo día. Muy práctico tener todo integrado en una sola plataforma.',
+    completedDate: 'Completado ayer',
   },
 ];
 
@@ -64,15 +64,13 @@ export function HomeReviews({ reviews = defaultReviews }: { reviews?: CustomerRe
                   <h4 className="text-sm font-bold text-content-main leading-tight">
                     {rev.reviewerName}
                   </h4>
-                  <span className="text-[11px] text-content-muted">
-                    {rev.serviceTag}
-                  </span>
+                  <span className="text-[11px] text-content-muted">{rev.serviceTag}</span>
                 </div>
               </div>
 
               {/* Estrellas doradas */}
               <div className="text-amber-500 text-sm tracking-wider flex shrink-0 select-none">
-                {"★".repeat(rev.rating)}
+                {'★'.repeat(rev.rating)}
               </div>
             </div>
 

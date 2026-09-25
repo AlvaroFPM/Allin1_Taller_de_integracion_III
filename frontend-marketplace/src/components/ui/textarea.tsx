@@ -1,28 +1,14 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   helperText?: string;
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  (
-    {
-      className,
-      label,
-      error,
-      helperText,
-      id,
-      disabled,
-      required,
-      rows = 4,
-      ...props
-    },
-    ref
-  ) => {
+  ({ className, label, error, helperText, id, disabled, required, rows = 4, ...props }, ref) => {
     const generatedId = React.useId();
     const textareaId = id || generatedId;
     const errorId = `${textareaId}-error`;
@@ -46,18 +32,16 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           rows={rows}
           disabled={disabled}
           aria-invalid={!!error}
-          aria-describedby={
-            error ? errorId : helperText ? helperId : undefined
-          }
+          aria-describedby={error ? errorId : helperText ? helperId : undefined}
           className={cn(
-            "w-full px-3.5 py-2.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors resize-y",
-            "placeholder:text-content-muted/60",
-            "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1",
-            "disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base",
+            'w-full px-3.5 py-2.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors resize-y',
+            'placeholder:text-content-muted/60',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1',
+            'disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base',
             error
-              ? "border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500"
-              : "border-border-base focus-visible:ring-brand focus-visible:border-brand",
-            className
+              ? 'border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500'
+              : 'border-border-base focus-visible:ring-brand focus-visible:border-brand',
+            className,
           )}
           {...props}
         />
@@ -73,7 +57,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         ) : null}
       </div>
     );
-  }
+  },
 );
 
-Textarea.displayName = "Textarea";
+Textarea.displayName = 'Textarea';

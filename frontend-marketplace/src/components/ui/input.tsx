@@ -1,8 +1,7 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;
@@ -14,7 +13,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
     {
       className,
-      type = "text",
+      type = 'text',
       label,
       error,
       helperText,
@@ -25,7 +24,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       required,
       ...props
     },
-    ref
+    ref,
   ) => {
     const generatedId = React.useId();
     const inputId = id || generatedId;
@@ -57,20 +56,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={
-              error ? errorId : helperText ? helperId : undefined
-            }
+            aria-describedby={error ? errorId : helperText ? helperId : undefined}
             className={cn(
-              "w-full h-10 px-3.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors",
-              "placeholder:text-content-muted/60",
-              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1",
-              "disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base",
+              'w-full h-10 px-3.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors',
+              'placeholder:text-content-muted/60',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1',
+              'disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base',
               error
-                ? "border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500"
-                : "border-border-base focus-visible:ring-brand focus-visible:border-brand",
-              leftIcon && "pl-10",
-              rightIcon && "pr-10",
-              className
+                ? 'border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500'
+                : 'border-border-base focus-visible:ring-brand focus-visible:border-brand',
+              leftIcon && 'pl-10',
+              rightIcon && 'pr-10',
+              className,
             )}
             {...props}
           />
@@ -93,7 +90,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         ) : null}
       </div>
     );
-  }
+  },
 );
 
-Input.displayName = "Input";
+Input.displayName = 'Input';

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 export interface FilterTab {
   id: string;
@@ -21,8 +21,8 @@ export interface FilterBarProps {
 }
 
 export function FilterBar({
-  searchPlaceholder = "Buscar por título, oficio o ubicación...",
-  searchValue = "",
+  searchPlaceholder = 'Buscar por título, oficio o ubicación...',
+  searchValue = '',
   onSearchChange,
   tabs = [],
   activeTab,
@@ -33,8 +33,8 @@ export function FilterBar({
   return (
     <div
       className={cn(
-        "bg-surface-main border border-border-base rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs",
-        className
+        'bg-surface-main border border-border-base rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs',
+        className,
       )}
     >
       {/* Fila Superior: Buscador y Acción Derecha */}
@@ -72,20 +72,18 @@ export function FilterBar({
                 type="button"
                 onClick={() => onTabChange?.(tab.id)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer",
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer',
                   isActive
-                    ? "bg-brand text-surface-main shadow-xs"
-                    : "text-content-muted hover:text-content-main hover:bg-surface-base"
+                    ? 'bg-brand text-surface-main shadow-xs'
+                    : 'text-content-muted hover:text-content-main hover:bg-surface-base',
                 )}
               >
                 <span>{tab.label}</span>
-                {typeof tab.count === "number" && (
+                {typeof tab.count === 'number' && (
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-surface-base text-content-muted"
+                      'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
+                      isActive ? 'bg-white/20 text-white' : 'bg-surface-base text-content-muted',
                     )}
                   >
                     {tab.count}

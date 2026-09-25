@@ -1,32 +1,32 @@
-import * as React from "react";
-import Link from "next/link";
-import type { FooterProps, FooterSection } from "@/types/navigation";
+import * as React from 'react';
+import Link from 'next/link';
+import type { FooterProps, FooterSection } from '@/types/navigation';
 
 const defaultFooterSections: FooterSection[] = [
   {
-    title: "Trabajadores & Proveedores",
+    title: 'Trabajadores & Proveedores',
     links: [
-      { label: "Bolsa de trabajos", href: "/#trabajos" },
-      { label: "Billetera y retiros", href: "/perfil#billetera" },
-      { label: "Garantía de pago (Escrow)", href: "/garantias" },
-      { label: "Validación de identidad", href: "/verificacion" },
+      { label: 'Bolsa de trabajos', href: '/#trabajos' },
+      { label: 'Billetera y retiros', href: '/perfil#billetera' },
+      { label: 'Garantía de pago (Escrow)', href: '/garantias' },
+      { label: 'Validación de identidad', href: '/verificacion' },
     ],
   },
   {
-    title: "Clientes & Compradores",
+    title: 'Clientes & Compradores',
     links: [
-      { label: "Publicar solicitud", href: "/publicar" },
-      { label: "Catálogo de artículos", href: "/#marketplace" },
-      { label: "Seguimiento de envíos", href: "/tracking" },
-      { label: "Soporte y mediación", href: "/soporte" },
+      { label: 'Publicar solicitud', href: '/publicar' },
+      { label: 'Catálogo de artículos', href: '/#marketplace' },
+      { label: 'Seguimiento de envíos', href: '/tracking' },
+      { label: 'Soporte y mediación', href: '/soporte' },
     ],
   },
   {
-    title: "Plataforma",
+    title: 'Plataforma',
     links: [
-      { label: "Términos y condiciones", href: "/terminos" },
-      { label: "Política de privacidad", href: "/privacidad" },
-      { label: "Seguridad y confianza", href: "/seguridad" },
+      { label: 'Términos y condiciones', href: '/terminos' },
+      { label: 'Política de privacidad', href: '/privacidad' },
+      { label: 'Seguridad y confianza', href: '/seguridad' },
     ],
   },
 ];
@@ -42,12 +42,11 @@ export function Footer({ sections = defaultFooterSections }: FooterProps) {
               <div className="w-8 h-8 rounded-lg bg-brand-light border border-brand/25 flex items-center justify-center text-brand-hover font-extrabold text-xs">
                 A1
               </div>
-              <h3 className="text-lg font-extrabold tracking-tight text-content-main">
-                Allin1
-              </h3>
+              <h3 className="text-lg font-extrabold tracking-tight text-content-main">Allin1</h3>
             </div>
             <p className="text-sm text-content-muted leading-relaxed max-w-sm">
-              Ecosistema centralizado de conexión oferta y demanda en tiempo real con transaccionalidad integrada y pagos protegidos.
+              Ecosistema centralizado de conexión oferta y demanda en tiempo real con
+              transaccionalidad integrada y pagos protegidos.
             </p>
           </div>
 

@@ -1,17 +1,18 @@
-import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
-import { Navbar, Footer } from "@/components/shared";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { DM_Sans } from 'next/font/google';
+import { Navbar, Footer } from '@/components/shared';
+import './globals.css';
 
 const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  display: "swap",
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Allin1 - Marketplace Integral & Servicios en Tiempo Real",
-  description: "Ecosistema centralizado de conexión de oferta y demanda en tiempo real con pagos protegidos y verificación de identidad.",
+  title: 'Allin1 - Marketplace Integral & Servicios en Tiempo Real',
+  description:
+    'Ecosistema centralizado de conexión de oferta y demanda en tiempo real con pagos protegidos y verificación de identidad.',
 };
 
 export default function RootLayout({
