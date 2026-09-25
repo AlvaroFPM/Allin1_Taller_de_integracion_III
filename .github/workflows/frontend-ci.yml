@@ -1,0 +1,99 @@
+# ============================================================================
+# Frontend CI — Next.js Build Validation
+# ============================================================================
+#
+# Este workflow tiene una única responsabilidad: verificar que el proyecto
+# Next.js (frontend-marketplace/) compila correctamente.
+#
+# ¿Por qué un workflow separado del lint?
+# ────────────────────────────────────────
+# Seguimos el Principio de Responsabilidad Única (SRP): cada workflow se
+# encarga de UNA sola cosa. lint.yml valida estilo y reglas de código;
+# este archivo valida que el proyecto COMPILA sin errores de TypeScript,
+# imports rotos, configuración inválida, etc.
+#
+# Ventajas de separarlos:
+#   1. Feedback más claro — en el PR se ven checks independientes
+#      ("lint ✓ / build ✗") y el dev sabe exactamente qué falló.
+#   2. Ejecución paralela — GitHub corre ambos workflows al mismo
+#      tiempo, reduciendo el tiempo total de espera.
+#   3. Mantenimiento — se puede modificar uno sin riesgo de romper
+#      el otro.
+#   4. Filtrado de paths independiente — cada workflow se dispara
+#      solo cuando cambian los archivos que le competen.
+# ============================================================================
+
+name: "Frontend CI — Next.js Build"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TRIGGER
+# ──────────────────────────────────────────────────────────────────────────────
+# Se ejecuta SOLO en Pull Requests dirigidos a la rama "develop".
+# El filtro de paths evita gastar minutos de CI cuando el PR solo
+# toca archivos fuera de frontend-marketplace/ (por ejemplo, cambios
+# exclusivos en backend-go/ o en documentación).
+# También se dispara si se modifica este mismo archivo de workflow,
+# para validar que los cambios al CI no rompan nada.
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "frontend-marketplace/**"
+      - ".github/workflows/frontend-ci.yml"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOBS
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+  nextjs-build:
+    name: "Next.js Build"
+    # Usamos la última versión estable de Ubuntu proporcionada por GitHub.
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout del código ─────────────────────────────────────────────
+      # Descarga el código del repositorio en el runner para que los
+      # pasos siguientes puedan acceder a los archivos del proyecto.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Configurar Node.js con caché de npm ────────────────────────────
+      # Se usa Node.js 20 para coincidir con @types/node ^20 del
+      # package.json del frontend.
+      # La opción "cache: npm" junto con "cache-dependency-path" cachea
+      # el directorio ~/.npm entre ejecuciones. Así, npm ci reutiliza
+      # paquetes descargados previamente y la instalación es más rápida
+      # en runs sucesivos.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend-marketplace/package-lock.json
+
+      # ── 3. Instalar dependencias ───────────────────────────────────────────
+      # "npm ci" hace una instalación limpia y determinista basada en
+      # package-lock.json (a diferencia de "npm install", que podría
+      # alterar el lock file). Esto garantiza reproducibilidad en CI.
+      - name: Install dependencies
+        working-directory: frontend-marketplace
+        run: npm ci
+
+      # ── 4. Build de Next.js ────────────────────────────────────────────────
+      # Este es el paso CENTRAL del workflow. "next build" compila el
+      # proyecto completo: transpila TypeScript, resuelve imports,
+      # genera las páginas estáticas y valida la configuración.
+      #
+      # Si hay CUALQUIER error (tipo TypeScript incorrecto, import de
+      # un módulo inexistente, error en next.config, etc.), este paso
+      # falla con exit code != 0, lo que hace fallar todo el job y
+      # bloquea el merge del PR (cuando se configure como required
+      # check en Settings > Branch Protection Rules de GitHub).
+      #
+      # NOTA: No se incluye un paso de lint aquí — eso ya lo maneja
+      # el workflow lint.yml, siguiendo el principio de responsabilidad
+      # única explicado al inicio del archivo.
+      - name: Build Next.js
+        working-directory: frontend-marketplace
+        run: npm run build
