@@ -20,21 +20,19 @@ const mockUser: UserSession = {
 };
 
 export function Navbar({ user = null, onLogout }: NavbarProps) {
-  const [currentUser, setCurrentUser] = React.useState<UserSession | null>(user);
+  const [mockSession, setMockSession] = React.useState<UserSession | null>(null);
 
-  React.useEffect(() => {
-    setCurrentUser(user);
-  }, [user]);
+  const currentUser = user ?? mockSession;
 
   if (!currentUser) {
-    return <NavbarGuest onLogin={() => setCurrentUser(mockUser)} />;
+    return <NavbarGuest onLogin={() => setMockSession(mockUser)} />;
   }
 
   return (
     <NavbarUser
       user={currentUser}
       onLogout={() => {
-        setCurrentUser(null);
+        setMockSession(null);
         onLogout?.();
       }}
     />
