@@ -7,3 +7,4 @@ export * from './filter-bar';
 export * from './spinner';
 export * from './badge';
 export * from './card';
+export * from './toast';
