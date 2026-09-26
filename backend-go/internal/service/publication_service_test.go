@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
 // baseValidRequest genera un CreatePublicationRequest válido para mutar en cada caso de prueba
 func baseValidRequest() *pb.CreatePublicationRequest {
 	return &pb.CreatePublicationRequest{

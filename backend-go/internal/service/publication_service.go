@@ -110,7 +110,12 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 
 	offset := int((page - 1) * limit)
 
-	query := s.db.WithContext(ctx).Model(&models.Publicacion{}).Where("estado = ?", models.EstadoActivo)
+	// FIX 2: Session(&gorm.Session{}) evita que Count() y Find() compartan y
+	// contaminen el mismo *Statement al reusar la variable `query`.
+	// Ver: https://gorm.io/docs/method_chaining.html#Reusability-and-Safety
+	query := s.db.WithContext(ctx).Session(&gorm.Session{}).
+		Model(&models.Publicacion{}).
+		Where("estado = ?", models.EstadoActivo)
 
 	// Filtros opcionales
 	if req.CategoriaId != nil && *req.CategoriaId > 0 {
@@ -148,7 +153,9 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 
 	totalPages := int32(math.Ceil(float64(totalRecords) / float64(limit)))
 
-	var protoList []*pb.Publication
+	// FIX 1: make() en vez de `var` para que el JSON devuelva [] en vez de null
+	// cuando no hay resultados (evita TypeError en el .map() de Next.js).
+	protoList := make([]*pb.Publication, 0, len(publicaciones))
 	for i := range publicaciones {
 		protoList = append(protoList, mapModelToProto(&publicaciones[i]))
 	}
