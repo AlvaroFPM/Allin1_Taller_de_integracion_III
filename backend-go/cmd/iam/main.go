@@ -31,7 +31,10 @@ func main() {
 
 	// Auto-migrar la tabla del diagrama MER
 	if err := db.AutoMigrate(&models.Usuario{}); err != nil {
-		log.Fatalf("Error al migrar la base de datos: %v", err)
+    log.Fatalf("Error al migrar Usuario: %v", err)
+	}
+	if err := db.AutoMigrate(&models.Perfil{}); err != nil {
+		log.Fatalf("Error al migrar Perfil: %v", err)
 	}
 	fmt.Println("Migración de base de datos completada.")
 
