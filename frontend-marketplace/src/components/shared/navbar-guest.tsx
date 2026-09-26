@@ -7,8 +7,6 @@ import type { NavItem } from '@/types/navigation';
 
 const guestNavItems: NavItem[] = [
   { label: 'Explorar', href: '/explorar' },
-  { label: 'Bolsa de Trabajos', href: '/#trabajos' },
-  { label: 'Artículos', href: '/#marketplace' },
   { label: 'Soporte', href: '/soporte' },
 ];
 

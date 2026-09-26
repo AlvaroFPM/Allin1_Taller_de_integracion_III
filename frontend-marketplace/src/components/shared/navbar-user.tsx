@@ -12,8 +12,6 @@ import type { User } from '@/types/auth';
 
 const userNavItems: NavItem[] = [
   { label: 'Explorar', href: '/explorar' },
-  { label: 'Bolsa de Trabajos', href: '/#trabajos' },
-  { label: 'Artículos', href: '/#marketplace' },
   { label: 'Soporte', href: '/soporte' },
   { label: 'Mi Perfil', href: '/perfil' },
 ];
