@@ -16,11 +16,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
-
-// =====================================================================
-// HELPERS COMPARTIDOS
-// =====================================================================
-
 // baseValidRequest genera un CreatePublicationRequest válido para mutar en cada caso de prueba
 func baseValidRequest() *pb.CreatePublicationRequest {
 	return &pb.CreatePublicationRequest{
