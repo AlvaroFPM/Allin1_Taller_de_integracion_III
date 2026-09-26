@@ -8,14 +8,12 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
 
-  // Redirigir a /login si intenta entrar a ruta protegida sin token
   if (protectedRoutes.some((route) => pathname.startsWith(route)) && !token) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirigir al Home si ya esta autenticado e intenta ir a login/registro
   if (authRoutes.some((route) => pathname.startsWith(route)) && token) {
     return NextResponse.redirect(new URL('/', request.url));
   }
@@ -24,5 +22,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/perfil/:path*', '/publicar/:path*', '/mis-publicaciones/:path*', '/login', '/registro'],
+  matcher: [
+    '/perfil/:path*',
+    '/publicar/:path*',
+    '/mis-publicaciones/:path*',
+    '/login',
+    '/registro',
+  ],
 };
