@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/store/useAuthStore';
 import { loginSchema, type LoginFormData } from '@/types/auth';
 
 export interface LoginFormProps {
@@ -37,6 +38,14 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', 'simulated_jwt_token_allin1');
     }
+    const simulatedUser = {
+      id: 1,
+      name: 'Francisco Barriga',
+      email: data.email,
+      role: 'PROVEEDOR' as const,
+      isVerified: true,
+    };
+    useAuthStore.getState().setAuth(simulatedUser, 'simulated_jwt_token_allin1');
     onSuccess?.(data);
   };
 
