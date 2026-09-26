@@ -1,40 +1,37 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { NavbarGuest } from './navbar-guest';
 import { NavbarUser } from './navbar-user';
 import type { UserSession } from '@/types/navigation';
+import type { User } from '@/types/auth';
 
 export interface NavbarProps {
-  user?: UserSession | null;
+  user?: UserSession | User | null;
   onLogout?: () => void;
 }
 
-const mockUser: UserSession = {
-  id: 1,
-  name: 'Juan Andrés Pérez',
-  email: 'juan.perez@allin1.cl',
-  initials: 'JP',
-  role: 'PROVEEDOR',
-  isVerified: true,
-};
+export function Navbar({ user, onLogout }: NavbarProps) {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authUser = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
-export function Navbar({ user = null, onLogout }: NavbarProps) {
-  const [mockSession, setMockSession] = React.useState<UserSession | null>(null);
+  // Permite sobreescribir el usuario vía props (para previews o testing)
+  // o utiliza el estado reactivo del store global
+  const currentUser = user !== undefined ? user : isAuthenticated && authUser ? authUser : null;
 
-  const currentUser = user ?? mockSession;
+  const handleLogout = React.useCallback(() => {
+    clearAuth();
+    onLogout?.();
+    router.push('/');
+  }, [clearAuth, onLogout, router]);
 
   if (!currentUser) {
-    return <NavbarGuest onLogin={() => setMockSession(mockUser)} />;
+    return <NavbarGuest />;
   }
 
-  return (
-    <NavbarUser
-      user={currentUser}
-      onLogout={() => {
-        setMockSession(null);
-        onLogout?.();
-      }}
-    />
-  );
+  return <NavbarUser user={currentUser} onLogout={handleLogout} />;
 }

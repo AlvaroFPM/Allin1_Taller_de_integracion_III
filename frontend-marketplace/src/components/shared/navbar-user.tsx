@@ -2,27 +2,79 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/store/useAuthStore';
+import { NavbarUserDropdown } from './navbar-user-dropdown';
 import type { UserSession, NavItem } from '@/types/navigation';
+import type { User } from '@/types/auth';
 
 const userNavItems: NavItem[] = [
+  { label: 'Explorar', href: '/explorar' },
   { label: 'Bolsa de Trabajos', href: '/#trabajos' },
   { label: 'Artículos', href: '/#marketplace' },
   { label: 'Soporte', href: '/soporte' },
   { label: 'Mi Perfil', href: '/perfil' },
 ];
 
+function getInitials(name?: string, fallback = 'U'): string {
+  if (!name) return fallback;
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 export interface NavbarUserProps {
-  user: UserSession;
+  user: UserSession | User;
+  isMobileOpen?: boolean;
+  onCloseMenu?: () => void;
   onLogout?: () => void;
 }
 
-export function NavbarUser({ user, onLogout }: NavbarUserProps) {
-  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+export function NavbarUser({
+  user,
+  isMobileOpen: controlledMobileOpen,
+  onCloseMenu,
+  onLogout,
+}: NavbarUserProps) {
+  const router = useRouter();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const [internalMobileOpen, setInternalMobileOpen] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const isControlled = controlledMobileOpen !== undefined;
+  const mobileOpen = isControlled ? controlledMobileOpen : internalMobileOpen;
+
+  const closeMenu = React.useCallback(() => {
+    if (isControlled) {
+      onCloseMenu?.();
+    } else {
+      setInternalMobileOpen(false);
+    }
+  }, [isControlled, onCloseMenu]);
+
+  const toggleMenu = React.useCallback(() => {
+    if (isControlled) {
+      if (mobileOpen) onCloseMenu?.();
+    } else {
+      setInternalMobileOpen((prev) => !prev);
+    }
+  }, [isControlled, mobileOpen, onCloseMenu]);
+
+  const handleLogout = React.useCallback(() => {
+    setIsDropdownOpen(false);
+    closeMenu();
+    clearAuth();
+    onLogout?.();
+    router.push('/');
+  }, [clearAuth, onLogout, router, closeMenu]);
+
+  const userInitials = (user as UserSession).initials || getInitials(user.name);
 
   // Cerrar dropdown al hacer clic fuera
   React.useEffect(() => {
@@ -37,19 +89,34 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isDropdownOpen]);
 
+  // Cerrar con Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDropdownOpen(false);
+        closeMenu();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closeMenu]);
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border-base bg-surface-main/95 backdrop-blur-md shadow-xs">
-      {/* Barra Principal */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo Allin1 */}
-        <Link href="/" className="flex items-center gap-2.5 select-none group shrink-0">
+        <Link
+          href="/"
+          onClick={closeMenu}
+          className="flex items-center gap-2.5 select-none group shrink-0"
+        >
           <div className="w-9 h-9 rounded-xl bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-black text-sm tracking-tight shadow-xs transition-transform group-hover:scale-105">
             A1
           </div>
           <span className="font-black text-xl tracking-tight text-content-main">Allin1</span>
         </Link>
 
-        {/* Buscador Rápido Central */}
+        {/* Buscador Rápido Central (Desktop) */}
         <div className="hidden lg:flex flex-1 max-w-md items-center">
           <div className="relative w-full flex items-center">
             <svg
@@ -74,7 +141,7 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
           </div>
         </div>
 
-        {/* Navegación Desktop con Mi Perfil */}
+        {/* Navegación Desktop */}
         <nav className="hidden md:flex items-center gap-1">
           {userNavItems.map((item) => (
             <Link
@@ -120,132 +187,45 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
               aria-expanded={isDropdownOpen}
               aria-label="Menú de cuenta de usuario"
             >
-              <div className="w-9 h-9 rounded-full bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                {user.initials || 'JP'}
+              <div className="w-9 h-9 rounded-full bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-bold text-xs shadow-xs overflow-hidden">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
             </button>
 
-            {/* Panel Dropdown Flotante */}
-            {isDropdownOpen && (
-              <div
-                className="absolute right-0 mt-2 w-64 rounded-2xl bg-surface-main border border-border-base shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Cabecera del Usuario */}
-                <div className="px-4 py-3 border-b border-border-base">
-                  <p className="text-sm font-bold text-content-main truncate">{user.name}</p>
-                  <p className="text-xs text-content-muted truncate">{user.email}</p>
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <Badge variant="brand" size="sm">
-                      {user.role}
-                    </Badge>
-                    <span className="text-[11px] text-brand font-medium">● Verificado</span>
-                  </div>
-                </div>
-
-                {/* Enlaces Rápidos */}
-                <div className="py-1">
-                  <Link
-                    href="/perfil"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 text-content-muted"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Mi Perfil y Actividad
-                  </Link>
-                  <Link
-                    href="/perfil#billetera"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 text-content-muted"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                      />
-                    </svg>
-                    Billetera & Pagos Escrow
-                  </Link>
-                  <Link
-                    href="/soporte"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 text-content-muted"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                    Centro de Ayuda
-                  </Link>
-                </div>
-
-                {/* Botón Cerrar Sesión */}
-                <div className="pt-1 border-t border-border-base">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      onLogout?.();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                  >
-                    <svg
-                      className="w-4 h-4 text-red-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Cerrar Sesión
-                  </button>
-                </div>
-              </div>
-            )}
+            <NavbarUserDropdown
+              user={user}
+              isOpen={isDropdownOpen}
+              onClose={() => setIsDropdownOpen(false)}
+              onLogout={handleLogout}
+            />
           </div>
         </div>
 
-        {/* Botón Móvil */}
+        {/* Botón Hamburguesa Móvil */}
         <button
           type="button"
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="md:hidden p-2 rounded-lg text-content-muted hover:text-content-main hover:bg-surface-base"
+          onClick={toggleMenu}
+          className="flex md:hidden p-2 rounded-lg text-content-muted hover:text-content-main hover:bg-surface-base transition-colors"
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
+          aria-controls="user-mobile-menu"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {isMobileOpen ? (
+          <svg
+            className="w-6 h-6 transition-transform duration-200"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            {mobileOpen ? (
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -264,17 +244,28 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
         </button>
       </div>
 
-      {/* Menú Móvil */}
-      {isMobileOpen && (
-        <div className="md:hidden border-b border-border-base bg-surface-main px-4 pt-3 pb-5 space-y-3">
+      {/* Menú Móvil Desplegable */}
+      {mobileOpen && (
+        <div
+          id="user-mobile-menu"
+          className="md:hidden border-b border-border-base bg-surface-main px-4 pt-3 pb-5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <div className="flex items-center gap-3 p-2 bg-surface-base rounded-xl">
-            <div className="w-9 h-9 rounded-full bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-bold text-xs">
-              {user.initials || 'JP'}
+            <div className="w-9 h-9 rounded-full bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                userInitials
+              )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-content-main truncate">{user.name}</p>
               <p className="text-[11px] text-content-muted truncate">{user.email}</p>
             </div>
+            <Badge variant="brand" size="sm">
+              {user.role}
+            </Badge>
           </div>
 
           <div className="flex flex-col space-y-1">
@@ -282,8 +273,8 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
               <Link
                 key={item.label}
                 href={item.href}
-                onClick={() => setIsMobileOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-medium text-content-main hover:bg-surface-base"
+                onClick={closeMenu}
+                className="px-3 py-2 rounded-md text-sm font-medium text-content-main hover:bg-surface-base transition-colors"
               >
                 {item.label}
               </Link>
@@ -291,20 +282,12 @@ export function NavbarUser({ user, onLogout }: NavbarUserProps) {
           </div>
 
           <div className="pt-2 border-t border-border-base flex flex-col gap-2">
-            <Link href="/publicar" onClick={() => setIsMobileOpen(false)}>
+            <Link href="/publicar" onClick={closeMenu} className="w-full">
               <Button variant="outline" size="sm" fullWidth>
                 + Publicar Solicitud
               </Button>
             </Link>
-            <Button
-              variant="danger"
-              size="sm"
-              fullWidth
-              onClick={() => {
-                setIsMobileOpen(false);
-                onLogout?.();
-              }}
-            >
+            <Button variant="danger" size="sm" fullWidth onClick={handleLogout}>
               Cerrar Sesión
             </Button>
           </div>

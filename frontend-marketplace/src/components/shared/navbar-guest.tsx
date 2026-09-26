@@ -6,32 +6,73 @@ import { Button } from '@/components/ui/button';
 import type { NavItem } from '@/types/navigation';
 
 const guestNavItems: NavItem[] = [
+  { label: 'Explorar', href: '/explorar' },
   { label: 'Bolsa de Trabajos', href: '/#trabajos' },
   { label: 'Artículos', href: '/#marketplace' },
   { label: 'Soporte', href: '/soporte' },
 ];
 
 export interface NavbarGuestProps {
+  isMobileOpen?: boolean;
+  onCloseMenu?: () => void;
   onLogin?: () => void;
 }
 
-export function NavbarGuest({ onLogin }: NavbarGuestProps) {
-  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+export function NavbarGuest({
+  isMobileOpen: controlledMobileOpen,
+  onCloseMenu,
+  onLogin,
+}: NavbarGuestProps) {
+  const [internalMobileOpen, setInternalMobileOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  const isControlled = controlledMobileOpen !== undefined;
+  const mobileOpen = isControlled ? controlledMobileOpen : internalMobileOpen;
+
+  const closeMenu = React.useCallback(() => {
+    if (isControlled) {
+      onCloseMenu?.();
+    } else {
+      setInternalMobileOpen(false);
+    }
+  }, [isControlled, onCloseMenu]);
+
+  const toggleMenu = React.useCallback(() => {
+    if (isControlled) {
+      if (mobileOpen) onCloseMenu?.();
+    } else {
+      setInternalMobileOpen((prev) => !prev);
+    }
+  }, [isControlled, mobileOpen, onCloseMenu]);
+
+  // Cerrar menú mobile con tecla Escape
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMenu();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileOpen, closeMenu]);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border-base bg-surface-main/95 backdrop-blur-md shadow-xs">
-      {/* Barra Principal */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo Allin1 */}
-        <Link href="/" className="flex items-center gap-2.5 select-none group shrink-0">
+        <Link
+          href="/"
+          onClick={closeMenu}
+          className="flex items-center gap-2.5 select-none group shrink-0"
+        >
           <div className="w-9 h-9 rounded-xl bg-linear-to-br from-brand to-brand-dark text-white flex items-center justify-center font-black text-sm tracking-tight shadow-xs transition-transform group-hover:scale-105">
             A1
           </div>
           <span className="font-black text-xl tracking-tight text-content-main">Allin1</span>
         </Link>
 
-        {/* Buscador Rápido Central */}
+        {/* Buscador Rápido Central (Desktop) */}
         <div className="hidden lg:flex flex-1 max-w-md items-center">
           <div className="relative w-full flex items-center">
             <svg
@@ -56,7 +97,7 @@ export function NavbarGuest({ onLogin }: NavbarGuestProps) {
           </div>
         </div>
 
-        {/* Navegación Desktop (Sin Mi Perfil) */}
+        {/* Navegación Desktop */}
         <nav className="hidden md:flex items-center gap-1">
           {guestNavItems.map((item) => (
             <Link
@@ -72,8 +113,8 @@ export function NavbarGuest({ onLogin }: NavbarGuestProps) {
         {/* Acciones para Visitante (Ingresar / Registrarse) */}
         <div className="hidden sm:flex items-center gap-2 shrink-0">
           <Link href="/login">
-            <Button variant="ghost" size="sm">
-              Ingresar
+            <Button variant="ghost" size="sm" onClick={onLogin}>
+              Iniciar Sesión
             </Button>
           </Link>
           <Link href="/registro">
@@ -83,15 +124,22 @@ export function NavbarGuest({ onLogin }: NavbarGuestProps) {
           </Link>
         </div>
 
-        {/* Botón Menú Móvil */}
+        {/* Botón Hamburguesa Móvil */}
         <button
           type="button"
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="md:hidden p-2 rounded-lg text-content-muted hover:text-content-main hover:bg-surface-base transition-colors"
-          aria-label="Abrir menú"
+          onClick={toggleMenu}
+          className="flex md:hidden p-2 rounded-lg text-content-muted hover:text-content-main hover:bg-surface-base transition-colors"
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
+          aria-controls="guest-mobile-menu"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {isMobileOpen ? (
+          <svg
+            className="w-6 h-6 transition-transform duration-200"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            {mobileOpen ? (
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -111,14 +159,17 @@ export function NavbarGuest({ onLogin }: NavbarGuestProps) {
       </div>
 
       {/* Menú Móvil Desplegable */}
-      {isMobileOpen && (
-        <div className="md:hidden border-b border-border-base bg-surface-main px-4 pt-3 pb-6 space-y-4">
+      {mobileOpen && (
+        <div
+          id="guest-mobile-menu"
+          className="md:hidden border-b border-border-base bg-surface-main px-4 pt-3 pb-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <div className="flex flex-col space-y-1">
             {guestNavItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                onClick={() => setIsMobileOpen(false)}
+                onClick={closeMenu}
                 className="px-3 py-2 rounded-md text-sm font-medium text-content-main hover:bg-surface-base transition-colors"
               >
                 {item.label}
@@ -126,19 +177,13 @@ export function NavbarGuest({ onLogin }: NavbarGuestProps) {
             ))}
           </div>
 
-          <div className="pt-3 border-t border-border-base grid grid-cols-2 gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              fullWidth
-              onClick={() => {
-                setIsMobileOpen(false);
-                onLogin?.();
-              }}
-            >
-              Ingresar
-            </Button>
-            <Link href="/registro" onClick={() => setIsMobileOpen(false)}>
+          <div className="pt-3 border-t border-border-base flex flex-col gap-2">
+            <Link href="/login" onClick={closeMenu} className="w-full">
+              <Button variant="outline" size="sm" fullWidth onClick={onLogin}>
+                Iniciar Sesión
+              </Button>
+            </Link>
+            <Link href="/registro" onClick={closeMenu} className="w-full">
               <Button variant="primary" size="sm" fullWidth>
                 Registrarse
               </Button>
