@@ -1,6 +1,7 @@
 export * from './navbar';
 export * from './navbar-guest';
 export * from './navbar-user';
+export * from './navbar-user-dropdown';
 export * from './footer';
 export * from './home-categories';
 export * from './home-hero';

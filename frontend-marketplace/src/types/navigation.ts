@@ -19,7 +19,7 @@ export interface UserSession {
   id: number;
   name: string;
   email: string;
-  initials: string;
+  initials?: string;
   role: 'CLIENTE' | 'PROVEEDOR' | 'ADMIN';
   avatarUrl?: string;
   isVerified?: boolean;
@@ -28,6 +28,7 @@ export interface UserSession {
 export interface NavbarProps {
   navItems?: NavItem[];
   user?: UserSession | null;
+  onLogout?: () => void;
 }
 
 export interface FooterProps {
