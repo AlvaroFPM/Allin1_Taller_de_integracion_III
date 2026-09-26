@@ -14,7 +14,7 @@ metadata:
   # Nombre del Service — referenciado por el Ingress
   name: iam
   # Namespace asignado al equipo en el cluster universitario
-  namespace: student-apinilla
+  namespace: student-aalarcon
   labels:
     # Labels consistentes con el resto de recursos del proyecto
     app: iam

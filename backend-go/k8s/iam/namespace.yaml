@@ -1,5 +1,5 @@
 # ==============================================================================
-# Namespace: student-apinilla
+# Namespace: student-aalarcon
 # ==============================================================================
 # Define el namespace asignado por el profesor para el equipo.
 # Aunque probablemente ya existe en el cluster (creado por el
@@ -13,7 +13,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   # Nombre del namespace asignado al equipo en el cluster universitario
-  name: student-apinilla
+  name: student-aalarcon
   labels:
     # Labels para identificación del proyecto
     app: iam

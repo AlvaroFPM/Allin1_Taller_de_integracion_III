@@ -21,7 +21,7 @@ metadata:
   # Nombre del Ingress
   name: iam
   # Namespace asignado al equipo en el cluster universitario
-  namespace: student-apinilla
+  namespace: student-aalarcon
   labels:
     # Labels consistentes con el resto de recursos del proyecto
     app: iam
@@ -51,7 +51,7 @@ spec:
   rules:
     # Host: Dominio bajo el cual se expone el servicio IAM.
     # Debe coincidir con la configuración DNS del cluster universitario.
-    - host: api.student-apinilla.estudiantes.dev.censei.cl
+    - host: api.student-aalarcon.estudiantes.dev.censei.cl
       http:
         paths:
           # Ruta: /v1/auth — captura todas las subrutas con pathType: Prefix
@@ -74,7 +74,7 @@ spec:
   #
   # tls:
   #   - hosts:
-  #       - api.student-apinilla.estudiantes.dev.censei.cl
+  #       - api.student-aalarcon.estudiantes.dev.censei.cl
   #     secretName: iam-tls-cert    # cert-manager creará este Secret automáticamente
   #
   # Y agregar la annotation del issuer:
