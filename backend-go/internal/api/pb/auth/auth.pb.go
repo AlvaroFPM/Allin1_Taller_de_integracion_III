@@ -302,13 +302,19 @@ func (*ProfileRequest) Descriptor() ([]byte, []int) {
 }
 
 type ProfileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
-	LastName      string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
-	Email         string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FirstName      string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName       string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Email          string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
+	BioExperiencia string                 `protobuf:"bytes,5,opt,name=bio_experiencia,json=bioExperiencia,proto3" json:"bio_experiencia,omitempty"`
+	Telefono       string                 `protobuf:"bytes,6,opt,name=telefono,proto3" json:"telefono,omitempty"`
+	Habilidades    string                 `protobuf:"bytes,7,opt,name=habilidades,proto3" json:"habilidades,omitempty"`
+	Ciudad         string                 `protobuf:"bytes,8,opt,name=ciudad,proto3" json:"ciudad,omitempty"`
+	Region         string                 `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
+	FotoPerfilUrl  string                 `protobuf:"bytes,10,opt,name=foto_perfil_url,json=fotoPerfilUrl,proto3" json:"foto_perfil_url,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProfileResponse) Reset() {
@@ -369,6 +375,48 @@ func (x *ProfileResponse) GetEmail() string {
 	return ""
 }
 
+func (x *ProfileResponse) GetBioExperiencia() string {
+	if x != nil {
+		return x.BioExperiencia
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetTelefono() string {
+	if x != nil {
+		return x.Telefono
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetHabilidades() string {
+	if x != nil {
+		return x.Habilidades
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetCiudad() string {
+	if x != nil {
+		return x.Ciudad
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetFotoPerfilUrl() string {
+	if x != nil {
+		return x.FotoPerfilUrl
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -392,13 +440,20 @@ const file_auth_proto_rawDesc = "" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x10\n" +
-	"\x0eProfileRequest\"|\n" +
+	"\x0eProfileRequest\"\xbb\x02\n" +
 	"\x0fProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
 	"\tlast_name\x18\x03 \x01(\tR\blastName\x12\x14\n" +
-	"\x05email\x18\x04 \x01(\tR\x05email2\x88\x02\n" +
+	"\x05email\x18\x04 \x01(\tR\x05email\x12'\n" +
+	"\x0fbio_experiencia\x18\x05 \x01(\tR\x0ebioExperiencia\x12\x1a\n" +
+	"\btelefono\x18\x06 \x01(\tR\btelefono\x12 \n" +
+	"\vhabilidades\x18\a \x01(\tR\vhabilidades\x12\x16\n" +
+	"\x06ciudad\x18\b \x01(\tR\x06ciudad\x12\x16\n" +
+	"\x06region\x18\t \x01(\tR\x06region\x12&\n" +
+	"\x0ffoto_perfil_url\x18\n" +
+	" \x01(\tR\rfotoPerfilUrl2\x88\x02\n" +
 	"\vAuthService\x12W\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x16.auth.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12K\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/login\x12S\n" +

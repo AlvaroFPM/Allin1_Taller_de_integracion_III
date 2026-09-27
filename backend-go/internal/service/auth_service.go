@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -128,15 +129,53 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 	}, nil
 }
 
+// idUsuarioTemporal es un valor fijo mientras no existe el interceptor JWT.
+// TODO(HDU#233): reemplazar por el ID extraído del contexto una vez Alvaro
+// complete el interceptor gRPC de autenticacion.
+const idUsuarioTemporal uint = 1
+
 // GetProfile maneja la obtención de datos del usuario autenticado
 func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) (*auth.ProfileResponse, error) {
-	// TODO: Obtener el ID del usuario desde el contexto (extraído por el interceptor JWT) y buscar en DB
-	fmt.Println("Recibida petición de perfil de usuario")
+	return s.getProfileByUserID(idUsuarioTemporal)
+}
+
+// getProfileByUserID contiene la lógica real de negocio, separada del ID
+// hardcodeado para poder testearla con distintos usuarios.
+// TODO(HDU#233): una vez exista el interceptor JWT de Alvaro, GetProfile
+// debe extraer el ID real del contexto y pasarlo aquí en vez de la constante.
+func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse, error) {
+	if s.db == nil {
+		return nil, status.Errorf(codes.Internal, "conexión a base de datos no disponible")
+	}
+
+	// 1. Buscar el usuario 
+	var usuario models.Usuario
+	if err := s.db.First(&usuario, idUsuario).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, status.Errorf(codes.NotFound, "usuario no encontrado")
+		}
+		return nil, status.Errorf(codes.Internal, "error al buscar el usuario: %v", err)
+	}
+
+	// 2. Buscar el perfil asociado 
+	var perfil models.Perfil
+	err := s.db.Where("id_usuario = ?", usuario.IDUsuario).First(&perfil).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, status.Errorf(codes.Internal, "error al buscar el perfil: %v", err)
+	}
+	// Si err es gorm.ErrRecordNotFound, perfil queda con sus valores cero (""),
+	// lo cual es un estado válido: el usuario aún no completó su perfil.
 
 	return &auth.ProfileResponse{
-		UserId:    1,
-		FirstName: "Juan",
-		LastName:  "Perez",
-		Email:     "juan.perez@example.com",
+		UserId:         int64(usuario.IDUsuario),
+		FirstName:      usuario.Nombres,
+		LastName:       usuario.Apellidos,
+		Email:          usuario.Correo,
+		BioExperiencia: perfil.BioExperiencia,
+		Telefono:       perfil.Telefono,
+		Habilidades:    perfil.Habilidades,
+		Ciudad:         perfil.Ciudad,
+		Region:         perfil.Region,
+		FotoPerfilUrl:  perfil.FotoPerfilURL,
 	}, nil
 }
