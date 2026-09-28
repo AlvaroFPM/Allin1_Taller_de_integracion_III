@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
@@ -177,20 +178,24 @@ func generateJWT(userID uint) (string, error) {
 	return token.SignedString([]byte(secretKey))
 }
 
-// idUsuarioTemporal es un valor fijo mientras no existe el interceptor JWT.
-// TODO(HDU#233): reemplazar por el ID extraído del contexto una vez Alvaro
-// complete el interceptor gRPC de autenticacion.
-const idUsuarioTemporal uint = 1
-
 // GetProfile maneja la obtención de datos del usuario autenticado
 func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) (*auth.ProfileResponse, error) {
-	return s.getProfileByUserID(idUsuarioTemporal)
+	// Extraer el user_id del contexto inyectado por el interceptor JWT
+	userIDVal := ctx.Value(middleware.UserIDKey)
+	if userIDVal == nil {
+		return nil, status.Errorf(codes.Unauthenticated, "usuario no autenticado")
+	}
+
+	idUsuario, ok := userIDVal.(uint)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "error interno al leer el ID de usuario")
+	}
+
+	return s.getProfileByUserID(idUsuario)
 }
 
 // getProfileByUserID contiene la lógica real de negocio, separada del ID
-// hardcodeado para poder testearla con distintos usuarios.
-// TODO(HDU#233): una vez exista el interceptor JWT de Alvaro, GetProfile
-// debe extraer el ID real del contexto y pasarlo aquí en vez de la constante.
+// extraído del contexto para poder testearla con distintos usuarios.
 func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse, error) {
 	if s.db == nil {
 		return nil, status.Errorf(codes.Internal, "conexión a base de datos no disponible")

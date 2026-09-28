@@ -12,6 +12,7 @@ import (
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"google.golang.org/grpc"
@@ -54,7 +55,9 @@ func main() {
 		log.Fatalf("Error al intentar escuchar en el puerto %s: %v", grpcPort, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
+	)
 	authService := service.NewAuthService(db)
 	auth.RegisterAuthServiceServer(grpcServer, authService)
 	reflection.Register(grpcServer)
