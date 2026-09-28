@@ -68,4 +68,11 @@ message ProfileResponse {
   string first_name = 2;
   string last_name = 3;
   string email = 4;
+  string bio_experiencia = 5;
+  string telefono = 6;
+  string habilidades = 7;
+  string ciudad = 8;
+  string region = 9;
+  string foto_perfil_url = 10;
 }
+
