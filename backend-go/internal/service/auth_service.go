@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"time"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
@@ -231,4 +233,95 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 		Region:         perfil.Region,
 		FotoPerfilUrl:  perfil.FotoPerfilURL,
 	}, nil
+}
+
+var telefonoRegex = regexp.MustCompile(`^\+?[0-9 ()-]{7,20}$`)
+
+// userIDFromContext extrae el ID que el interceptor JWT inyectó en el contexto.
+func userIDFromContext(ctx context.Context) (uint, error) {
+	id, ok := ctx.Value(middleware.UserIDKey).(uint)
+	if !ok || id == 0 {
+		return 0, status.Errorf(codes.Unauthenticated, "usuario no autenticado")
+	}
+	return id, nil
+}
+
+// validateUpdateProfileRequest valida los campos del formulario de perfil.
+func validateUpdateProfileRequest(req *auth.UpdateProfileRequest) error {
+	if tel := strings.TrimSpace(req.GetTelefono()); tel != "" && !telefonoRegex.MatchString(tel) {
+		return status.Errorf(codes.InvalidArgument, "el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis")
+	}
+	if utf8.RuneCountInString(strings.TrimSpace(req.GetCiudad())) > 100 {
+		return status.Errorf(codes.InvalidArgument, "la ciudad no puede superar los 100 caracteres")
+	}
+	if utf8.RuneCountInString(strings.TrimSpace(req.GetRegion())) > 100 {
+		return status.Errorf(codes.InvalidArgument, "la región no puede superar los 100 caracteres")
+	}
+	return nil
+}
+
+// UpdateProfile actualiza el perfil del usuario autenticado (lo crea si aún no existe).
+func (s *AuthService) UpdateProfile(ctx context.Context, req *auth.UpdateProfileRequest) (*auth.ProfileResponse, error) {
+	idUsuario, err := userIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.updateProfileByUserID(idUsuario, req)
+}
+
+// updateProfileByUserID contiene la lógica de negocio, separada del contexto
+func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProfileRequest) (*auth.ProfileResponse, error) {
+	if s.db == nil {
+		return nil, status.Errorf(codes.Internal, "conexión a base de datos no disponible")
+	}
+	if err := validateUpdateProfileRequest(req); err != nil {
+		return nil, err
+	}
+
+	// 1. El usuario debe existir
+	var usuario models.Usuario
+	if err := s.db.First(&usuario, idUsuario).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, status.Errorf(codes.NotFound, "usuario no encontrado")
+		}
+		return nil, status.Errorf(codes.Internal, "error al buscar el usuario: %v", err)
+	}
+
+	bio := strings.TrimSpace(req.GetBioExperiencia())
+	tel := strings.TrimSpace(req.GetTelefono())
+	hab := strings.TrimSpace(req.GetHabilidades())
+	ciudad := strings.TrimSpace(req.GetCiudad())
+	region := strings.TrimSpace(req.GetRegion())
+
+	// 2. Actualizar el perfil o crearlo si el usuario aún no lo tiene
+	var perfil models.Perfil
+	err := s.db.Where("id_usuario = ?", idUsuario).First(&perfil).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		perfil = models.Perfil{
+			IDUsuario:      idUsuario,
+			BioExperiencia: bio,
+			Telefono:       tel,
+			Habilidades:    hab,
+			Ciudad:         ciudad,
+			Region:         region,
+		}
+		if err := s.db.Omit("Usuario").Create(&perfil).Error; err != nil {
+			return nil, status.Errorf(codes.Internal, "error al crear el perfil: %v", err)
+		}
+	case err != nil:
+		return nil, status.Errorf(codes.Internal, "error al buscar el perfil: %v", err)
+	default:
+		perfil.BioExperiencia = bio
+		perfil.Telefono = tel
+		perfil.Habilidades = hab
+		perfil.Ciudad = ciudad
+		perfil.Region = region
+		if err := s.db.Omit("Usuario").Save(&perfil).Error; err != nil {
+			return nil, status.Errorf(codes.Internal, "error al actualizar el perfil: %v", err)
+		}
+	}
+
+	// 3. Devolver el perfil ya actualizado
+	return s.getProfileByUserID(idUsuario)
 }
