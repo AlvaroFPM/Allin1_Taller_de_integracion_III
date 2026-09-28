@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import api from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { loginSchema, type LoginFormData } from '@/types/auth';
@@ -16,6 +17,7 @@ export interface LoginFormProps {
 export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps) {
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const {
     register,
@@ -32,21 +34,41 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    // Simulamos petición asíncrona de autenticación
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSubmitSuccess(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', 'simulated_jwt_token_allin1');
+    try {
+      setErrorMessage(null);
+      // Petición real al backend Go
+      const loginResponse = await api.post('/v1/auth/login', {
+        email: data.email,
+        password: data.password,
+      });
+
+      const token = loginResponse.data.token;
+
+      // Guardar el token para que el interceptor de axios.ts lo use
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_token', token);
+      }
+
+      // Traer el perfil real protegido
+      const profileResponse = await api.get('/v1/auth/profile');
+      const profile = profileResponse.data;
+
+      const realUser = {
+        id: Number(profile.userId),
+        name: `${profile.firstName} ${profile.lastName}`,
+        email: profile.email,
+        role: 'CLIENTE' as const, // Puedes ajustarlo si el backend devuelve el rol
+        isVerified: true,
+      };
+
+      setSubmitSuccess(true);
+      useAuthStore.getState().setAuth(realUser, token);
+      onSuccess?.(data);
+    } catch (error: unknown) {
+      console.error('Error en login:', error);
+      const err = error as any;
+      setErrorMessage(err.response?.data?.message || 'Credenciales incorrectas o error de servidor');
     }
-    const simulatedUser = {
-      id: 1,
-      name: 'Francisco Barriga',
-      email: data.email,
-      role: 'PROVEEDOR' as const,
-      isVerified: true,
-    };
-    useAuthStore.getState().setAuth(simulatedUser, 'simulated_jwt_token_allin1');
-    onSuccess?.(data);
   };
 
   return (
@@ -68,6 +90,26 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
             />
           </svg>
           <span>Tu sesión ha expirado. Por favor, ingresa tus credenciales nuevamente.</span>
+        </div>
+      )}
+
+      {/* Alerta de Error General */}
+      {errorMessage && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <svg
+            className="w-4 h-4 text-red-600 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+          <span>{errorMessage}</span>
         </div>
       )}
 

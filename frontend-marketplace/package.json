@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
-    "@types/js-cookie": "^3.0.6",
     "ajv": "^8.20.0",
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
@@ -29,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -6,6 +6,8 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { registerSchema, type RegisterFormData } from '@/types/auth';
+import api from '@/lib/axios';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export interface RegisterFormProps {
   onSuccess?: (data: RegisterFormData) => void;
@@ -47,15 +49,74 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     { label: 'Un carácter especial (@#$%)', valid: /[^A-Za-z0-9]/.test(passwordValue) },
   ];
 
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
   const onSubmit = async (data: RegisterFormData) => {
-    // Simulación de envío al microservicio de IAM
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSubmitSuccess(true);
-    onSuccess?.(data);
+    try {
+      setErrorMessage(null);
+      // 1. Petición real de registro
+      const registerResponse = await api.post('/v1/auth/register', {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        rut: data.rut,
+        email: data.email,
+        password: data.password,
+      });
+
+      const token = registerResponse.data.token;
+
+      // 2. Guardar el token en localStorage para el interceptor
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_token', token);
+      }
+
+      // 3. Traer el perfil para guardar en el store
+      const profileResponse = await api.get('/v1/auth/profile');
+      const profile = profileResponse.data;
+
+      const realUser = {
+        id: Number(profile.userId),
+        name: `${profile.firstName} ${profile.lastName}`,
+        email: profile.email,
+        role: 'CLIENTE' as const,
+        isVerified: true,
+      };
+
+      setSubmitSuccess(true);
+      useAuthStore.getState().setAuth(realUser, token);
+      onSuccess?.(data);
+    } catch (error: unknown) {
+      console.error('Error en registro:', error);
+      const err = error as any;
+      setErrorMessage(
+        err.response?.data?.message ||
+          'Error al registrar la cuenta. Es posible que el correo o RUT ya existan.',
+      );
+    }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left" noValidate>
+      {/* Alerta de Error */}
+      {errorMessage && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+          <svg
+            className="w-4 h-4 text-red-600 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* Alerta de Éxito de Validación */}
       {submitSuccess && (
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
