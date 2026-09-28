@@ -14,7 +14,7 @@ metadata:
   # Nombre del Deployment
   name: iam
   # Namespace asignado al equipo en el cluster universitario
-  namespace: student-apinilla
+  namespace: student-aalarcon
   labels:
     # Labels consistentes en todos los recursos del proyecto
     app: iam

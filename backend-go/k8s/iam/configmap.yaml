@@ -14,7 +14,7 @@ metadata:
   # Nombre del ConfigMap — referenciado desde el Deployment
   name: iam-db-config
   # Namespace asignado al equipo en el cluster universitario
-  namespace: student-apinilla
+  namespace: student-aalarcon
   labels:
     # Labels consistentes con el resto de recursos del proyecto
     app: iam
@@ -23,16 +23,14 @@ data:
   # -----------------------------------------------------------------------
   # DB_HOST: Host de la base de datos PostgreSQL.
   #
-  # PLACEHOLDER: Actualmente apunta a "localhost", lo cual NO funcionará
-  # dentro del cluster. Cuando el equipo tenga un Pod/StatefulSet de
-  # PostgreSQL corriendo, deben actualizar este valor con el nombre
-  # del Service de Postgres. Por ejemplo:
-  #   - Si el Service se llama "postgres-service" en el mismo namespace:
-  #     DB_HOST: "postgres-service"
-  #   - Si está en otro namespace (ej: databases):
-  #     DB_HOST: "postgres-service.databases.svc.cluster.local"
+  # Apunta al Service headless "postgres-iam" del StatefulSet de PostgreSQL
+  # desplegado en el mismo namespace (student-aalarcon). Kubernetes resuelve
+  # este nombre automáticamente vía DNS interno del cluster:
+  #   postgres-iam → postgres-iam.student-aalarcon.svc.cluster.local
+  #
+  # El StatefulSet y su Service están definidos en postgres-iam.yaml.
   # -----------------------------------------------------------------------
-  DB_HOST: "localhost"
+  DB_HOST: "postgres-iam"
 
   # DB_PORT: Puerto estándar de PostgreSQL (5432)
   DB_PORT: "5432"
