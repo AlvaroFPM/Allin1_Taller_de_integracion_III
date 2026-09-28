@@ -6,6 +6,7 @@ require (
 	github.com/cloudinary/cloudinary-go/v2 v2.16.0
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-playground/validator/v10 v10.30.5
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rs/cors v1.11.1
