@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
+	"time"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -98,10 +101,16 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 		nuevoUsuario.IDUsuario = 1
 	}
 
+	// 5. Generar JWT Real
+	tokenString, err := generateJWT(nuevoUsuario.IDUsuario)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error al generar token de sesión")
+	}
+
 	return &auth.RegisterResponse{
 		UserId:  int64(nuevoUsuario.IDUsuario),
 		Message: "Usuario registrado exitosamente",
-		Token:   "mock-jwt-token-para-registro",
+		Token:   tokenString,
 	}, nil
 }
 
@@ -120,13 +129,52 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 		return nil, status.Errorf(codes.InvalidArgument, "datos de login inválidos: %v", err)
 	}
 
-	// TODO: Implementar búsqueda en DB, comparación de bcrypt y generación de JWT real
-	fmt.Printf("Recibida petición de login para email: %s\n", req.GetEmail())
+	// 2. Buscar en la Base de Datos
+	var usuario models.Usuario
+	if s.db != nil {
+		if err := s.db.Where("correo = ?", req.GetEmail()).First(&usuario).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, status.Errorf(codes.NotFound, "credenciales incorrectas")
+			}
+			return nil, status.Errorf(codes.Internal, "error al consultar la base de datos")
+		}
+
+		// 3. Comparar contraseñas
+		if err := bcrypt.CompareHashAndPassword([]byte(usuario.PasswordHash), []byte(req.GetPassword())); err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "credenciales incorrectas")
+		}
+	} else {
+		// Mock para pruebas si db es nil
+		usuario.IDUsuario = 1
+	}
+
+	// 4. Generar Token JWT Real
+	tokenString, err := generateJWT(usuario.IDUsuario)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error al generar el token de acceso")
+	}
+
+	fmt.Printf("Login exitoso para email: %s\n", req.GetEmail())
 
 	return &auth.LoginResponse{
-		Token:   "mock-jwt-token-para-login",
+		Token:   tokenString,
 		Message: "Login exitoso",
 	}, nil
+}
+
+// generateJWT genera un token firmado para el usuario dado
+func generateJWT(userID uint) (string, error) {
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "super-secret-key-development-only" // Fallback seguro para desarrollo
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(), // Expira en 24 horas
+	})
+
+	return token.SignedString([]byte(secretKey))
 }
 
 // idUsuarioTemporal es un valor fijo mientras no existe el interceptor JWT.
