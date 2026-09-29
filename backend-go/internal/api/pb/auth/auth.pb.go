@@ -417,6 +417,83 @@ func (x *ProfileResponse) GetFotoPerfilUrl() string {
 	return ""
 }
 
+// Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)
+type UpdateProfileRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	BioExperiencia string                 `protobuf:"bytes,1,opt,name=bio_experiencia,json=bioExperiencia,proto3" json:"bio_experiencia,omitempty"`
+	Telefono       string                 `protobuf:"bytes,2,opt,name=telefono,proto3" json:"telefono,omitempty"`
+	Habilidades    string                 `protobuf:"bytes,3,opt,name=habilidades,proto3" json:"habilidades,omitempty"`
+	Ciudad         string                 `protobuf:"bytes,4,opt,name=ciudad,proto3" json:"ciudad,omitempty"`
+	Region         string                 `protobuf:"bytes,5,opt,name=region,proto3" json:"region,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdateProfileRequest) Reset() {
+	*x = UpdateProfileRequest{}
+	mi := &file_auth_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProfileRequest) ProtoMessage() {}
+
+func (x *UpdateProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProfileRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpdateProfileRequest) GetBioExperiencia() string {
+	if x != nil {
+		return x.BioExperiencia
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetTelefono() string {
+	if x != nil {
+		return x.Telefono
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetHabilidades() string {
+	if x != nil {
+		return x.Habilidades
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetCiudad() string {
+	if x != nil {
+		return x.Ciudad
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -453,12 +530,19 @@ const file_auth_proto_rawDesc = "" +
 	"\x06ciudad\x18\b \x01(\tR\x06ciudad\x12\x16\n" +
 	"\x06region\x18\t \x01(\tR\x06region\x12&\n" +
 	"\x0ffoto_perfil_url\x18\n" +
-	" \x01(\tR\rfotoPerfilUrl2\x88\x02\n" +
+	" \x01(\tR\rfotoPerfilUrl\"\xad\x01\n" +
+	"\x14UpdateProfileRequest\x12'\n" +
+	"\x0fbio_experiencia\x18\x01 \x01(\tR\x0ebioExperiencia\x12\x1a\n" +
+	"\btelefono\x18\x02 \x01(\tR\btelefono\x12 \n" +
+	"\vhabilidades\x18\x03 \x01(\tR\vhabilidades\x12\x16\n" +
+	"\x06ciudad\x18\x04 \x01(\tR\x06ciudad\x12\x16\n" +
+	"\x06region\x18\x05 \x01(\tR\x06region2\xe9\x02\n" +
 	"\vAuthService\x12W\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x16.auth.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12K\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/login\x12S\n" +
 	"\n" +
-	"GetProfile\x12\x14.auth.ProfileRequest\x1a\x15.auth.ProfileResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profileBWZUgithub.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/authb\x06proto3"
+	"GetProfile\x12\x14.auth.ProfileRequest\x1a\x15.auth.ProfileResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profile\x12_\n" +
+	"\rUpdateProfile\x12\x1a.auth.UpdateProfileRequest\x1a\x15.auth.ProfileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\x1a\x10/v1/auth/profileBWZUgithub.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/authb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -472,24 +556,27 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_auth_proto_goTypes = []any{
-	(*RegisterRequest)(nil),  // 0: auth.RegisterRequest
-	(*RegisterResponse)(nil), // 1: auth.RegisterResponse
-	(*LoginRequest)(nil),     // 2: auth.LoginRequest
-	(*LoginResponse)(nil),    // 3: auth.LoginResponse
-	(*ProfileRequest)(nil),   // 4: auth.ProfileRequest
-	(*ProfileResponse)(nil),  // 5: auth.ProfileResponse
+	(*RegisterRequest)(nil),      // 0: auth.RegisterRequest
+	(*RegisterResponse)(nil),     // 1: auth.RegisterResponse
+	(*LoginRequest)(nil),         // 2: auth.LoginRequest
+	(*LoginResponse)(nil),        // 3: auth.LoginResponse
+	(*ProfileRequest)(nil),       // 4: auth.ProfileRequest
+	(*ProfileResponse)(nil),      // 5: auth.ProfileResponse
+	(*UpdateProfileRequest)(nil), // 6: auth.UpdateProfileRequest
 }
 var file_auth_proto_depIdxs = []int32{
 	0, // 0: auth.AuthService.Register:input_type -> auth.RegisterRequest
 	2, // 1: auth.AuthService.Login:input_type -> auth.LoginRequest
 	4, // 2: auth.AuthService.GetProfile:input_type -> auth.ProfileRequest
-	1, // 3: auth.AuthService.Register:output_type -> auth.RegisterResponse
-	3, // 4: auth.AuthService.Login:output_type -> auth.LoginResponse
-	5, // 5: auth.AuthService.GetProfile:output_type -> auth.ProfileResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	6, // 3: auth.AuthService.UpdateProfile:input_type -> auth.UpdateProfileRequest
+	1, // 4: auth.AuthService.Register:output_type -> auth.RegisterResponse
+	3, // 5: auth.AuthService.Login:output_type -> auth.LoginResponse
+	5, // 6: auth.AuthService.GetProfile:output_type -> auth.ProfileResponse
+	5, // 7: auth.AuthService.UpdateProfile:output_type -> auth.ProfileResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -506,7 +593,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -30,6 +30,14 @@ service AuthService {
       get: "/v1/auth/profile"
     };
   }
+
+    // UpdateProfile actualiza los datos editables del perfil del usuario autenticado.
+  rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse) {
+    option (google.api.http) = {
+      put: "/v1/auth/profile"
+      body: "*"
+    };
+  }
 }
 
 // Mensajes para el Registro
@@ -76,3 +84,11 @@ message ProfileResponse {
   string foto_perfil_url = 10;
 }
 
+// Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)
+message UpdateProfileRequest {
+  string bio_experiencia = 1;
+  string telefono = 2;
+  string habilidades = 3;
+  string ciudad = 4;
+  string region = 5;
+}

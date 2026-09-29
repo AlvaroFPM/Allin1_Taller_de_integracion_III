@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"strings"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/auth"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -179,5 +181,206 @@ func TestGetProfileByUserID(t *testing.T) {
 		st, ok := status.FromError(err)
 		require.True(t, ok, "el error retornado no es un gRPC status error: %v", err)
 		assert.Equal(t, codes.NotFound, st.Code())
+	})
+}
+// =====================================================================
+// UpdateProfile (HDU #234)
+// =====================================================================
+
+func TestUserIDFromContext(t *testing.T) {
+	t.Run("devuelve el ID inyectado por el interceptor", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.UserIDKey, uint(7))
+
+		id, err := userIDFromContext(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, uint(7), id)
+	})
+
+	t.Run("sin ID en el contexto retorna Unauthenticated", func(t *testing.T) {
+		_, err := userIDFromContext(context.Background())
+
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+}
+
+func TestValidateUpdateProfileRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *auth.UpdateProfileRequest
+		wantErr bool
+	}{
+		{"request vacio es valido", &auth.UpdateProfileRequest{}, false},
+		{"telefono con formato internacional", &auth.UpdateProfileRequest{Telefono: "+56 9 1234 5678"}, false},
+		{"telefono con letras", &auth.UpdateProfileRequest{Telefono: "abc"}, true},
+		{"telefono demasiado corto", &auth.UpdateProfileRequest{Telefono: "123"}, true},
+		{"telefono demasiado largo", &auth.UpdateProfileRequest{Telefono: "+5691234567890123456789"}, true},
+		{"ciudad de 100 caracteres es valida", &auth.UpdateProfileRequest{Ciudad: strings.Repeat("a", 100)}, false},
+		{"ciudad de 101 caracteres es invalida", &auth.UpdateProfileRequest{Ciudad: strings.Repeat("a", 101)}, true},
+		{"region de 101 caracteres es invalida", &auth.UpdateProfileRequest{Region: strings.Repeat("a", 101)}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateUpdateProfileRequest(tt.req)
+
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, codes.InvalidArgument, st.Code())
+		})
+	}
+}
+
+func TestUpdateProfileByUserID(t *testing.T) {
+	t.Run("actualiza un perfil existente", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "actualiza@example.com")
+		seedPerfil(t, db, usuario.IDUsuario)
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(usuario.IDUsuario, &auth.UpdateProfileRequest{
+			BioExperiencia: "Bio nueva",
+			Telefono:       "+56922222222",
+			Habilidades:    "Python, SQL",
+			Ciudad:         "Concepcion",
+			Region:         "Biobio",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Bio nueva", resp.BioExperiencia)
+		assert.Equal(t, "+56922222222", resp.Telefono)
+		assert.Equal(t, "Concepcion", resp.Ciudad)
+		assert.Equal(t, "actualiza@example.com", resp.Email)
+
+		// Debe seguir habiendo un unico perfil por usuario (relacion 1 a 1)
+		var count int64
+		require.NoError(t, db.Model(&models.Perfil{}).Where("id_usuario = ?", usuario.IDUsuario).Count(&count).Error)
+		assert.EqualValues(t, 1, count)
+	})
+
+	t.Run("crea el perfil si el usuario aun no tiene uno", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "sinperfil-update@example.com")
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(usuario.IDUsuario, &auth.UpdateProfileRequest{
+			BioExperiencia: "Primera bio",
+			Ciudad:         "Temuco",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Primera bio", resp.BioExperiencia)
+		assert.Equal(t, "Temuco", resp.Ciudad)
+
+		var count int64
+		require.NoError(t, db.Model(&models.Perfil{}).Where("id_usuario = ?", usuario.IDUsuario).Count(&count).Error)
+		assert.EqualValues(t, 1, count)
+	})
+
+	t.Run("campos vacios reemplazan los valores guardados", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "vacia@example.com")
+		seedPerfil(t, db, usuario.IDUsuario)
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(usuario.IDUsuario, &auth.UpdateProfileRequest{})
+
+		require.NoError(t, err)
+		assert.Empty(t, resp.BioExperiencia)
+		assert.Empty(t, resp.Telefono)
+		assert.Empty(t, resp.Habilidades)
+		assert.Empty(t, resp.Ciudad)
+		assert.Empty(t, resp.Region)
+	})
+
+	t.Run("recorta espacios en blanco al inicio y al final", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "espacios@example.com")
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(usuario.IDUsuario, &auth.UpdateProfileRequest{
+			Ciudad: "  Valdivia  ",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Valdivia", resp.Ciudad)
+	})
+
+	t.Run("usuario inexistente retorna NotFound", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(999999, &auth.UpdateProfileRequest{Ciudad: "Temuco"})
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.NotFound, st.Code())
+	})
+
+	t.Run("datos invalidos retornan InvalidArgument y no modifican el perfil", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "invalido@example.com")
+		seedPerfil(t, db, usuario.IDUsuario)
+		srv := NewAuthService(db)
+
+		resp, err := srv.updateProfileByUserID(usuario.IDUsuario, &auth.UpdateProfileRequest{Telefono: "abc"})
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+
+		// El perfil sembrado debe seguir intacto
+		var perfil models.Perfil
+		require.NoError(t, db.Where("id_usuario = ?", usuario.IDUsuario).First(&perfil).Error)
+		assert.Equal(t, "+56911111111", perfil.Telefono)
+	})
+
+	t.Run("sin conexion a base de datos retorna Internal", func(t *testing.T) {
+		srv := NewAuthService(nil)
+
+		_, err := srv.updateProfileByUserID(1, &auth.UpdateProfileRequest{})
+
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Internal, st.Code())
+	})
+}
+
+func TestUpdateProfile_UsaElUsuarioDelContexto(t *testing.T) {
+	t.Run("sin usuario en el contexto retorna Unauthenticated", func(t *testing.T) {
+		srv := NewAuthService(nil)
+
+		_, err := srv.UpdateProfile(context.Background(), &auth.UpdateProfileRequest{})
+
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unauthenticated, st.Code())
+	})
+
+	t.Run("con usuario en el contexto actualiza su perfil", func(t *testing.T) {
+		db := setupIamTestDB(t)
+		usuario := seedUsuario(t, db, "ctx@example.com")
+		srv := NewAuthService(db)
+		ctx := context.WithValue(context.Background(), middleware.UserIDKey, usuario.IDUsuario)
+
+		resp, err := srv.UpdateProfile(ctx, &auth.UpdateProfileRequest{Ciudad: "Osorno"})
+
+		require.NoError(t, err)
+		assert.EqualValues(t, usuario.IDUsuario, resp.UserId)
+		assert.Equal(t, "Osorno", resp.Ciudad)
 	})
 }
