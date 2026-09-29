@@ -11,6 +11,7 @@ import (
 	publicationpb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"google.golang.org/grpc"
@@ -19,15 +20,13 @@ import (
 
 func main() {
 	fmt.Println("Iniciando microservicio Catalog...")
-	// TODO: ConnectDB() devuelve (*gorm.DB, error) intencionalmente para no
-	// terminar el proceso automáticamente. Este código actualmente ignora el
-	// error retornado, lo que causa un panic (nil pointer dereference) si la
-	// conexión a la base de datos falla. Falta manejar el error explícitamente
-	// antes de usar el *gorm.DB retornado. Detectado en PR #117.
-	database.ConnectDB()
+	db, err := database.ConnectDB()
+	if err != nil {
+		log.Fatalf("Error al conectar a la base de datos en Catalog: %v", err)
+	}
 
 	// Ejecutar AutoMigrate
-	err := database.DB.AutoMigrate(
+	err = database.DB.AutoMigrate(
 		&models.Categoria{},
 		&models.Publicacion{},
 	)
@@ -53,7 +52,8 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	// TODO: publication.RegisterPublicationServiceServer(grpcServer, catalogService)
+	catalogService := service.NewPublicationServiceServer(db)
+	publicationpb.RegisterPublicationServiceServer(grpcServer, catalogService)
 	reflection.Register(grpcServer)
 
 	go func() {

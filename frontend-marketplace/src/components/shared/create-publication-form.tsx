@@ -1,18 +1,19 @@
-﻿'use client';
+'use client';
 
 import * as React from 'react';
 import {
-  CATEGORIAS_DISPONIBLES,
   COMUNAS_DISPONIBLES,
   type CreatePublicationFormState,
+  type PublicationCategory,
 } from '@/types/publication';
 
 export interface CreatePublicationFormProps {
   formState: CreatePublicationFormState;
+  categories: PublicationCategory[];
   onChange: (fields: Partial<CreatePublicationFormState>) => void;
 }
 
-export function CreatePublicationForm({ formState, onChange }: CreatePublicationFormProps) {
+export function CreatePublicationForm({ formState, categories, onChange }: CreatePublicationFormProps) {
   const { titulo, categoriaId, descripcion, ubicacion, moneda, precioBase } = formState;
 
   return (
@@ -52,7 +53,7 @@ export function CreatePublicationForm({ formState, onChange }: CreatePublication
             className="w-full h-10 px-3.5 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl transition-all focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 cursor-pointer"
           >
             <option value="">Selecciona una categoría...</option>
-            {CATEGORIAS_DISPONIBLES.map((cat) => (
+            {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.icono} {cat.nombre}
               </option>

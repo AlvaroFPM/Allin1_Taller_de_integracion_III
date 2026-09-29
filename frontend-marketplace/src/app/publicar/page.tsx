@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -9,10 +9,17 @@ import {
   CreatePublicationForm,
 } from '@/components/shared';
 import type { CreatePublicationFormState } from '@/types/publication';
+import { publicationService } from '@/services/publicationService';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [categories, setCategories] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    publicationService.getCategories().then(setCategories);
+  }, []);
 
   const [formState, setFormState] = React.useState<CreatePublicationFormState>({
     tipo: 'TRABAJO',
@@ -28,6 +35,8 @@ export default function PublicarPage() {
     setFormState((prev) => ({ ...prev, ...fields }));
   };
 
+  const { user } = useAuthStore();
+
   const handleSubmit = async () => {
     if (!formState.titulo.trim()) {
       alert('Por favor ingresa un título para tu publicación.');
@@ -37,13 +46,30 @@ export default function PublicarPage() {
       alert('Por favor selecciona una categoría.');
       return;
     }
+    if (!user) {
+      alert('Debes iniciar sesión para publicar.');
+      return;
+    }
 
     setIsSubmitting(true);
-    // Simulación de envío antes de integración con microservicio de Catalog
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    alert('¡Publicación maquetada con éxito! Redirigiendo...');
-    router.push('/');
+    try {
+      await publicationService.createPublication({
+        title: formState.titulo,
+        description: formState.descripcion,
+        categoryId: Number(formState.categoriaId),
+        price: Number(formState.precioBase) || 0,
+        currency: formState.moneda,
+        type: formState.tipo,
+        sellerId: user.id
+      });
+      alert('¡Publicación creada con éxito! Redirigiendo...');
+      router.push('/');
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
+      alert(`No se pudo crear: ${errorMsg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -100,7 +126,7 @@ export default function PublicarPage() {
 
           <hr className="border-border-base/70" />
 
-          <CreatePublicationForm formState={formState} onChange={handleChange} />
+          <CreatePublicationForm formState={formState} categories={categories} onChange={handleChange} />
         </div>
 
         {/* Columna Derecha: Vista Previa en Vivo (Paso 3) Sticky */}
