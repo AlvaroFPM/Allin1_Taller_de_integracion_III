@@ -69,6 +69,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD_IAM}
       DB_NAME: iam_db
       DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET}
       GRPC_PORT: "50051"
       HTTP_PORT: "8080"
     ports:

@@ -1,0 +1,62 @@
+# ==============================================================================
+# ConfigMap: api-gateway-config
+# ==============================================================================
+# Configuración de Nginx para el API Gateway.
+# Monta el bloque server como /etc/nginx/conf.d/default.conf en el Pod.
+#
+# IMPORTANTE sobre proxy_pass:
+# Se usa proxy_pass SIN URI al final (sin trailing slash) para que Nginx
+# conserve la ruta original completa al reenviar al upstream.
+# Ejemplo: /v1/auth/login → http://iam:8080/v1/auth/login
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: student-aalarcon
+  labels:
+    app: api-gateway
+    project: allin1
+    tier: backend
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+        client_max_body_size 10m;
+
+        location = /healthz {
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        location /v1/auth/ {
+            proxy_pass http://iam:8080;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 30s;
+        }
+
+        # TODO: descomentar cuando catalog este desplegado en el cluster.
+        # OJO: si el Service `catalog` no existe, nginx NO arranca (host not found in upstream).
+        # location /v1/catalog/ {
+        #     proxy_pass http://catalog:8082;
+        #     proxy_http_version 1.1;
+        #     proxy_set_header Host $host;
+        #     proxy_set_header X-Real-IP $remote_addr;
+        #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        #     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        #     proxy_connect_timeout 5s;
+        #     proxy_read_timeout 30s;
+        # }
+
+        location / {
+            default_type application/json;
+            return 404 '{"message":"ruta no encontrada"}';
+        }
+    }
