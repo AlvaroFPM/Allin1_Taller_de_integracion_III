@@ -32,6 +32,25 @@ data:
         }
 
         location /v1/auth/ {
+            # ---------------------------------------------------------------
+            # CORS: permite requests desde el frontend desplegado
+            # ---------------------------------------------------------------
+            set $cors_origin "https://marketplace-aalarcon.dev.censei.cl";
+
+            # Preflight (OPTIONS) — responder directo sin pasar al upstream
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin'  $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                return 204;
+            }
+
+            # Headers CORS en respuestas normales (proxy)
+            add_header 'Access-Control-Allow-Origin'      $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials'  'true' always;
+
             proxy_pass http://iam:8080;
             proxy_http_version 1.1;
             proxy_set_header Host $host;

@@ -17,6 +17,12 @@ RUN npm ci
 # Copiamos el resto del código fuente del proyecto Next.js (src, public, next.config.ts, etc).
 COPY . .
 
+# Variable de entorno para la URL del API backend.
+# Se inyecta como build-arg en docker build y Next.js la inlinea en el bundle JS.
+# NOTA: Cambiar esta URL exige reconstruir la imagen (es de BUILD time, no de runtime).
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Compilamos la aplicación.
 # Dado que "output: 'standalone'" está configurado en next.config.ts, esto creará una carpeta .next/standalone
 # con un servidor Node autocontenido y un node_modules muy reducido.

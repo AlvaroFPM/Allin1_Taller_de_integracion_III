@@ -1,0 +1,41 @@
+# ==============================================================================
+# Ingress: frontend
+# ==============================================================================
+# Expone el frontend Next.js al exterior en el dominio asignado por la UCT.
+#
+# REGLA DEL PROFESOR:
+# - IngressClass: nginx
+# - Dominio: terminado en .dev.censei.cl
+# - Anotación OBLIGATORIA: external-dns.alpha.kubernetes.io/target=proxy.inf.uct.cl
+#   (NO modificar esta anotación)
+#
+# Generado con:
+#   kubectl create ingress frontend --class=nginx \
+#     --rule="marketplace-aalarcon.dev.censei.cl/*=frontend:3000" \
+#     --annotation="external-dns.alpha.kubernetes.io/target=proxy.inf.uct.cl" \
+#     --dry-run=client -o yaml
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: student-aalarcon
+  annotations:
+    external-dns.alpha.kubernetes.io/target: proxy.inf.uct.cl
+  labels:
+    app: frontend
+    project: allin1
+    tier: frontend
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: marketplace-aalarcon.dev.censei.cl
+    http:
+      paths:
+      - backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+        path: /
+        pathType: Prefix
