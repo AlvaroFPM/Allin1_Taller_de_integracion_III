@@ -1,0 +1,27 @@
+# ==============================================================================
+# Service: api-gateway
+# ==============================================================================
+# Service ClusterIP que expone el API Gateway Nginx dentro del cluster.
+# El Ingress apunta a este Service para enrutar todo el tráfico externo.
+#
+# Puerto 80 (estándar HTTP) → targetPort 8080 (Nginx en el Pod).
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: student-aalarcon
+  labels:
+    app: api-gateway
+    project: allin1
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: api-gateway
+    project: allin1
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

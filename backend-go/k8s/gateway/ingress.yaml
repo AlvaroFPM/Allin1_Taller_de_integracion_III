@@ -1,16 +1,16 @@
 # ==============================================================================
-# Ingress: iam
+# Ingress: api-gateway
 # ==============================================================================
-# Ingress que expone el microservicio IAM al exterior del cluster a través
-# del nginx-ingress controller.
+# Este Ingress reemplaza al Ingress `iam`; el clúster solo permite un
+# dominio con path /, por eso todo pasa por el gateway.
 #
 # El tráfico externo llega al dominio configurado, el nginx-ingress
-# lo recibe y lo redirige al Service de IAM dentro del cluster.
+# controller lo recibe y lo redirige al Service api-gateway (Nginx),
+# que a su vez enruta internamente a los microservicios (iam, catalog, etc.).
 #
-# Rutas expuestas (definidas en auth.proto):
-#   - POST /v1/auth/register  → Registro de usuarios
-#   - POST /v1/auth/login     → Inicio de sesión
-#   - GET  /v1/auth/profile   → Perfil del usuario autenticado
+# Rutas internas gestionadas por el gateway (ver configmap.yaml):
+#   /v1/auth/*    → iam:8080
+#   /v1/catalog/* → catalog:8082  (pendiente, comentado)
 #
 # TLS: No configurado por ahora. Si el cluster tiene cert-manager,
 # se puede agregar una sección tls: con un ClusterIssuer de Let's Encrypt.
@@ -19,12 +19,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   # Nombre del Ingress
-  name: iam
+  name: api-gateway
   # Namespace asignado al equipo en el cluster universitario
   namespace: student-aalarcon
   labels:
     # Labels consistentes con el resto de recursos del proyecto
-    app: iam
+    app: api-gateway
     project: allin1
     tier: backend
   annotations:
@@ -36,12 +36,11 @@ metadata:
   #
   # NO se incluye la annotation rewrite-target en este Ingress.
   #
-  # Motivo: El gRPC-Gateway del microservicio IAM ya maneja las rutas
-  # /v1/auth/* de forma nativa (definidas en auth.proto con la option
-  # google.api.http). El path que llega al Ingress es exactamente el
-  # que el servidor Go espera recibir. Si usáramos rewrite-target: /,
-  # nginx reescribiría /v1/auth/login → /, y el gateway no encontraría
-  # la ruta.
+  # Motivo: El API Gateway (Nginx) necesita recibir la ruta completa
+  # (ej. /v1/auth/login) para poder enrutarla al microservicio correcto
+  # según los bloques location del configmap.yaml. Si usáramos
+  # rewrite-target: /, nginx-ingress reescribiría la ruta antes de que
+  # llegue al gateway, rompiendo el enrutamiento.
   # ---------------------------------------------------------------------------
 spec:
   # ingressClassName: Especifica qué Ingress controller maneja este recurso.
@@ -49,7 +48,7 @@ spec:
   ingressClassName: nginx
 
   rules:
-    # Host: Dominio bajo el cual se expone el servicio IAM.
+    # Host: Dominio bajo el cual se expone el API Gateway.
     #
     # IMPORTANTE: el cluster universitario (política de admisión
     # rke2-edu-ingress-hostname) exige el formato "proyecto.dev.censei.cl",
@@ -61,18 +60,18 @@ spec:
         paths:
           # Path: la misma política del cluster exige que cada hostname use
           # EXCLUSIVAMENTE el path "/" (no permite subpaths como /v1/auth).
-          # Por eso todo el tráfico hacia este host se enruta al Service de
-          # IAM, y es el propio gRPC-Gateway (dentro del pod) quien resuelve
-          # las rutas reales /v1/auth/register, /v1/auth/login, etc.
+          # Por eso todo el tráfico hacia este host se enruta al Service del
+          # API Gateway, que internamente enruta a cada microservicio según
+          # la ruta (ver configmap.yaml).
           - path: /
             pathType: Prefix
             backend:
               service:
-                # Nombre del Service de IAM (debe coincidir con service.yaml)
-                name: iam
+                # Nombre del Service del API Gateway
+                name: api-gateway
                 port:
-                  # Puerto del Service (el que expone, no el del contenedor)
-                  number: 8080
+                  # Puerto del Service (80 → targetPort 8080 en el Pod Nginx)
+                  number: 80
 
   # ---------------------------------------------------------------------------
   # TLS (deshabilitado por ahora)

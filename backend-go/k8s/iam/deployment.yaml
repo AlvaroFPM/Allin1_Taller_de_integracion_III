@@ -96,6 +96,14 @@ spec:
                   name: iam-db-secret
                   key: DB_SSLMODE
 
+            # JWT_SECRET — Clave para firmar/verificar tokens JWT.
+            # Si no se define, el código usa un fallback inseguro de desarrollo.
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: JWT_SECRET
+
           # -----------------------------------------------------------------
           # Resources: limits y requests razonables para cluster compartido
           # -----------------------------------------------------------------

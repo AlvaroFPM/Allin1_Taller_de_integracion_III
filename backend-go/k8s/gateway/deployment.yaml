@@ -1,0 +1,88 @@
+# ==============================================================================
+# Deployment: api-gateway
+# ==============================================================================
+# Despliega un reverse proxy Nginx que actúa como punto de entrada único
+# para todos los microservicios del backend.
+#
+# Usa la imagen nginxinc/nginx-unprivileged (corre como non-root, UID 101)
+# para cumplir con políticas de seguridad del cluster.
+#
+# La configuración de Nginx se inyecta desde el ConfigMap api-gateway-config
+# montado como /etc/nginx/conf.d/default.conf.
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: student-aalarcon
+  labels:
+    app: api-gateway
+    project: allin1
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+      project: allin1
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        project: allin1
+        tier: backend
+    spec:
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+
+          # Volumen: configuración de Nginx desde el ConfigMap
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+
+          # -----------------------------------------------------------------
+          # Resources: mínimos para un proxy ligero en cluster compartido
+          # -----------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "25m"        # 0.02 vCPU — Nginx es muy ligero
+              memory: "64Mi"    # 32 MB de RAM
+            limits:
+              cpu: "100m"       # 0.1 vCPU
+              memory: "64Mi"    # 64 MB de RAM
+
+          # -----------------------------------------------------------------
+          # Probes: /healthz devuelve 200 "ok" desde la config de Nginx
+          # -----------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+      # Volúmenes: configuración de Nginx
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: api-gateway-config
