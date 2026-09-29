@@ -86,7 +86,7 @@ func main() {
 
 	// Configurar CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // Permitir solo a Next.js por seguridad local
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"}, // Permitir a Next.js (y puerto alternativo)
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
