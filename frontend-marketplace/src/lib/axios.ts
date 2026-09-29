@@ -29,6 +29,7 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      document.cookie = 'auth_token=; path=/; max-age=0; SameSite=Lax';
       if (!window.location.pathname.includes('/login')) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login?expired=true';

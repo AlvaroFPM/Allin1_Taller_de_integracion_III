@@ -47,6 +47,8 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
       // Guardar el token para que el interceptor de axios.ts lo use
       if (typeof window !== 'undefined') {
         localStorage.setItem('auth_token', token);
+        // También guardar en cookies para que el middleware de Next.js lo pueda leer
+        document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       }
 
       // Traer el perfil real protegido

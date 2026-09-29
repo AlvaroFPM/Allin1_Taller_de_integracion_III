@@ -101,6 +101,13 @@ message GetCategoriesResponse {
 }
 // Servicio gRPC con endpoints REST vía grpc-gateway
 service PublicationService {
+  rpc CreatePublication(CreatePublicationRequest) returns (CreatePublicationResponse) {
+    option (google.api.http) = {
+      post: "/v1/publications"
+      body: "*"
+    };
+  }
+
   rpc GetCategories(GetCategoriesRequest) returns (GetCategoriesResponse) {
     option (google.api.http) = {
       get: "/v1/categories"
