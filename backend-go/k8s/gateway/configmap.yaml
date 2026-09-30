@@ -25,6 +25,11 @@ data:
         server_name _;
         client_max_body_size 10m;
 
+        # ---------------------------------------------------------------
+        # CORS: origen común permitido para el frontend desplegado
+        # ---------------------------------------------------------------
+        set $cors_origin "https://marketplace-aalarcon.dev.censei.cl";
+
         location = /healthz {
             access_log off;
             default_type text/plain;
@@ -32,11 +37,6 @@ data:
         }
 
         location /v1/auth/ {
-            # ---------------------------------------------------------------
-            # CORS: permite requests desde el frontend desplegado
-            # ---------------------------------------------------------------
-            set $cors_origin "https://marketplace-aalarcon.dev.censei.cl";
-
             # Preflight (OPTIONS) — responder directo sin pasar al upstream
             if ($request_method = 'OPTIONS') {
                 add_header 'Access-Control-Allow-Origin'  $cors_origin always;
@@ -61,18 +61,69 @@ data:
             proxy_read_timeout 30s;
         }
 
-        # TODO: descomentar cuando catalog este desplegado en el cluster.
-        # OJO: si el Service `catalog` no existe, nginx NO arranca (host not found in upstream).
-        # location /v1/catalog/ {
-        #     proxy_pass http://catalog:8082;
-        #     proxy_http_version 1.1;
-        #     proxy_set_header Host $host;
-        #     proxy_set_header X-Real-IP $remote_addr;
-        #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        #     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-        #     proxy_connect_timeout 5s;
-        #     proxy_read_timeout 30s;
-        # }
+        location /v1/publications {
+            # Preflight (OPTIONS) — responder directo sin pasar al upstream
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin'  $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                return 204;
+            }
+
+            # Headers CORS en respuestas normales (proxy)
+            add_header 'Access-Control-Allow-Origin'      $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials'  'true' always;
+
+            # Ocultar headers CORS emitidos por Go para evitar duplicados
+            proxy_hide_header Access-Control-Allow-Origin;
+            proxy_hide_header Access-Control-Allow-Credentials;
+            proxy_hide_header Access-Control-Allow-Methods;
+            proxy_hide_header Access-Control-Allow-Headers;
+
+            proxy_pass http://catalog:8082;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+            proxy_set_header Authorization $http_authorization;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 30s;
+        }
+
+        location /v1/categories {
+            # Preflight (OPTIONS) — responder directo sin pasar al upstream
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin'  $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                return 204;
+            }
+
+            # Headers CORS en respuestas normales (proxy)
+            add_header 'Access-Control-Allow-Origin'      $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials'  'true' always;
+
+            # Ocultar headers CORS emitidos por Go para evitar duplicados
+            proxy_hide_header Access-Control-Allow-Origin;
+            proxy_hide_header Access-Control-Allow-Credentials;
+            proxy_hide_header Access-Control-Allow-Methods;
+            proxy_hide_header Access-Control-Allow-Headers;
+
+            proxy_pass http://catalog:8082;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+            proxy_set_header Authorization $http_authorization;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 30s;
+        }
 
         location / {
             default_type application/json;

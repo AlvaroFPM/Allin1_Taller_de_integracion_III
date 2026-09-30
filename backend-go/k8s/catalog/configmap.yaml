@@ -1,0 +1,23 @@
+# ==============================================================================
+# ConfigMap: catalog-db-config
+# ==============================================================================
+# Contiene las variables de entorno NO sensibles para el microservicio Catalog.
+# Estas variables se inyectan al Deployment de Catalog.
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-db-config
+  namespace: student-aalarcon
+  labels:
+    app: catalog
+    project: allin1
+    tier: backend
+data:
+  # Host de PostgreSQL para Catalog (Service headless en el mismo namespace)
+  DB_HOST: "postgres-catalog"
+  # Puerto de PostgreSQL
+  DB_PORT: "5432"
+  # Puertos de red del microservicio Catalog
+  GRPC_PORT: "50052"
+  HTTP_PORT: "8082"

@@ -1,0 +1,26 @@
+# ==============================================================================
+# Service: catalog
+# ==============================================================================
+# Service de tipo ClusterIP que expone el microservicio Catalog internamente
+# dentro del cluster de Kubernetes. Es consumido por el API Gateway Nginx
+# y llamadas internas Server-Side desde el frontend Next.js.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+  namespace: student-aalarcon
+  labels:
+    app: catalog
+    project: allin1
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: catalog
+    project: allin1
+  ports:
+    - name: http-gateway
+      protocol: TCP
+      port: 8082
+      targetPort: 8082

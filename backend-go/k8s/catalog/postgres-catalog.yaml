@@ -1,0 +1,123 @@
+# ==============================================================================
+# PostgreSQL para Microservicio Catalog (Storage, StatefulSet y Service)
+# ==============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-catalog-pvc
+  namespace: student-aalarcon
+  labels:
+    app: postgres-catalog
+    project: allin1
+    tier: backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-catalog
+  namespace: student-aalarcon
+  labels:
+    app: postgres-catalog
+    project: allin1
+    tier: backend
+spec:
+  serviceName: postgres-catalog
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-catalog
+  template:
+    metadata:
+      labels:
+        app: postgres-catalog
+        project: allin1
+        tier: backend
+    spec:
+            # WORKAROUND temporal: attach de volúmenes Cinder falla en agent-02
+      # (FailedAttachVolume: "already attached to instances"). Quitar si se resuelve.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - rke2-estudiantes-agent-02
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_NAME
+          volumeMounts:
+            - name: postgres-catalog-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "250m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: postgres-catalog-data
+          persistentVolumeClaim:
+            claimName: postgres-catalog-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-catalog
+  namespace: student-aalarcon
+  labels:
+    app: postgres-catalog
+    project: allin1
+    tier: backend
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: postgres-catalog
+  clusterIP: None  # Headless service requerido por StatefulSet

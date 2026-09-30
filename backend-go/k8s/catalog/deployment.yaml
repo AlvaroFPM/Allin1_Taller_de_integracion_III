@@ -1,0 +1,121 @@
+# ==============================================================================
+# Deployment: catalog
+# ==============================================================================
+# Despliega el microservicio Catalog (Publicaciones y Categorías) en Go.
+# Expone gRPC en el puerto 50052 y la API REST vía gRPC-Gateway en el puerto 8082.
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  namespace: student-aalarcon
+  labels:
+    app: catalog
+    project: allin1
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog
+      project: allin1
+  template:
+    metadata:
+      labels:
+        app: catalog
+        project: allin1
+        tier: backend
+    spec:
+      containers:
+        - name: catalog
+          # Imagen en Docker Hub (reemplazar 20260929-1f43dbd por tag generado en build)
+          image: am4roo/allin1-catalog-go:20260929-1f43dbd
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              name: http-gateway
+              protocol: TCP
+            - containerPort: 50052
+              name: grpc
+              protocol: TCP
+          env:
+            # ---------------------------------------------------------------
+            # Variables no sensibles (ConfigMap catalog-db-config)
+            # ---------------------------------------------------------------
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: catalog-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: catalog-db-config
+                  key: DB_PORT
+            - name: GRPC_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: catalog-db-config
+                  key: GRPC_PORT
+            - name: HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: catalog-db-config
+                  key: HTTP_PORT
+
+            # ---------------------------------------------------------------
+            # Variables sensibles de BD (Secret catalog-db-secret)
+            # ---------------------------------------------------------------
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_NAME
+            - name: DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-db-secret
+                  key: DB_SSLMODE
+
+            # ---------------------------------------------------------------
+            # JWT_SECRET (referencia centralizada desde iam-db-secret)
+            # ---------------------------------------------------------------
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: JWT_SECRET
+
+          resources:
+            requests:
+              cpu: "100m"       # >= 25m requerido por LimitRange
+              memory: "128Mi"   # >= 64Mi requerido por LimitRange
+            limits:
+              cpu: "250m"
+              memory: "512Mi"
+
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
