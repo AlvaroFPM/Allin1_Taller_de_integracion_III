@@ -1,0 +1,30 @@
+# ==============================================================================
+# Service: frontend
+# ==============================================================================
+# Service de tipo ClusterIP para el frontend Next.js.
+# Expone el puerto 3000 internamente dentro del cluster, permitiendo que
+# el Ingress enrute tráfico externo hacia los Pods del frontend.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  # Nombre del Service
+  name: frontend
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-aalarcon
+  labels:
+    # Labels consistentes en todos los recursos del proyecto
+    app: frontend
+    project: allin1
+    tier: frontend
+spec:
+  # ClusterIP: accesible solo dentro del cluster (el Ingress lo expone al exterior)
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  # Selector: debe coincidir con los labels del Pod template del Deployment
+  selector:
+    app: frontend

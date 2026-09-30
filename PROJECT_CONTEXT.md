@@ -68,7 +68,8 @@ El backend sigue Clean Architecture dentro de un monorepo Go:
 | IAM      | 50051      | 8080                 | Autenticación (register, login, profile) |
 | Catalog  | 50051      | 8080                 | Publicaciones del marketplace |
 | Media    | —          | —                    | Gestión de imágenes (pendiente) |
-| Gateway  | —          | —                    | Reverse proxy Nginx, único punto de entrada externo |
+| Gateway  | —          | 8080                 | Reverse proxy Nginx, único punto de entrada externo |
+| Frontend | —          | 3000                 | Next.js (standalone), marketplace UI |
 
 ### 5.1 API Gateway (`backend-go/k8s/gateway/`)
 
@@ -115,9 +116,13 @@ kubectl apply -f ingress.yaml
 
 ## 7. Convenciones de Naming
 
-- Labels Kubernetes: `app`, `project: allin1`, `tier: backend`
+- Labels Kubernetes: `app`, `project: allin1`, `tier: backend|frontend`
 - Namespace: `student-aalarcon`
 - Secretos K8s: `<servicio>-db-secret` (ej. `iam-db-secret`)
+- Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
+  - Ejemplo backend: `am4roo/allin1-iam-go:latest`
+  - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
+  - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
 ## 8. Kubernetes
 
@@ -166,12 +171,59 @@ kubectl apply -f ingress.yaml
 > **IMPORTANTE**: Aplicar el gateway DESPUÉS de que los Services de los
 > microservicios upstream (iam, catalog) ya existan.
 
+### Manifiestos del frontend (`frontend-marketplace/k8s/`)
+
+| Archivo | Recurso | Descripción |
+|---------|---------|-------------|
+| `deployment.yaml` | Deployment `frontend` | Next.js standalone (puerto 3000) |
+| `service.yaml` | Service `frontend` | ClusterIP, port 3000 |
+| `ingress.yaml` | Ingress `frontend` | Host: `marketplace-aalarcon.dev.censei.cl` |
+
+**Orden de apply para el frontend:**
+```
+kubectl apply -f deployment.yaml
+kubectl rollout status deployment/frontend
+kubectl apply -f service.yaml
+kubectl apply -f ingress.yaml
+```
+
+> **IMPORTANTE — Variables de BUILD y RUNTIME en el Frontend**:
+> 
+> 1. **Variables de BUILD (`NEXT_PUBLIC_*`)**:
+>    - `NEXT_PUBLIC_API_URL`: URL del API Gateway (IAM: `/v1/auth/*`). Inyectada en build time vía `--build-arg`. En producción: `https://student-aalarcon.dev.censei.cl`.
+>    - `NEXT_PUBLIC_CATALOG_API_URL`: URL del catálogo para llamadas del cliente/navegador. Inyectada vía `--build-arg`. En producción: `https://student-aalarcon.dev.censei.cl`.
+>    - *Nota*: Están inlineadas en el bundle JS durante `npm run build`. Para cambiarlas es obligatorio reconstruir la imagen Docker.
+> 
+> 2. **Variable de RUNTIME (`CATALOG_INTERNAL_URL`)**:
+>    - `CATALOG_INTERNAL_URL`: URL interna dentro de la red del cluster Kubernetes (`http://catalog:8082` provisional).
+>    - Inyectada en la sección `env` del [deployment.yaml](file:///c:/Users/Amaroo/Desktop/Universidad/3er%20a%C3%B1o/2do%20semestre/Integra%203/Allin1_Taller_de_integracion_III/frontend-marketplace/k8s/deployment.yaml). La consumen los Server Components (como `src/app/page.tsx`) en el servidor Node.js sin salir a Internet ni verse afectados por certificados TLS autofirmados.
+> 
+> 3. **Guarda obligatoria en Dockerfile**:
+>    - Antes de `npm run build`, el Dockerfile ejecuta:
+>      `RUN test -n "$NEXT_PUBLIC_API_URL" && test -n "$NEXT_PUBLIC_CATALOG_API_URL" || (echo "ERROR: faltan build-args NEXT_PUBLIC_*" && exit 1)`
+>      evitando builds accidentales sin URLs de producción.
+> 
+> 4. **Regla "Commit antes de Build"**:
+>    - El tag de la imagen se construye con `YYYYMMDD-<hash-corto-git>`. El árbol de trabajo de Git (`git status`) debe estar completamente limpio antes de construir para garantizar trazabilidad exacta entre imagen y commit.
+> 
+> **Tag vigente desplegado**: `am4roo/allin1-frontend-next:20260929-b3e03c9`
+
+**Flujo de tráfico del frontend:**
+```
+Internet
+  → marketplace-aalarcon.dev.censei.cl (DNS → proxy.inf.uct.cl)
+    → Ingress Controller (nginx del cluster)
+      → Service frontend (ClusterIP, port 3000)
+        → Pod Next.js (port 3000)
+```
+
 ### Restricciones del Cluster UCT
 
-- **Dominio**: `<namespace>.dev.censei.cl` (impuesto por política de admisión `rke2-edu-ingress-hostname`)
+- **Dominio**: `*-aalarcon.dev.censei.cl` (impuesto por política de admisión `rke2-edu-ingress-hostname`)
 - **Path**: solo `/` permitido por hostname
 - **ExternalDNS**: requiere annotation `external-dns.alpha.kubernetes.io/target: proxy.inf.uct.cl`
 - **IngressClass**: `nginx`
+- **Certificado TLS**: autofirmado por el cluster; los navegadores mostrarán advertencia de seguridad (esperado, ver sección 11)
 
 ## 9. Variables de Entorno en Kubernetes
 
@@ -191,21 +243,40 @@ kubectl apply -f ingress.yaml
 - Solo se versiona `secret.example.yaml` con valores placeholder
 - `.env` está en `.gitignore` — solo `.env.example` se versiona
 
-## 11. Deuda Técnica Documentada
+## 11. CORS
+
+CORS se maneja a nivel del **API Gateway Nginx** (`backend-go/k8s/gateway/configmap.yaml`).
+El bloque `location /v1/auth/` responde preflight `OPTIONS` directamente (204) y añade
+headers `Access-Control-Allow-*` en las respuestas proxy.
+
+- **Origen permitido**: `https://marketplace-aalarcon.dev.censei.cl`
+- **Métodos**: GET, POST, PUT, DELETE, OPTIONS
+- **Headers**: Content-Type, Authorization
+- **Credentials**: true
+
+> Si se agrega un nuevo frontend o se cambia el dominio, actualizar `$cors_origin` en el ConfigMap
+> y hacer `kubectl rollout restart deployment/api-gateway`.
+
+## 12. Deuda Técnica Documentada
 
 | Deuda | Archivo(s) afectado(s) | Acción requerida |
 |-------|----------------------|------------------|
 | Catalog aún no desplegado | `backend-go/k8s/gateway/configmap.yaml` | Descomentar `location /v1/catalog/` cuando exista el Service |
-| CORS no configurado en el gateway | `backend-go/k8s/gateway/configmap.yaml` | Necesario cuando el frontend consuma la API desde navegador |
-| TLS no configurado | `backend-go/k8s/gateway/ingress.yaml` | Agregar sección `tls` cuando el cluster tenga cert-manager |
+| ~~CORS no configurado en el gateway~~ | ~~`backend-go/k8s/gateway/configmap.yaml`~~ | ✅ Resuelto — CORS inyectado en Nginx para `marketplace-aalarcon.dev.censei.cl` |
+| TLS autofirmado | `backend-go/k8s/gateway/ingress.yaml`, `frontend-marketplace/k8s/ingress.yaml` | Agregar sección `tls` cuando el cluster tenga cert-manager. Mientras tanto, los navegadores mostrarán advertencia de certificado |
 | Fallback JWT inseguro | `internal/service/auth_service.go`, `internal/middleware/jwt_interceptor.go` | Evaluar hacer panic en vez de usar clave de desarrollo si `JWT_SECRET` está vacía |
 | Login y GetProfile devuelven datos mock | `internal/service/auth_service.go` | Confirmar si ya usan JWT real + GORM o siguen siendo stubs; bloquea validar HDU #238 de punta a punta |
 | Media microservice | — | No implementado aún |
+| CORS del Go sigue con localhost | `backend-go/cmd/iam/main.go` | `AllowedOrigins` solo tiene `localhost:3000` y `localhost:3001`. CORS de producción se maneja en Nginx, pero si se elimina el gateway habría que actualizar Go |
+| Tag `latest` en iam | `backend-go/k8s/iam/deployment.yaml` | Migrar a tags únicos (`YYYYMMDD-<hash>`) como el frontend |
+| `catalog.exe` commiteado en repo | `backend-go/catalog.exe` | Eliminar ejecutable de Windows del control de versiones y verificar regla en `.gitignore` |
+| Cookies con sameSite/expiración inconsistentes | `frontend-marketplace/src/lib/authCookies.ts`, `login-form.tsx`, `useAuthStore.ts` | `authCookies` usa `sameSite: 'strict'` (1 día de expiración) mientras `login-form` usa `document.cookie` con `SameSite=Lax` (7 días). Centralizar y homogeneizar atributos de cookies de sesión |
+| Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |
 
-## 12. GitFlow y Branching
+## 13. GitFlow y Branching
 
 <!-- TODO: documentar políticas de ramas, ver README.md -->
 
-## 13. CI/CD (GitHub Actions)
+## 14. CI/CD (GitHub Actions)
 
 <!-- TODO: documentar workflows de CI, protoc, build, etc. -->

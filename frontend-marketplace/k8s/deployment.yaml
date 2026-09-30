@@ -1,0 +1,103 @@
+# ==============================================================================
+# Deployment: frontend
+# ==============================================================================
+# Despliega el frontend Next.js del marketplace Allin1.
+# La imagen corre el servidor standalone de Next.js en el puerto 3000.
+#
+# NEXT_PUBLIC_API_URL es una variable de BUILD (inlineada en el bundle JS
+# durante `npm run build`). NO se inyecta como env en el Deployment; para
+# cambiarla hay que reconstruir y pushear una nueva imagen con el build-arg.
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Nombre del Deployment
+  name: frontend
+  # Namespace asignado al equipo en el cluster universitario
+  namespace: student-aalarcon
+  labels:
+    # Labels consistentes en todos los recursos del proyecto
+    app: frontend
+    project: allin1
+    tier: frontend
+spec:
+  # Réplicas: 1 para el piloto inicial
+  replicas: 1
+
+  # Selector: define cómo el Deployment encuentra los Pods que gestiona.
+  # Debe coincidir con los labels del template de Pod.
+  selector:
+    matchLabels:
+      app: frontend
+      project: allin1
+
+  # Template: define la especificación del Pod que se desplegará
+  template:
+    metadata:
+      labels:
+        # Labels que deben coincidir con el selector de arriba
+        # y con el selector del Service
+        app: frontend
+        project: allin1
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          # Imagen publicada en Docker Hub por el equipo
+          # Tag único con formato fecha+hash corto de git (NO :latest)
+          image: am4roo/allin1-frontend-next:20260929-b3e03c9
+
+          # IfNotPresent: Kubernetes usa la imagen local si ya existe con ese tag.
+          # Como usamos tags únicos (no :latest), esto evita pulls innecesarios.
+          imagePullPolicy: IfNotPresent
+
+          # Puerto del contenedor: 3000 (Next.js standalone server)
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+
+          # Variables de entorno en RUNTIME para el servidor Node/Next.js
+          env:
+            - name: CATALOG_INTERNAL_URL
+              value: "http://catalog:8082"
+
+          # -----------------------------------------------------------------
+          # Resources: limits y requests para cluster compartido
+          # -----------------------------------------------------------------
+          # Requests: mínimo garantizado (>= 25m CPU, >= 64Mi RAM por LimitRange)
+          # Limits: máximo antes de throttle/OOMKill
+          resources:
+            requests:
+              cpu: "100m"       # 0.1 vCPU
+              memory: "128Mi"   # 128 MB de RAM
+            limits:
+              cpu: "500m"       # 0.5 vCPU
+              memory: "512Mi"   # 512 MB de RAM
+
+          # -----------------------------------------------------------------
+          # Probes: Verificaciones de salud del contenedor
+          # -----------------------------------------------------------------
+          # Next.js standalone responde HTTP en /, así que usamos httpGet.
+
+          # readinessProbe: Determina si el Pod está listo para recibir tráfico.
+          # Kubernetes NO enviará tráfico al Pod hasta que esta probe pase.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10   # Esperar 10s después del arranque
+            periodSeconds: 10         # Verificar cada 10s
+            timeoutSeconds: 3         # Timeout de cada verificación
+            failureThreshold: 3       # Marcar como no-ready tras 3 fallos
+
+          # livenessProbe: Determina si el Pod está vivo y funcionando.
+          # Si falla, Kubernetes reiniciará el contenedor automáticamente.
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20   # Esperar 20s (más que readiness)
+            periodSeconds: 20         # Verificar cada 20s
+            timeoutSeconds: 3         # Timeout de cada verificación
+            failureThreshold: 3       # Reiniciar tras 3 fallos consecutivos
