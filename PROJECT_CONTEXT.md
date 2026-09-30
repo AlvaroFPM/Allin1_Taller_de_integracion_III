@@ -66,7 +66,7 @@ El backend sigue Clean Architecture dentro de un monorepo Go:
 | Servicio | Puerto gRPC | Puerto HTTP (Gateway) | Descripción |
 |----------|------------|----------------------|-------------|
 | IAM      | 50051      | 8080                 | Autenticación (register, login, profile) |
-| Catalog  | 50051      | 8080                 | Publicaciones del marketplace |
+| Catalog  | 50052      | 8082                 | Publicaciones del marketplace |
 | Media    | —          | —                    | Gestión de imágenes (pendiente) |
 | Gateway  | —          | 8080                 | Reverse proxy Nginx, único punto de entrada externo |
 | Frontend | —          | 3000                 | Next.js (standalone), marketplace UI |
@@ -84,9 +84,10 @@ Internet
     → Ingress Controller (nginx del cluster)
       → Service api-gateway (ClusterIP, port 80)
         → Pod Nginx (port 8080)
-          → /v1/auth/*    → Service iam:8080     → Pod IAM (Go)
-          → /v1/catalog/* → Service catalog:8082  → Pod Catalog (Go)  [pendiente]
-          → /*            → 404 JSON
+          → /v1/auth/*       → Service iam:8080     → Pod IAM (Go)
+          → /v1/publications → Service catalog:8082 → Pod Catalog (Go)
+          → /v1/categories   → Service catalog:8082 → Pod Catalog (Go)
+          → /*               → 404 JSON
 ```
 
 | Archivo | Recurso | Descripción |
@@ -149,6 +150,40 @@ kubectl apply -f secret.yaml          # (copia de secret.example.yaml con valore
 kubectl apply -f postgres-iam.yaml
 kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
+```
+
+### Manifiestos de Catalog (`backend-go/k8s/catalog/`)
+
+| Archivo | Recurso | Descripción |
+|---------|---------|-------------|
+| `secret.example.yaml` | Secret `catalog-db-secret` (template) | Variables sensibles de PostgreSQL (`DB_*`) |
+| `configmap.yaml` | ConfigMap `catalog-db-config` | Variables no sensibles (`DB_HOST`, `DB_PORT`, `GRPC_PORT`, `HTTP_PORT`) |
+| `postgres-catalog.yaml` | PVC + StatefulSet + Service | PostgreSQL para Catalog (StatefulSet + headless Service) |
+| `deployment.yaml` | Deployment `catalog` | Microservicio Catalog (Go) — puertos 8082 (HTTP) y 50052 (gRPC) |
+| `service.yaml` | Service `catalog` | ClusterIP, port 8082 |
+
+**Orden de apply para Catalog:**
+```bash
+# 1. Secretos de BD
+cp secret.example.yaml secret.yaml
+# Configurar contraseñas con openssl rand -hex 16
+kubectl apply -f secret.yaml
+
+# 2. ConfigMap no sensible
+kubectl apply -f configmap.yaml
+
+# 3. Base de datos PostgreSQL
+kubectl apply -f postgres-catalog.yaml
+
+# 4. Deployment de Catalog (tras build y reemplazo de TAG_A_DEFINIR)
+kubectl apply -f deployment.yaml
+
+# 5. Service interno
+kubectl apply -f service.yaml
+
+# 6. Actualización del API Gateway
+kubectl apply -f ../gateway/configmap.yaml
+kubectl rollout restart deployment/api-gateway
 ```
 
 ### Manifiestos del gateway (`backend-go/k8s/gateway/`)
@@ -227,15 +262,31 @@ Internet
 
 ## 9. Variables de Entorno en Kubernetes
 
+### Variables de IAM (`iam-db-config` / `iam-db-secret`)
+
 | Variable | Fuente K8s | Descripción |
 |----------|-----------|-------------|
-| `DB_HOST` | ConfigMap `iam-db-config` | Host de PostgreSQL |
-| `DB_PORT` | ConfigMap `iam-db-config` | Puerto de PostgreSQL |
+| `DB_HOST` | ConfigMap `iam-db-config` | Host de PostgreSQL (`postgres-iam`) |
+| `DB_PORT` | ConfigMap `iam-db-config` | Puerto de PostgreSQL (`5432`) |
 | `DB_USER` | Secret `iam-db-secret` | Usuario de PostgreSQL |
 | `DB_PASSWORD` | Secret `iam-db-secret` | Password de PostgreSQL |
-| `DB_NAME` | Secret `iam-db-secret` | Nombre de la base de datos |
-| `DB_SSLMODE` | Secret `iam-db-secret` | Modo SSL |
+| `DB_NAME` | Secret `iam-db-secret` | Nombre de la base de datos (`iam_db`) |
+| `DB_SSLMODE` | Secret `iam-db-secret` | Modo SSL (`disable`) |
 | `JWT_SECRET` | Secret `iam-db-secret` | Clave para firmar/verificar JWT |
+
+### Variables de Catalog (`catalog-db-config` / `catalog-db-secret`)
+
+| Variable | Fuente K8s | Descripción |
+|----------|-----------|-------------|
+| `DB_HOST` | ConfigMap `catalog-db-config` | Host de PostgreSQL (`postgres-catalog`) |
+| `DB_PORT` | ConfigMap `catalog-db-config` | Puerto de PostgreSQL (`5432`) |
+| `GRPC_PORT` | ConfigMap `catalog-db-config` | Puerto del servidor gRPC (`50052`) |
+| `HTTP_PORT` | ConfigMap `catalog-db-config` | Puerto del servidor HTTP / gRPC-Gateway (`8082`) |
+| `DB_USER` | Secret `catalog-db-secret` | Usuario de PostgreSQL |
+| `DB_PASSWORD` | Secret `catalog-db-secret` | Password de PostgreSQL |
+| `DB_NAME` | Secret `catalog-db-secret` | Nombre de la base de datos (`catalog_db`) |
+| `DB_SSLMODE` | Secret `catalog-db-secret` | Modo SSL (`disable`) |
+| `JWT_SECRET` | Secret `iam-db-secret` | Clave JWT compartida desde el secreto de IAM |
 
 ## 10. Seguridad — Reglas del Repo
 
@@ -261,7 +312,7 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 
 | Deuda | Archivo(s) afectado(s) | Acción requerida |
 |-------|----------------------|------------------|
-| Catalog aún no desplegado | `backend-go/k8s/gateway/configmap.yaml` | Descomentar `location /v1/catalog/` cuando exista el Service |
+| ~~Catalog aún no desplegado~~ | ~~`backend-go/k8s/gateway/configmap.yaml`~~ | ✅ Resuelto — Manifiestos creados en `k8s/catalog/` y rutas `/v1/publications` y `/v1/categories` enrutadas en Nginx hacia `catalog:8082` |
 | ~~CORS no configurado en el gateway~~ | ~~`backend-go/k8s/gateway/configmap.yaml`~~ | ✅ Resuelto — CORS inyectado en Nginx para `marketplace-aalarcon.dev.censei.cl` |
 | TLS autofirmado | `backend-go/k8s/gateway/ingress.yaml`, `frontend-marketplace/k8s/ingress.yaml` | Agregar sección `tls` cuando el cluster tenga cert-manager. Mientras tanto, los navegadores mostrarán advertencia de certificado |
 | Fallback JWT inseguro | `internal/service/auth_service.go`, `internal/middleware/jwt_interceptor.go` | Evaluar hacer panic en vez de usar clave de desarrollo si `JWT_SECRET` está vacía |
@@ -273,6 +324,8 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | Cookies con sameSite/expiración inconsistentes | `frontend-marketplace/src/lib/authCookies.ts`, `login-form.tsx`, `useAuthStore.ts` | `authCookies` usa `sameSite: 'strict'` (1 día de expiración) mientras `login-form` usa `document.cookie` con `SameSite=Lax` (7 días). Centralizar y homogeneizar atributos de cookies de sesión |
 | Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |
 
+Deuda	Archivo(s) afectado(s)	Acción requerida
+Catalog no valida JWT	backend-go/cmd/catalog/main.go	Registrar el interceptor JWT (grpc.NewServer(grpc.UnaryInterceptor(...))) y tomar id_usuario_vendedor desde el token, no del body. Hasta entonces POST /v1/publications es público
 ## 13. GitFlow y Branching
 
 <!-- TODO: documentar políticas de ramas, ver README.md -->
