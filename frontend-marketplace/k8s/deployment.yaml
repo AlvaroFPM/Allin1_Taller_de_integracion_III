@@ -57,6 +57,11 @@ spec:
               name: http
               protocol: TCP
 
+          # Variables de entorno en RUNTIME para el servidor Node/Next.js
+          env:
+            - name: CATALOG_INTERNAL_URL
+              value: "http://catalog:8082"
+
           # -----------------------------------------------------------------
           # Resources: limits y requests para cluster compartido
           # -----------------------------------------------------------------
