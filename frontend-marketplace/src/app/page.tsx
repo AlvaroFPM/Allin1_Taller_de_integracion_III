@@ -5,11 +5,16 @@ import {
   HomeRecentActivity,
   HomeReviews,
 } from '@/components/shared';
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   let recentPublications = [];
   try {
-    const res = await fetch('http://localhost:8082/v1/publications?limit=3', { cache: 'no-store' });
+    const CATALOG_BASE =
+      process.env.CATALOG_INTERNAL_URL ??
+      process.env.NEXT_PUBLIC_CATALOG_API_URL ??
+      'http://localhost:8082';
+    const res = await fetch(`${CATALOG_BASE}/v1/publications?limit=3`, { cache: 'no-store' });
     const data = await res.json();
     if (data && data.publications) {
       recentPublications = data.publications.map((p: any) => ({
@@ -38,7 +43,9 @@ export default async function HomePage() {
       <HomeHowItWorks />
 
       {/* 4. Actividad reciente en tiempo real */}
-      <HomeRecentActivity publications={recentPublications.length > 0 ? recentPublications : undefined} />
+      <HomeRecentActivity
+        publications={recentPublications.length > 0 ? recentPublications : undefined}
+      />
 
       {/* 5. Reseñas y testimonios de la comunidad */}
       <HomeReviews />
