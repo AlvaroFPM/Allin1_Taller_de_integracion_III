@@ -121,7 +121,7 @@ kubectl apply -f ingress.yaml
 - Secretos K8s: `<servicio>-db-secret` (ej. `iam-db-secret`)
 - Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
   - Ejemplo backend: `am4roo/allin1-iam-go:latest`
-  - Ejemplo frontend: `am4roo/allin1-frontend-next:20260929-b373523`
+  - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
   - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
 ## 8. Kubernetes
@@ -187,10 +187,26 @@ kubectl apply -f service.yaml
 kubectl apply -f ingress.yaml
 ```
 
-> **IMPORTANTE — NEXT_PUBLIC_API_URL es variable de BUILD**:
-> Está inlineada en el bundle JS durante `npm run build`. Para cambiarla
-> hay que reconstruir la imagen Docker con el nuevo `--build-arg` y subir
-> un tag nuevo. NO se inyecta como env en el Deployment.
+> **IMPORTANTE — Variables de BUILD y RUNTIME en el Frontend**:
+> 
+> 1. **Variables de BUILD (`NEXT_PUBLIC_*`)**:
+>    - `NEXT_PUBLIC_API_URL`: URL del API Gateway (IAM: `/v1/auth/*`). Inyectada en build time vía `--build-arg`. En producción: `https://student-aalarcon.dev.censei.cl`.
+>    - `NEXT_PUBLIC_CATALOG_API_URL`: URL del catálogo para llamadas del cliente/navegador. Inyectada vía `--build-arg`. En producción: `https://student-aalarcon.dev.censei.cl`.
+>    - *Nota*: Están inlineadas en el bundle JS durante `npm run build`. Para cambiarlas es obligatorio reconstruir la imagen Docker.
+> 
+> 2. **Variable de RUNTIME (`CATALOG_INTERNAL_URL`)**:
+>    - `CATALOG_INTERNAL_URL`: URL interna dentro de la red del cluster Kubernetes (`http://catalog:8082` provisional).
+>    - Inyectada en la sección `env` del [deployment.yaml](file:///c:/Users/Amaroo/Desktop/Universidad/3er%20a%C3%B1o/2do%20semestre/Integra%203/Allin1_Taller_de_integracion_III/frontend-marketplace/k8s/deployment.yaml). La consumen los Server Components (como `src/app/page.tsx`) en el servidor Node.js sin salir a Internet ni verse afectados por certificados TLS autofirmados.
+> 
+> 3. **Guarda obligatoria en Dockerfile**:
+>    - Antes de `npm run build`, el Dockerfile ejecuta:
+>      `RUN test -n "$NEXT_PUBLIC_API_URL" && test -n "$NEXT_PUBLIC_CATALOG_API_URL" || (echo "ERROR: faltan build-args NEXT_PUBLIC_*" && exit 1)`
+>      evitando builds accidentales sin URLs de producción.
+> 
+> 4. **Regla "Commit antes de Build"**:
+>    - El tag de la imagen se construye con `YYYYMMDD-<hash-corto-git>`. El árbol de trabajo de Git (`git status`) debe estar completamente limpio antes de construir para garantizar trazabilidad exacta entre imagen y commit.
+> 
+> **Tag vigente desplegado**: `am4roo/allin1-frontend-next:20260929-b3e03c9`
 
 **Flujo de tráfico del frontend:**
 ```

@@ -45,7 +45,7 @@ spec:
         - name: frontend
           # Imagen publicada en Docker Hub por el equipo
           # Tag único con formato fecha+hash corto de git (NO :latest)
-          image: am4roo/allin1-frontend-next:20260929-b373523
+          image: am4roo/allin1-frontend-next:20260929-b3e03c9
 
           # IfNotPresent: Kubernetes usa la imagen local si ya existe con ese tag.
           # Como usamos tags únicos (no :latest), esto evita pulls innecesarios.
