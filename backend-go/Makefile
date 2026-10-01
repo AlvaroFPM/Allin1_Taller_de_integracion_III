@@ -1,20 +1,40 @@
-# Variables
+.PHONY: generate clean deps install-deps
+
 PROTO_DIR = api/proto
-MODULE = github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go
+OUT_DIR = internal/api/pb
+THIRD_PARTY_DIR = third_party/google/api
 
-# Generar código a partir de los archivos .proto
-generate:
-	@echo "Generando código gRPC y Gateway..."
-	protoc -I=$(PROTO_DIR) \
-		-I=third_party \
-		--go_out=. --go_opt=module=$(MODULE) \
-		--go-grpc_out=. --go-grpc_opt=module=$(MODULE) \
-		--grpc-gateway_out=. --grpc-gateway_opt=module=$(MODULE) \
-		$(PROTO_DIR)/*.proto
-	@echo "Generación completada."
+generate: deps
+	@echo "Generando código gRPC y Gateway para Catálogo e IAM..."
+	@mkdir -p $(OUT_DIR)/publication
+	@mkdir -p $(OUT_DIR)/auth
+	
+	protoc -I=$(PROTO_DIR) -I=third_party \
+		--go_out=$(OUT_DIR)/publication --go_opt=paths=source_relative \
+		--go-grpc_out=$(OUT_DIR)/publication --go-grpc_opt=paths=source_relative \
+		--grpc-gateway_out=$(OUT_DIR)/publication --grpc-gateway_opt=paths=source_relative \
+		$(PROTO_DIR)/publication.proto
 
-# Instalar dependencias (requiere tener Go y protoc instalados)
+	protoc -I=$(PROTO_DIR) -I=third_party \
+		--go_out=$(OUT_DIR)/auth --go_opt=paths=source_relative \
+		--go-grpc_out=$(OUT_DIR)/auth --go-grpc_opt=paths=source_relative \
+		--grpc-gateway_out=$(OUT_DIR)/auth --grpc-gateway_opt=paths=source_relative \
+		$(PROTO_DIR)/auth.proto
+		
+	@echo "Generación completada exitosamente."
+
+deps:
+	@echo "Verificando dependencias de Google API..."
+	@mkdir -p $(THIRD_PARTY_DIR)
+	@curl -sSL -z $(THIRD_PARTY_DIR)/annotations.proto -o $(THIRD_PARTY_DIR)/annotations.proto https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto
+	@curl -sSL -z $(THIRD_PARTY_DIR)/http.proto -o $(THIRD_PARTY_DIR)/http.proto https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto
+
+clean:
+	@echo "Limpiando archivos generados..."
+	rm -rf $(OUT_DIR)/*
+
 install-deps:
+	@echo "Instalando dependencias de Go y plugins para gRPC/Gateway..."
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
@@ -22,5 +42,4 @@ install-deps:
 	go get google.golang.org/grpc
 	go get google.golang.org/protobuf
 	go get github.com/grpc-ecosystem/grpc-gateway/v2/runtime
-
-.PHONY: generate install-deps
+	@echo "Dependencias instaladas."
