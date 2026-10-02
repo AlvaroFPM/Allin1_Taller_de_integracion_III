@@ -27,8 +27,11 @@ func UnaryAuthInterceptor() grpc.UnaryServerInterceptor {
 	) (interface{}, error) {
 		// Rutas públicas que no requieren autenticación
 		publicRoutes := map[string]bool{
-			"/auth.AuthService/Login":    true,
-			"/auth.AuthService/Register": true,
+			"/auth.AuthService/Login":                          true,
+			"/auth.AuthService/Register":                       true,
+			"/publication.PublicationService/GetCategories":    true,
+			"/publication.PublicationService/GetPublication":   true,
+			"/publication.PublicationService/ListPublications": true,
 		}
 
 		if publicRoutes[info.FullMethod] {
