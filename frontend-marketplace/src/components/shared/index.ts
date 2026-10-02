@@ -19,3 +19,7 @@ export * from './publication-card';
 export * from './catalog-search-header';
 export * from './catalog-sidebar-filters';
 export * from './catalog-grid';
+export * from './profile-personal-card';
+export * from './profile-reputation-card';
+export * from './profile-activity-panel';
+export * from './profile-edit-modal';
