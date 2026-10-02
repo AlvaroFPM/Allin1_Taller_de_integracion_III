@@ -137,7 +137,7 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 	if s.db != nil {
 		if err := s.db.Where("correo = ?", req.GetEmail()).First(&usuario).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, status.Errorf(codes.NotFound, "credenciales incorrectas")
+				return nil, status.Errorf(codes.Unauthenticated, "credenciales incorrectas")
 			}
 			return nil, status.Errorf(codes.Internal, "error al consultar la base de datos")
 		}
@@ -232,6 +232,7 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 		Ciudad:         perfil.Ciudad,
 		Region:         perfil.Region,
 		FotoPerfilUrl:  perfil.FotoPerfilURL,
+		Rol:            usuario.Rol,
 	}, nil
 }
 

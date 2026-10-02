@@ -8,6 +8,7 @@ import api from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { loginSchema, type LoginFormData } from '@/types/auth';
+import { mapProfileToUser } from '@/lib/mappers/auth';
 
 export interface LoginFormProps {
   onSuccess?: (data: LoginFormData) => void;
@@ -55,13 +56,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
       const profileResponse = await api.get('/v1/auth/profile');
       const profile = profileResponse.data;
 
-      const realUser = {
-        id: Number(profile.userId),
-        name: `${profile.firstName} ${profile.lastName}`,
-        email: profile.email,
-        role: 'CLIENTE' as const, // Puedes ajustarlo si el backend devuelve el rol
-        isVerified: true,
-      };
+      const realUser = mapProfileToUser(profile);
 
       setSubmitSuccess(true);
       useAuthStore.getState().setAuth(realUser, token);
