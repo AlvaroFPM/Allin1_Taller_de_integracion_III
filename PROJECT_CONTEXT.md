@@ -19,6 +19,7 @@ backend-go/              # Monorepo Go (Clean Architecture)
   cmd/                   # Ejecutables por microservicio
   internal/              # Código compartido (services, models, middleware)
   api/proto/             # Contratos .proto (gRPC + gRPC-Gateway)
+  api/openapi/           # Swagger JSON generado automáticamente por protoc
   k8s/                   # Manifiestos Kubernetes
     iam/                 # Microservicio IAM (auth)
     gateway/             # API Gateway Nginx
@@ -323,13 +324,15 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | `catalog.exe` commiteado en repo | `backend-go/catalog.exe` | Eliminar ejecutable de Windows del control de versiones y verificar regla en `.gitignore` |
 | Cookies con sameSite/expiración inconsistentes | `frontend-marketplace/src/lib/authCookies.ts`, `login-form.tsx`, `useAuthStore.ts` | `authCookies` usa `sameSite: 'strict'` (1 día de expiración) mientras `login-form` usa `document.cookie` con `SameSite=Lax` (7 días). Centralizar y homogeneizar atributos de cookies de sesión |
 | Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |
+| Catalog no valida JWT | `backend-go/cmd/catalog/main.go` | Registrar el interceptor JWT (`grpc.NewServer(grpc.UnaryInterceptor(...))`) y tomar `id_usuario_vendedor` desde el token, no del body. Hasta entonces `POST /v1/publications` es público |
+| Exclusión de nodo agent-02 (nodeAffinity) | `backend-go/k8s/catalog/postgres-catalog.yaml` | Attach de volúmenes Cinder falla en `rke2-estudiantes-agent-02` (`FailedAttachVolume: "already attached to instances"`). Se agregó `nodeAffinity` con `NotIn` para excluir dicho nodo temporalmente; remover cuando el administrador del cluster lo resuelva |
 
-Deuda	Archivo(s) afectado(s)	Acción requerida
-Catalog no valida JWT	backend-go/cmd/catalog/main.go	Registrar el interceptor JWT (grpc.NewServer(grpc.UnaryInterceptor(...))) y tomar id_usuario_vendedor desde el token, no del body. Hasta entonces POST /v1/publications es público
 ## 13. GitFlow y Branching
 
 <!-- TODO: documentar políticas de ramas, ver README.md -->
 
 ## 14. CI/CD (GitHub Actions)
 
-<!-- TODO: documentar workflows de CI, protoc, build, etc. -->
+El workflow `backend-go-ci.yml` ejecuta `make install-deps` y `make generate`,
+lo que instala `protoc-gen-openapiv2` y genera los archivos Swagger JSON en
+`api/openapi/` automáticamente junto con el código gRPC/Gateway.

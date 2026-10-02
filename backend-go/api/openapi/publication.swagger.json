@@ -1,0 +1,400 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "publication.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "PublicationService",
+      "description": "Servicio gRPC con endpoints REST vía grpc-gateway"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/categories": {
+      "get": {
+        "operationId": "PublicationService_GetCategories",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationGetCategoriesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PublicationService"
+        ]
+      }
+    },
+    "/v1/publications": {
+      "get": {
+        "operationId": "PublicationService_ListPublications",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationListPublicationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "categoriaId",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "tipoServicio",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "TIPO_SERVICIO_UNSPECIFIED",
+              "OFERTA",
+              "DEMANDA"
+            ],
+            "default": "TIPO_SERVICIO_UNSPECIFIED"
+          },
+          {
+            "name": "excludeUserId",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
+      },
+      "post": {
+        "operationId": "PublicationService_CreatePublication",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationCreatePublicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/publicationCreatePublicationRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
+      }
+    },
+    "/v1/publications/{idPublicacion}": {
+      "get": {
+        "operationId": "PublicationService_GetPublication",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationGetPublicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idPublicacion",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "publicationCategory": {
+      "type": "object",
+      "properties": {
+        "idCategoria": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "iconoUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "publicationCreatePublicationRequest": {
+      "type": "object",
+      "properties": {
+        "idUsuarioVendedor": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "categoriaId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "descripcion": {
+          "type": "string"
+        },
+        "tipoServicio": {
+          "$ref": "#/definitions/publicationTipoServicio"
+        },
+        "precioBase": {
+          "type": "string",
+          "format": "int64"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "imagenesUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Mensajes para RPC CreatePublication"
+    },
+    "publicationCreatePublicationResponse": {
+      "type": "object",
+      "properties": {
+        "publication": {
+          "$ref": "#/definitions/publicationPublication"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "publicationEstadoPublicacion": {
+      "type": "string",
+      "enum": [
+        "ESTADO_PUBLICACION_UNSPECIFIED",
+        "ACTIVO",
+        "PAUSADO",
+        "COMPLETADO",
+        "ELIMINADO"
+      ],
+      "default": "ESTADO_PUBLICACION_UNSPECIFIED"
+    },
+    "publicationGetCategoriesResponse": {
+      "type": "object",
+      "properties": {
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/publicationCategory"
+          }
+        }
+      }
+    },
+    "publicationGetPublicationResponse": {
+      "type": "object",
+      "properties": {
+        "publication": {
+          "$ref": "#/definitions/publicationPublication"
+        }
+      }
+    },
+    "publicationListPublicationsResponse": {
+      "type": "object",
+      "properties": {
+        "publications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/publicationPublication"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/publicationPaginationMeta"
+        }
+      }
+    },
+    "publicationPaginationMeta": {
+      "type": "object",
+      "properties": {
+        "totalRecords": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currentPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "publicationPublication": {
+      "type": "object",
+      "properties": {
+        "idPublicacion": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idUsuarioVendedor": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "categoriaId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "descripcion": {
+          "type": "string"
+        },
+        "tipoServicio": {
+          "$ref": "#/definitions/publicationTipoServicio"
+        },
+        "precioBase": {
+          "type": "string",
+          "format": "int64"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "estado": {
+          "$ref": "#/definitions/publicationEstadoPublicacion"
+        },
+        "imagenesUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "RN-25: 1 a 5 imágenes"
+        },
+        "categoria": {
+          "$ref": "#/definitions/publicationCategory"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "Entidad Publicación completa"
+    },
+    "publicationTipoServicio": {
+      "type": "string",
+      "enum": [
+        "TIPO_SERVICIO_UNSPECIFIED",
+        "OFERTA",
+        "DEMANDA"
+      ],
+      "default": "TIPO_SERVICIO_UNSPECIFIED"
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}
