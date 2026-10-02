@@ -10,6 +10,7 @@ import (
 
 	publicationpb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -51,7 +52,9 @@ func main() {
 		log.Fatalf("Fallo al escuchar en puerto %s: %v", grpcPort, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
+	)
 	catalogService := service.NewPublicationServiceServer(db)
 	publicationpb.RegisterPublicationServiceServer(grpcServer, catalogService)
 	reflection.Register(grpcServer)
