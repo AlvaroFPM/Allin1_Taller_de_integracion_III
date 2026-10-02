@@ -53,3 +53,51 @@ go run cmd/media/main.go
 
 **⚠️ Regla de Oro:**
 ¡Nunca importes dependencias de un microservicio a otro directamente si no están en `internal/`! Si `iam` necesita hablar con `catalog`, lo debe hacer llamando a su API a través de gRPC, no importando su código.
+
+---
+
+## 📄 Documentación OpenAPI/Swagger
+
+Al compilar los `.proto`, se generan automáticamente archivos **OpenAPI v2 (Swagger JSON)** en `api/openapi/`.
+
+### Regenerar
+
+```powershell
+# Windows (PowerShell)
+.\install-deps.ps1   # Solo la primera vez o al actualizar plugins
+.\generate.ps1
+
+# Linux / CI (Make)
+make install-deps    # Solo la primera vez
+make generate
+```
+
+### Archivos generados
+
+| Archivo | Servicio |
+|---------|----------|
+| `api/openapi/auth.swagger.json` | AuthService (register, login, profile) |
+| `api/openapi/publication.swagger.json` | PublicationService (publications, categories) |
+
+### Visualizar
+
+Puedes abrir los archivos JSON en cualquier visor Swagger:
+
+- **Swagger Editor online**: [https://editor.swagger.io](https://editor.swagger.io) → File → Import file
+- **VS Code**: extensión "Swagger Viewer" o "OpenAPI (Swagger) Editor"
+- **Swagger UI local** (Docker, desde `backend-go/`):
+```powershell
+  # PowerShell
+  docker run --rm -p 8089:8080 `
+    -e "URLS=[{url:'/spec/auth.swagger.json',name:'IAM'},{url:'/spec/publication.swagger.json',name:'Catalog'}]" `
+    -v "${PWD}/api/openapi:/usr/share/nginx/html/spec" `
+    swaggerapi/swagger-ui
+```
+```bash
+  # Linux / macOS
+  docker run --rm -p 8089:8080 \
+    -e 'URLS=[{url:"/spec/auth.swagger.json",name:"IAM"},{url:"/spec/publication.swagger.json",name:"Catalog"}]' \
+    -v "$PWD/api/openapi:/usr/share/nginx/html/spec" \
+    swaggerapi/swagger-ui
+```
+  Luego abrir http://localhost:8089
