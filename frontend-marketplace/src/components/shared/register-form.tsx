@@ -4,6 +4,8 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AxiosError } from 'axios';
+
 import { Button } from '@/components/ui/button';
 import { registerSchema, type RegisterFormData } from '@/types/auth';
 import api from '@/lib/axios';
@@ -41,7 +43,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const passwordValue = useWatch({ control, name: 'password' }) || '';
 
-  // Reglas de seguridad visuales para la contraseña
   const passwordRules = [
     { label: '8 a 64 caracteres', valid: passwordValue.length >= 8 && passwordValue.length <= 64 },
     { label: 'Una mayúscula', valid: /[A-Z]/.test(passwordValue) },
@@ -55,23 +56,22 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setErrorMessage(null);
-      // 1. Petición real de registro
+
       const registerResponse = await api.post('/v1/auth/register', {
         first_name: data.firstName,
         last_name: data.lastName,
         rut: data.rut,
+        phone: data.phone,
         email: data.email,
         password: data.password,
       });
 
       const token = registerResponse.data.token;
 
-      // 2. Guardar el token en localStorage para el interceptor
       if (typeof window !== 'undefined') {
         localStorage.setItem('auth_token', token);
       }
 
-      // 3. Traer el perfil para guardar en el store
       const profileResponse = await api.get('/v1/auth/profile');
       const profile = profileResponse.data;
 
@@ -80,11 +80,11 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       setSubmitSuccess(true);
       useAuthStore.getState().setAuth(realUser, token);
       onSuccess?.(data);
-    } catch (error: unknown) {
-      console.error('Error en registro:', error);
-      const err = error as any;
+    } catch (err: unknown) {
+      console.error('Error en registro:', err);
+      const error = err as AxiosError<{ message?: string }>;
       setErrorMessage(
-        err.response?.data?.message ||
+        error.response?.data?.message ||
           'Error al registrar la cuenta. Es posible que el correo o RUT ya existan.',
       );
     }
@@ -366,7 +366,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         </div>
       </div>
 
-      {/* Reglas de Seguridad Visuales en tiempo real */}
+      {/* Reglas de Seguridad Visuales */}
       <div className="p-2.5 rounded-xl bg-surface-subtle border border-border-base/50 text-[11px] space-y-1">
         <p className="font-semibold text-content-main mb-1">Requisitos de contraseña:</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-content-muted">
@@ -384,7 +384,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         </div>
       </div>
 
-      {/* Checkbox Términos y Condiciones */}
+      {/* Checkbox Términos */}
       <div className="space-y-1 pt-1">
         <label className="flex items-start gap-2 text-xs text-content-muted cursor-pointer select-none">
           <input
@@ -410,7 +410,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         )}
       </div>
 
-      {/* Botón de Submit */}
+      {/* Botón Submit */}
       <div className="pt-2">
         <Button
           type="submit"
