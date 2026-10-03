@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { CatalogPublication } from '@/types/catalog';
 import { cn } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 export interface PublicationCardProps {
   publication: CatalogPublication;
@@ -12,6 +13,11 @@ export interface PublicationCardProps {
 export function PublicationCard({ publication, onAction }: PublicationCardProps) {
   const isJob = publication.type === 'TRABAJO';
   const isArticle = publication.type === 'ARTICULO';
+
+  // Usa la fecha relativa previa o la calcula desde createdAt pasando por unknown para satisfacer TS
+  const rawCreatedAt = (publication as unknown as Record<string, unknown>).createdAt as
+    string | undefined;
+  const displayDate = publication.createdAtRelative || formatRelativeTime(rawCreatedAt);
 
   return (
     <article className="bg-surface-main border border-border-base rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between text-left gap-4">
@@ -29,7 +35,7 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
           {publication.type === 'ARTICULO' && 'ARTÍCULO EN VENTA'}
           {publication.type === 'SERVICIO' && 'SERVICIO OFRECIDO'}
         </span>
-        <span className="text-xs text-content-muted">{publication.createdAtRelative}</span>
+        <span className="text-xs text-content-muted capitalize">{displayDate}</span>
       </div>
 
       {/* Contenido: Título y descripción */}

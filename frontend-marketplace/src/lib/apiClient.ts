@@ -1,6 +1,5 @@
-import axios from 'axios';
-import { getAccessToken, removeAuthTokens } from '@/lib/authCookies';
-import { useAuthStore } from '@/store/useAuthStore';
+// Wrapper para mantener retrocompatibilidad con imports que usan 'apiClient' o 'axios'
+import api from './axios';
 
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
