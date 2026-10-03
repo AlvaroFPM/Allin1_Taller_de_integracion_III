@@ -9,24 +9,19 @@ import {
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type { CreatePublicationFormState } from '@/types/publication';
+import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
-
-export interface Category {
-  id: number | string;
-  name: string;
-}
 
 export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [categories, setCategories] = React.useState<Category[]>([]);
+  const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
 
   React.useEffect(() => {
     publicationService
       .getCategories()
-      .then((data) => setCategories(data as Category[]))
+      .then((data) => setCategories(data as PublicationCategory[]))
       .catch((err: unknown) => console.error('Error cargando categorías:', err));
   }, []);
 
