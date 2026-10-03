@@ -86,7 +86,9 @@ message ListPublicationsRequest {
   int32 limit = 2;
   optional uint32 categoria_id = 3;
   optional TipoServicio tipo_servicio = 4;
-  optional uint32 exclude_user_id = 5; 
+  optional uint32 exclude_user_id = 5;
+  optional int64 min_price = 6;   // Precio mínimo inclusivo (CLP)
+  optional int64 max_price = 7;   // Precio máximo inclusivo (CLP)
 }
 
 message ListPublicationsResponse {

@@ -96,6 +96,22 @@
             "required": false,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "minPrice",
+            "description": "Precio mínimo inclusivo (CLP)",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "maxPrice",
+            "description": "Precio máximo inclusivo (CLP)",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [

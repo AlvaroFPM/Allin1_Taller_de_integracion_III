@@ -91,6 +91,7 @@ func (s *PublicationServiceServer) GetPublication(ctx context.Context, req *pb.G
 		Publication: mapModelToProto(&pub),
 	}, nil
 }
+
 // GetCategories retorna todas las categorías disponibles, ordenadas alfabéticamente
 func (s *PublicationServiceServer) GetCategories(ctx context.Context, req *pb.GetCategoriesRequest) (*pb.GetCategoriesResponse, error) {
 	var categorias []models.Categoria
@@ -107,6 +108,7 @@ func (s *PublicationServiceServer) GetCategories(ctx context.Context, req *pb.Ge
 		Categories: protoCategories,
 	}, nil
 }
+
 // ListPublications consulta publicaciones activas paginadas con filtros opcionales
 func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb.ListPublicationsRequest) (*pb.ListPublicationsResponse, error) {
 	page := req.GetPage()
@@ -140,9 +142,26 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 		}
 	}
 
-	// RN-12: Excluir publicaciones del usuario en sesión
-	if req.ExcludeUserId != nil && *req.ExcludeUserId > 0 {
-		query = query.Where("id_usuario_vendedor <> ?", *req.ExcludeUserId)
+	// RN-12: Excluir publicaciones del usuario en sesión.
+	// Prioridad: ID del token JWT (si el interceptor lo inyectó en el contexto).
+	// Respaldo: parámetro opcional exclude_user_id (visitantes sin sesión o clientes que lo envían).
+	var excludeUserID uint
+	if id, ok := ctx.Value(middleware.UserIDKey).(uint); ok && id > 0 {
+		excludeUserID = id
+	} else if req.ExcludeUserId != nil && *req.ExcludeUserId > 0 {
+		excludeUserID = uint(*req.ExcludeUserId)
+	}
+	if excludeUserID > 0 {
+		query = query.Where("id_usuario_vendedor <> ?", excludeUserID)
+	}
+
+	// Rango de precio (límites inclusivos). Como el precio base siempre es > 0 (RN-23),
+	// un valor <= 0 se trata como "sin límite". Si min > max el resultado queda vacío.
+	if req.MinPrice != nil && *req.MinPrice > 0 {
+		query = query.Where("precio_base >= ?", *req.MinPrice)
+	}
+	if req.MaxPrice != nil && *req.MaxPrice > 0 {
+		query = query.Where("precio_base <= ?", *req.MaxPrice)
 	}
 
 	var totalRecords int64
@@ -153,7 +172,7 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 	var publicaciones []models.Publicacion
 	err := query.
 		Preload("Categoria").
-		Order("fecha_creacion DESC").
+		Order("fecha_creacion DESC, id_publicacion DESC"). // desempate estable: evita repetidos/saltos entre páginas
 		Offset(offset).
 		Limit(int(limit)).
 		Find(&publicaciones).Error
