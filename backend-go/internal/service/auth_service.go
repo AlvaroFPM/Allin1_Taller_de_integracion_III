@@ -196,6 +196,15 @@ func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) 
 	return s.getProfileByUserID(idUsuario)
 }
 
+const fallbackAvatarURL = "https://res.cloudinary.com/rstk3bky/image/upload/avatars/default-avatar.png"
+
+func defaultAvatarURL() string {
+	if v := strings.TrimSpace(os.Getenv("DEFAULT_AVATAR_URL")); v != "" {
+		return v
+	}
+	return fallbackAvatarURL
+}
+
 // getProfileByUserID contiene la lógica real de negocio, separada del ID
 // extraído del contexto para poder testearla con distintos usuarios.
 func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse, error) {
@@ -218,8 +227,10 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, status.Errorf(codes.Internal, "error al buscar el perfil: %v", err)
 	}
-	// Si err es gorm.ErrRecordNotFound, perfil queda con sus valores cero (""),
-	// lo cual es un estado válido: el usuario aún no completó su perfil.
+		fotoURL := strings.TrimSpace(perfil.FotoPerfilURL)
+	if fotoURL == "" {
+		fotoURL = defaultAvatarURL()
+	}
 
 	return &auth.ProfileResponse{
 		UserId:         int64(usuario.IDUsuario),
@@ -231,7 +242,7 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 		Habilidades:    perfil.Habilidades,
 		Ciudad:         perfil.Ciudad,
 		Region:         perfil.Region,
-		FotoPerfilUrl:  perfil.FotoPerfilURL,
+		FotoPerfilUrl:  fotoURL,
 		Rol:            usuario.Rol,
 	}, nil
 }
