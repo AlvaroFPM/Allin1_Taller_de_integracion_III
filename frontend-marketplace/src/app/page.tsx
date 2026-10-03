@@ -59,45 +59,12 @@ export default async function HomePage() {
     console.error('Error fetching publications:', err);
   }
 
-  React.useEffect(() => {
-    const fetchRecent = async () => {
-      try {
-        const data = await publicationService.getPublications({ limit: 6 });
-        if (data && data.publications) {
-          const mapped: RecentPublication[] = data.publications.map((item: CatalogPublication) => {
-            const isOffer = item.type === 'OFERTA';
-
-            // Asigna 'serv' para ofertas/servicios e 'item' para solicitudes/productos
-            const badgeVariant: PublicationBadgeVariant = isOffer ? 'serv' : 'item';
-
-            return {
-              id: String(item.id),
-              badgeLabel: isOffer ? 'Oferta' : 'Solicitud',
-              badgeVariant,
-              title: item.title,
-              location: 'Santiago, Chile',
-              price: `$${item.price.toLocaleString('es-CL')}`,
-              href: `/catalogo/${item.id}`,
-            };
-          });
-          setRecentPublications(mapped);
-        }
-      } catch (error) {
-        console.error('Error fetching home publications:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchRecent();
-  }, []);
-
   return (
     <main className="min-h-screen bg-surface-base">
       <HomeHero />
       <HomeCategories />
       <HomeHowItWorks />
-      <HomeRecentActivity publications={recentPublications} isLoading={isLoading} />
+      <HomeRecentActivity publications={recentPublications} isLoading={false} />
       <HomeReviews />
     </main>
   );
