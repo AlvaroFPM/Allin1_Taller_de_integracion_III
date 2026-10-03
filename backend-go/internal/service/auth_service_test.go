@@ -29,13 +29,9 @@ func TestAuthService_Register_Valid(t *testing.T) {
 
 	res, err := service.Register(context.Background(), req)
 
-	if err != nil {
-		t.Fatalf("Se esperaba éxito, pero falló con error: %v", err)
-	}
-
-	if res == nil || res.Token == "" {
-		t.Errorf("Se esperaba una respuesta con token, pero está vacía")
-	}
+	require.NoError(t, err, "Se esperaba éxito, pero falló con error")
+	require.NotNil(t, res, "Se esperaba una respuesta")
+	assert.NotEmpty(t, res.Token, "Se esperaba una respuesta con token, pero está vacía")
 }
 
 func TestAuthService_Register_InvalidEmail(t *testing.T) {
@@ -49,9 +45,7 @@ func TestAuthService_Register_InvalidEmail(t *testing.T) {
 
 	_, err := service.Register(context.Background(), req)
 
-	if err == nil {
-		t.Errorf("Se esperaba un error por email inválido, pero pasó la validación")
-	}
+	require.Error(t, err, "Se esperaba un error por email inválido, pero pasó la validación")
 }
 
 func TestAuthService_Register_ShortPassword(t *testing.T) {
@@ -65,9 +59,7 @@ func TestAuthService_Register_ShortPassword(t *testing.T) {
 
 	_, err := service.Register(context.Background(), req)
 
-	if err == nil {
-		t.Errorf("Se esperaba un error por contraseña muy corta, pero pasó la validación")
-	}
+	require.Error(t, err, "Se esperaba un error por contraseña muy corta, pero pasó la validación")
 }
 
 // =====================================================================
