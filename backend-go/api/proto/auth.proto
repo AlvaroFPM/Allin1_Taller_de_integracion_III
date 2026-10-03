@@ -82,6 +82,7 @@ message ProfileResponse {
   string ciudad = 8;
   string region = 9;
   string foto_perfil_url = 10;
+  string rol = 11;
 }
 
 // Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)

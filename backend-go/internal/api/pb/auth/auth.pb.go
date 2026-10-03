@@ -313,6 +313,7 @@ type ProfileResponse struct {
 	Ciudad         string                 `protobuf:"bytes,8,opt,name=ciudad,proto3" json:"ciudad,omitempty"`
 	Region         string                 `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
 	FotoPerfilUrl  string                 `protobuf:"bytes,10,opt,name=foto_perfil_url,json=fotoPerfilUrl,proto3" json:"foto_perfil_url,omitempty"`
+	Rol            string                 `protobuf:"bytes,11,opt,name=rol,proto3" json:"rol,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -417,6 +418,13 @@ func (x *ProfileResponse) GetFotoPerfilUrl() string {
 	return ""
 }
 
+func (x *ProfileResponse) GetRol() string {
+	if x != nil {
+		return x.Rol
+	}
+	return ""
+}
+
 // Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)
 type UpdateProfileRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -517,7 +525,7 @@ const file_auth_proto_rawDesc = "" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x10\n" +
-	"\x0eProfileRequest\"\xbb\x02\n" +
+	"\x0eProfileRequest\"\xcd\x02\n" +
 	"\x0fProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
@@ -530,7 +538,8 @@ const file_auth_proto_rawDesc = "" +
 	"\x06ciudad\x18\b \x01(\tR\x06ciudad\x12\x16\n" +
 	"\x06region\x18\t \x01(\tR\x06region\x12&\n" +
 	"\x0ffoto_perfil_url\x18\n" +
-	" \x01(\tR\rfotoPerfilUrl\"\xad\x01\n" +
+	" \x01(\tR\rfotoPerfilUrl\x12\x10\n" +
+	"\x03rol\x18\v \x01(\tR\x03rol\"\xad\x01\n" +
 	"\x14UpdateProfileRequest\x12'\n" +
 	"\x0fbio_experiencia\x18\x01 \x01(\tR\x0ebioExperiencia\x12\x1a\n" +
 	"\btelefono\x18\x02 \x01(\tR\btelefono\x12 \n" +

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { registerSchema, type RegisterFormData } from '@/types/auth';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { mapProfileToUser } from '@/lib/mappers/auth';
 
 export interface RegisterFormProps {
   onSuccess?: (data: RegisterFormData) => void;
@@ -74,13 +75,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       const profileResponse = await api.get('/v1/auth/profile');
       const profile = profileResponse.data;
 
-      const realUser = {
-        id: Number(profile.userId),
-        name: `${profile.firstName} ${profile.lastName}`,
-        email: profile.email,
-        role: 'CLIENTE' as const,
-        isVerified: true,
-      };
+      const realUser = mapProfileToUser(profile);
 
       setSubmitSuccess(true);
       useAuthStore.getState().setAuth(realUser, token);
