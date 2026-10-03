@@ -22,6 +22,23 @@ export interface ListPublicationsParams {
   tipoServicio?: 'OFERTA' | 'DEMANDA';
 }
 
+interface RawCategory {
+  idCategoria: number;
+  nombre: string;
+  slug: string;
+  iconoUrl?: string;
+}
+
+interface RawPublication {
+  idPublicacion: number;
+  titulo: string;
+  descripcion: string;
+  precioBase: number | string;
+  tipoServicio: string;
+  idUsuarioVendedor: number;
+  categoriaId: number;
+}
+
 // URL base para el microservicio de Catálogo. Usa variable de entorno o cae a localhost para desarrollo.
 const CATALOG_API_URL = process.env.NEXT_PUBLIC_CATALOG_API_URL || 'http://localhost:8082';
 
@@ -31,12 +48,11 @@ export const publicationService = {
    */
   getCategories: async (): Promise<PublicationCategory[]> => {
     try {
-      // Usamos axios directamente a la URL de Catálogo
       const response = await api.get(`${CATALOG_API_URL}/v1/categories`);
-      
+
       // Mapeamos el proto Category al interface del frontend
       if (response.data && response.data.categories) {
-        return response.data.categories.map((c: any) => ({
+        return response.data.categories.map((c: RawCategory) => ({
           id: c.idCategoria,
           nombre: c.nombre,
           slug: c.slug,
@@ -51,28 +67,52 @@ export const publicationService = {
   },
 
   /**
-   * Obtiene la lista paginada de publicaciones
+   * Obtiene la lista paginada de publicaciones.
+   *
+   * El backend (grpc-gateway) devuelve la paginación dentro de `meta`:
+   *   { publications: [...], meta: { totalRecords: "50", currentPage: 1, totalPages: 5, limit: 10 } }
+   *
+   * NOTA: totalRecords llega como string porque es int64 en protobuf y
+   * la spec Proto3-JSON serializa int64 como string entrecomillado.
    */
-  getPublications: async (params: ListPublicationsParams = {}): Promise<{ publications: CatalogPublication[], total: number }> => {
+  getPublications: async (
+    params: ListPublicationsParams = {},
+  ): Promise<{
+    publications: CatalogPublication[];
+    total: number;
+    totalPages?: number;
+    currentPage?: number;
+  }> => {
     try {
-      const response = await api.get(`${CATALOG_API_URL}/v1/publications`, { params });
-      
+      const response = await api.get(`${CATALOG_API_URL}/v1/publications`, {
+        params,
+      });
+
       if (response.data && response.data.publications) {
-        const publications = response.data.publications.map((p: any) => ({
+        const publications = response.data.publications.map((p: RawPublication) => ({
           id: p.idPublicacion,
           title: p.titulo,
           description: p.descripcion,
-          price: p.precioBase,
+          price: Number(p.precioBase) || 0,
           currency: 'CLP',
           type: p.tipoServicio,
           sellerId: p.idUsuarioVendedor,
           categoryId: p.categoriaId,
           createdAtRelative: 'Recientemente', // TODO: Parsear google.protobuf.Timestamp
         }));
-        
+
+        const meta = response.data?.meta;
+        if (!meta) {
+          console.warn(
+            '[publicationService] La respuesta de /v1/publications no contiene "meta". La paginación no funcionará correctamente.',
+          );
+        }
+
         return {
           publications,
-          total: response.data.totalRecords || publications.length,
+          total: Number(meta?.totalRecords ?? publications.length),
+          totalPages: meta?.totalPages,
+          currentPage: meta?.currentPage,
         };
       }
       return { publications: [], total: 0 };
@@ -85,7 +125,9 @@ export const publicationService = {
   /**
    * Crea una nueva publicación
    */
-  createPublication: async (data: Omit<CatalogPublication, 'id' | 'createdAtRelative'>): Promise<CatalogPublication | null> => {
+  createPublication: async (
+    data: Omit<CatalogPublication, 'id' | 'createdAtRelative'>,
+  ): Promise<CatalogPublication | null> => {
     try {
       // Mapear TRABAJO/SERVICIO/ARTICULO a OFERTA/DEMANDA según el proto de Go
       const mapTipoServicio = (tipo: string) => {
@@ -101,19 +143,19 @@ export const publicationService = {
         descripcion: data.description,
         tipo_servicio: mapTipoServicio(data.type),
         precio_base: data.price,
-        ciudad: "Santiago", // Por defecto
-        region: "RM", // Por defecto
+        ciudad: 'Santiago', // Por defecto
+        region: 'RM', // Por defecto
       };
-      
+
       const response = await api.post(`${CATALOG_API_URL}/v1/publications`, payload);
-      
+
       if (response.data && response.data.publication) {
         const p = response.data.publication;
         return {
           id: p.idPublicacion,
           title: p.titulo,
           description: p.descripcion,
-          price: p.precioBase,
+          price: Number(p.precioBase) || 0,
           currency: 'CLP',
           type: p.tipoServicio,
           sellerId: p.idUsuarioVendedor,
@@ -126,5 +168,5 @@ export const publicationService = {
       console.error('Error creating publication:', error);
       throw error;
     }
-  }
+  },
 };
