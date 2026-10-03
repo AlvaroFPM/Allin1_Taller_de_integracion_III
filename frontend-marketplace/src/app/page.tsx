@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import {
-  HomeCategories,
   HomeHero,
+  HomeCategories,
   HomeHowItWorks,
   HomeRecentActivity,
   HomeReviews,
@@ -59,24 +59,46 @@ export default async function HomePage() {
     console.error('Error fetching publications:', err);
   }
 
+  React.useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const data = await publicationService.getPublications({ limit: 6 });
+        if (data && data.publications) {
+          const mapped: RecentPublication[] = data.publications.map((item: CatalogPublication) => {
+            const isOffer = item.type === 'OFERTA';
+
+            // Asigna 'serv' para ofertas/servicios e 'item' para solicitudes/productos
+            const badgeVariant: PublicationBadgeVariant = isOffer ? 'serv' : 'item';
+
+            return {
+              id: String(item.id),
+              badgeLabel: isOffer ? 'Oferta' : 'Solicitud',
+              badgeVariant,
+              title: item.title,
+              location: 'Santiago, Chile',
+              price: `$${item.price.toLocaleString('es-CL')}`,
+              href: `/catalogo/${item.id}`,
+            };
+          });
+          setRecentPublications(mapped);
+        }
+      } catch (error) {
+        console.error('Error fetching home publications:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, []);
+
   return (
-    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16 sm:space-y-20">
-      {/* 1. Nube / Lluvia de categorías flotantes */}
-      <HomeCategories />
-
-      {/* 2. Sección central: Eslogan y Propósito */}
+    <main className="min-h-screen bg-surface-base">
       <HomeHero />
-
-      {/* 3. ¿Cómo funciona Allin1 en 3 pasos? */}
+      <HomeCategories />
       <HomeHowItWorks />
-
-      {/* 4. Actividad reciente en tiempo real */}
-      <HomeRecentActivity
-        publications={recentPublications.length > 0 ? recentPublications : undefined}
-      />
-
-      {/* 5. Reseñas y testimonios de la comunidad */}
+      <HomeRecentActivity publications={recentPublications} isLoading={isLoading} />
       <HomeReviews />
-    </div>
+    </main>
   );
 }
