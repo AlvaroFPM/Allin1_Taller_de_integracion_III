@@ -102,7 +102,9 @@ export const publicationService = {
 
         return {
           publications,
-          total: response.data.totalRecords || publications.length,
+          total: Number(meta?.totalRecords ?? publications.length),
+          totalPages: meta?.totalPages,
+          currentPage: meta?.currentPage,
         };
       }
       return { publications: [], total: 0 };
@@ -149,7 +151,7 @@ export const publicationService = {
           id: p.idPublicacion,
           title: p.titulo,
           description: p.descripcion,
-          price: p.precioBase,
+          price: Number(p.precioBase) || 0,
           currency: 'CLP',
           type: p.tipoServicio,
           sellerId: p.idUsuarioVendedor,
