@@ -107,7 +107,7 @@ export default function PublicarPage() {
         <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
           {errorMessage}
         </div>
-      </div>
+      )}
 
       {/* Layout de 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">

@@ -48,7 +48,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     { label: 'Un carácter especial (@#$%)', valid: /[^A-Za-z0-9]/.test(passwordValue) },
   ];
 
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
