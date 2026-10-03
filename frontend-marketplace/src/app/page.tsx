@@ -5,29 +5,57 @@ import {
   HomeRecentActivity,
   HomeReviews,
 } from '@/components/shared';
+
 export const dynamic = 'force-dynamic';
 
+interface CatalogPublication {
+  idPublicacion: number | string;
+  tipoServicio: string;
+  titulo: string;
+  ciudad?: string;
+  region?: string;
+  precioBase?: number;
+}
+
 export default async function HomePage() {
-  let recentPublications = [];
+  let recentPublications: Array<{
+    id: string;
+    badgeLabel: string;
+    badgeVariant: string;
+    title: string;
+    location: string;
+    price: string;
+    href: string;
+  }> = [];
+
   try {
     const CATALOG_BASE =
       process.env.CATALOG_INTERNAL_URL ??
       process.env.NEXT_PUBLIC_CATALOG_API_URL ??
       'http://localhost:8082';
-    const res = await fetch(`${CATALOG_BASE}/v1/publications?limit=3`, { cache: 'no-store' });
-    const data = await res.json();
-    if (data && data.publications) {
-      recentPublications = data.publications.map((p: any) => ({
-        id: p.idPublicacion.toString(),
-        badgeLabel: p.tipoServicio === 'OFERTA' ? 'Ofrece Servicio' : 'Busca Servicio',
-        badgeVariant: p.tipoServicio === 'OFERTA' ? 'serv' : 'serv',
-        title: p.titulo,
-        location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
-        price: `$${p.precioBase || 0} CLP`,
-        href: `/publicaciones/${p.idPublicacion}`,
-      }));
+
+    const res = await fetch(`${CATALOG_BASE}/v1/publications?limit=3`, {
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.publications)) {
+        recentPublications = data.publications.map((p: CatalogPublication) => {
+          const isOferta = p.tipoServicio === 'OFERTA';
+          return {
+            id: p.idPublicacion.toString(),
+            badgeLabel: isOferta ? 'Ofrece Servicio' : 'Busca Servicio',
+            badgeVariant: isOferta ? 'serv' : 'req',
+            title: p.titulo,
+            location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
+            price: `$${(p.precioBase || 0).toLocaleString('es-CL')} CLP`,
+            href: `/publicaciones/${p.idPublicacion}`,
+          };
+        });
+      }
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Error fetching publications:', err);
   }
 

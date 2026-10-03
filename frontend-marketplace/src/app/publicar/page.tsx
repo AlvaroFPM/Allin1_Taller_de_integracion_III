@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AxiosError } from 'axios';
 import {
   PublicationTypeSelector,
   PublicationLivePreview,
@@ -12,13 +13,21 @@ import type { CreatePublicationFormState } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
 
+export interface Category {
+  id: number | string;
+  name: string;
+}
+
 export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [categories, setCategories] = React.useState<any[]>([]);
+  const [categories, setCategories] = React.useState<Category[]>([]);
 
   React.useEffect(() => {
-    publicationService.getCategories().then(setCategories);
+    publicationService
+      .getCategories()
+      .then((data) => setCategories(data as Category[]))
+      .catch((err: unknown) => console.error('Error cargando categorías:', err));
   }, []);
 
   const [formState, setFormState] = React.useState<CreatePublicationFormState>({
@@ -60,12 +69,14 @@ export default function PublicarPage() {
         price: Number(formState.precioBase) || 0,
         currency: formState.moneda,
         type: formState.tipo,
-        sellerId: user.id
+        sellerId: user.id,
       });
       alert('¡Publicación creada con éxito! Redirigiendo...');
       router.push('/');
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
+    } catch (error: unknown) {
+      const err = error as AxiosError<{ message?: string }>;
+      const errorMsg =
+        err.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
       alert(`No se pudo crear: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
@@ -115,7 +126,7 @@ export default function PublicarPage() {
         </div>
       </div>
 
-      {/* Layout de 2 Columnas: Formulario a la izquierda y Vista Previa a la derecha */}
+      {/* Layout de 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
         {/* Columna Izquierda: Pasos 1 y 2 */}
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
@@ -126,10 +137,14 @@ export default function PublicarPage() {
 
           <hr className="border-border-base/70" />
 
-          <CreatePublicationForm formState={formState} categories={categories} onChange={handleChange} />
+          <CreatePublicationForm
+            formState={formState}
+            categories={categories}
+            onChange={handleChange}
+          />
         </div>
 
-        {/* Columna Derecha: Vista Previa en Vivo (Paso 3) Sticky */}
+        {/* Columna Derecha: Vista Previa en Vivo */}
         <div className="lg:col-span-5 lg:sticky lg:top-8">
           <PublicationLivePreview
             formState={formState}
