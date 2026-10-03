@@ -127,6 +127,7 @@ export const publicationService = {
     try {
       const mapTipoServicio = (tipo: string) => {
         if (tipo === 'TRABAJO' || tipo === 'DEMANDA') return 'DEMANDA';
+        if (tipo === 'ARTICULO') return 'ARTICULO';
         return 'OFERTA';
       };
 
