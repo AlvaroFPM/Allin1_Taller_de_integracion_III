@@ -1,6 +1,4 @@
-'use client';
-
-import * as React from 'react';
+import type { ComponentProps } from 'react';
 import {
   HomeHero,
   HomeCategories,
@@ -8,12 +6,58 @@ import {
   HomeRecentActivity,
   HomeReviews,
 } from '@/components/shared';
-import { publicationService, type CatalogPublication } from '@/services/publicationService';
-import type { RecentPublication, PublicationBadgeVariant } from '@/types/home';
 
-export default function HomePage() {
-  const [recentPublications, setRecentPublications] = React.useState<RecentPublication[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export const dynamic = 'force-dynamic';
+
+// Extraemos el tipo exacto de las publicaciones que acepta HomeRecentActivity
+type HomeRecentActivityProps = ComponentProps<typeof HomeRecentActivity>;
+type RecentPublicationItem = NonNullable<HomeRecentActivityProps['publications']>[number];
+
+interface CatalogPublication {
+  idPublicacion: number | string;
+  tipoServicio: string;
+  titulo: string;
+  ciudad?: string;
+  region?: string;
+  precioBase?: number;
+}
+
+export default async function HomePage() {
+  let recentPublications: RecentPublicationItem[] = [];
+
+  try {
+    const CATALOG_BASE =
+      process.env.CATALOG_INTERNAL_URL ??
+      process.env.NEXT_PUBLIC_CATALOG_API_URL ??
+      'http://localhost:8082';
+
+    const res = await fetch(`${CATALOG_BASE}/v1/publications?limit=3`, {
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.publications)) {
+        recentPublications = data.publications.map(
+          (p: CatalogPublication): RecentPublicationItem => {
+            const isOferta = p.tipoServicio === 'OFERTA';
+            return {
+              id: p.idPublicacion.toString(),
+              badgeLabel: isOferta ? 'Ofrece Servicio' : 'Busca Servicio',
+              // Hacemos cast seguro al tipo de badgeVariant que espera la interfaz original
+              badgeVariant: (isOferta ? 'serv' : 'req') as RecentPublicationItem['badgeVariant'],
+              title: p.titulo,
+              location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
+              price: `$${(p.precioBase || 0).toLocaleString('es-CL')} CLP`,
+              href: `/publicaciones/${p.idPublicacion}`,
+            };
+          },
+        );
+      }
+    }
+  } catch (err: unknown) {
+    console.error('Error fetching publications:', err);
+  }
 
   React.useEffect(() => {
     const fetchRecent = async () => {

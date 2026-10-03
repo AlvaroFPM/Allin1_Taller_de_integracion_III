@@ -1,61 +1,50 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
 import { getAccessToken, removeAuthTokens } from '@/lib/authCookies';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// URL base con fallback para entornos de desarrollo y microservicios
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_CATALOG_API_URL ||
-  'http://localhost:8080/api/v1';
+// URL base para el API Gateway o Microservicio principal
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
-// Instancia única HTTP configurada para enviar cookies de sesión (withCredentials)
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
+export const apiClient = axios.create({
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Envío de cookies entre cliente y backend Go
 });
 
-// Interceptor de Peticiones: Inyecta el Bearer Token desde Cookies o LocalStorage
-api.interceptors.request.use(
+// Interceptor de Request: Inyección centralizada de JWT en el header Authorization
+apiClient.interceptors.request.use(
   (config) => {
-    const token =
-      getAccessToken() ||
-      Cookies.get('auth_token') ||
-      (typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null);
-
+    const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error: unknown) => Promise.reject(error),
 );
 
-// Interceptor de Respuestas: Limpia sesión y Zustand ante errores 401 (no autorizado)
-api.interceptors.response.use(
+// Interceptor de Response: Manejo automático de expiración de sesión (401)
+apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Limpiar cookies y persistencia local
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
+      // 1. Limpieza de tokens en cookies
       removeAuthTokens();
-      Cookies.remove('auth_token');
 
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
-        // Resetear estado global de autenticación
-        useAuthStore.getState().clearAuth();
+      // 2. Limpieza del estado global en Zustand
+      useAuthStore.getState().clearAuth();
 
-        // Redirigir al login si el usuario está en una ruta protegida
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login?session=expired';
-        }
+      // 3. Redirección limpia al login si aplica
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = '/login?session=expired';
       }
     }
     return Promise.reject(error);
   },
 );
 
-export default api;
+export const api = apiClient;
+export default apiClient;

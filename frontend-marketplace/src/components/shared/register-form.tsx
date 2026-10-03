@@ -5,9 +5,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AxiosError } from 'axios';
-import Cookies from 'js-cookie';
 
-import api from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { registerSchema, type RegisterFormData } from '@/types/auth';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -40,24 +38,27 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     },
   });
 
+  const passwordValue = useWatch({ control, name: 'password' }) || '';
+
+  const passwordRules = [
+    { label: '8 a 64 caracteres', valid: passwordValue.length >= 8 && passwordValue.length <= 64 },
+    { label: 'Una mayúscula', valid: /[A-Z]/.test(passwordValue) },
+    { label: 'Una minúscula', valid: /[a-z]/.test(passwordValue) },
+    { label: 'Un número', valid: /[0-9]/.test(passwordValue) },
+    { label: 'Un carácter especial (@#$%)', valid: /[^A-Za-z0-9]/.test(passwordValue) },
+  ];
+
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setErrorMessage(null);
 
-      const fullName = `${data.firstName} ${data.lastName}`.trim();
-
-      const registerPayload = {
-        email: data.email,
-        password: data.password,
-        nombre_completo: fullName,
-        telefono: data.phone || '',
-        rut: data.rut || '',
-        es_proveedor: false,
-      };
-
-      await api.post('/v1/auth/register', registerPayload);
-
-      const loginResponse = await api.post('/v1/auth/login', {
+      const registerResponse = await api.post('/v1/auth/register', {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        rut: data.rut,
+        phone: data.phone,
         email: data.email,
         password: data.password,
       });
@@ -80,7 +81,8 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       console.error('Error en registro:', err);
       const error = err as AxiosError<{ message?: string }>;
       setErrorMessage(
-        error.response?.data?.message || 'Error al registrar la cuenta. Intenta nuevamente.',
+        error.response?.data?.message ||
+          'Error al registrar la cuenta. Es posible que el correo o RUT ya existan.',
       );
     }
   };
@@ -248,6 +250,25 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         </div>
       </div>
 
+      {/* Reglas de Seguridad Visuales */}
+      <div className="p-2.5 rounded-xl bg-surface-subtle border border-border-base/50 text-[11px] space-y-1">
+        <p className="font-semibold text-content-main mb-1">Requisitos de contraseña:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-content-muted">
+          {passwordRules.map((rule) => (
+            <div
+              key={rule.label}
+              className={`flex items-center gap-1.5 transition-colors ${
+                rule.valid ? 'text-emerald-600 font-medium' : ''
+              }`}
+            >
+              <span>{rule.valid ? '✓' : '○'}</span>
+              <span>{rule.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Checkbox Términos */}
       <div className="space-y-1 pt-1">
         <label className="flex items-center gap-2 text-xs text-content-muted cursor-pointer select-none">
           <input
@@ -270,6 +291,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         )}
       </div>
 
+      {/* Botón Submit */}
       <div className="pt-2">
         <Button
           type="submit"

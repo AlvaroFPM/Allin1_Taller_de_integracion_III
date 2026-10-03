@@ -28,8 +28,8 @@ spec:
     spec:
       containers:
         - name: catalog
-          # Imagen en Docker Hub (reemplazar 20260929-1f43dbd por tag generado en build)
-          image: am4roo/allin1-catalog-go:20260929-1f43dbd
+          # Imagen en Docker Hub. Tag formato YYYYMMDD-<hash-corto-git> (nunca latest)
+          image: am4roo/allin1-catalog-go:20261003-d0b1f3e
           imagePullPolicy: Always
           ports:
             - containerPort: 8082

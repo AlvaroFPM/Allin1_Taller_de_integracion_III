@@ -4,14 +4,13 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AxiosError } from 'axios';
-import Cookies from 'js-cookie';
-
+import { isAxiosError } from 'axios';
 import api from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/useAuthStore';
 import { loginSchema, type LoginFormData } from '@/types/auth';
 import { mapProfileToUser } from '@/lib/mappers/auth';
+import { setAuthTokens } from '@/lib/authCookies';
 
 export interface LoginFormProps {
   onSuccess?: (data: LoginFormData) => void;
@@ -48,13 +47,9 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
 
       const token = loginResponse.data.token;
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', token);
-        Cookies.set('auth_token', token, {
-          expires: 7,
-          path: '/',
-          sameSite: 'lax',
-        });
+      // Guardar el token en cookies usando el helper unificado sin mutar globals directamente
+      if (token) {
+        setAuthTokens(token);
       }
 
       const profileResponse = await api.get('/v1/auth/profile');
@@ -67,10 +62,13 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
       onSuccess?.(data);
     } catch (error: unknown) {
       console.error('Error en login:', error);
-      const err = error as AxiosError<{ message?: string }>;
-      setErrorMessage(
-        err.response?.data?.message || 'Credenciales incorrectas o error de servidor',
-      );
+      if (isAxiosError(error)) {
+        setErrorMessage(
+          error.response?.data?.message || 'Credenciales incorrectas o error de servidor',
+        );
+      } else {
+        setErrorMessage('Ocurrió un error inesperado. Inténtalo de nuevo.');
+      }
     }
   };
 
