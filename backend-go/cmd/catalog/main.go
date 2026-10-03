@@ -12,6 +12,7 @@ import (
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/seed"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
@@ -35,6 +36,11 @@ func main() {
 		log.Fatalf("Error al migrar tablas de Catalog: %v", err)
 	}
 	fmt.Println(" Migracion exitosa: Tablas 'categorias' y 'publicaciones' (con deleted_at) sincronizadas.")
+
+	// Seed de datos de demo (solo inserta si la base está vacía)
+	if err := seed.SeedIfEmpty(database.DB); err != nil {
+		log.Printf("Advertencia al ejecutar seed de Catalog: %v", err)
+	}
 
 	// Configurar puertos
 	grpcPort := os.Getenv("GRPC_PORT")
