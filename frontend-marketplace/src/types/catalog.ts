@@ -35,6 +35,52 @@ export interface CatalogFilterState {
   sortBy: 'recent' | 'price_asc' | 'price_desc';
 }
 
+export const INITIAL_CATALOG_FILTERS: CatalogFilterState = {
+  search: '',
+  comuna: '',
+  activeTab: 'all',
+  categories: ['mantenimiento', 'transporte', 'logistica', 'articulos'],
+  minPrice: '',
+  maxPrice: '',
+  escrowOnly: false,
+  verifiedOnly: false,
+  sortBy: 'recent',
+};
+
+export function filterCatalogPublications(
+  pubs: CatalogPublication[],
+  filters: CatalogFilterState,
+): CatalogPublication[] {
+  return pubs
+    .filter((pub) => {
+      if (filters.activeTab !== 'all' && pub.type !== filters.activeTab) return false;
+      if (filters.search.trim()) {
+        const q = filters.search.toLowerCase();
+        const matches =
+          pub.title.toLowerCase().includes(q) ||
+          pub.description.toLowerCase().includes(q) ||
+          pub.location.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      if (filters.comuna && !pub.location.toLowerCase().includes(filters.comuna.toLowerCase())) {
+        return false;
+      }
+      if (filters.categories.length > 0 && !filters.categories.includes(pub.categorySlug)) {
+        return false;
+      }
+      if (filters.minPrice !== '' && pub.price < Number(filters.minPrice)) return false;
+      if (filters.maxPrice !== '' && pub.price > Number(filters.maxPrice)) return false;
+      if (filters.escrowOnly && !pub.escrowProtected) return false;
+      if (filters.verifiedOnly && !pub.verifiedUser) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (filters.sortBy === 'price_asc') return a.price - b.price;
+      if (filters.sortBy === 'price_desc') return b.price - a.price;
+      return 0;
+    });
+}
+
 export const MOCK_CATALOG_PUBLICATIONS: CatalogPublication[] = [
   {
     id: 'pub-1',

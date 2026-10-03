@@ -8,3 +8,4 @@ export * from './spinner';
 export * from './badge';
 export * from './card';
 export * from './toast';
+export * from './skeleton';
