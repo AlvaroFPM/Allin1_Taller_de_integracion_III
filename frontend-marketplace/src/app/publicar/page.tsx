@@ -11,8 +11,8 @@ import {
 import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
-import { publicationService } from '@/services/publicationService';
-import type { PublicationCategory } from '@/types/publication';
+
+
 
 export default function PublicarPage() {
   const router = useRouter();
