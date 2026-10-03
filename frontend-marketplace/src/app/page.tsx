@@ -38,19 +38,21 @@ export default async function HomePage() {
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.publications)) {
-        recentPublications = data.publications.map((p: CatalogPublication): RecentPublicationItem => {
-          const isOferta = p.tipoServicio === 'OFERTA';
-          return {
-            id: p.idPublicacion.toString(),
-            badgeLabel: isOferta ? 'Ofrece Servicio' : 'Busca Servicio',
-            // Hacemos cast seguro al tipo de badgeVariant que espera la interfaz original
-            badgeVariant: (isOferta ? 'serv' : 'req') as RecentPublicationItem['badgeVariant'],
-            title: p.titulo,
-            location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
-            price: `$${(p.precioBase || 0).toLocaleString('es-CL')} CLP`,
-            href: `/publicaciones/${p.idPublicacion}`,
-          };
-        });
+        recentPublications = data.publications.map(
+          (p: CatalogPublication): RecentPublicationItem => {
+            const isOferta = p.tipoServicio === 'OFERTA';
+            return {
+              id: p.idPublicacion.toString(),
+              badgeLabel: isOferta ? 'Ofrece Servicio' : 'Busca Servicio',
+              // Hacemos cast seguro al tipo de badgeVariant que espera la interfaz original
+              badgeVariant: (isOferta ? 'serv' : 'req') as RecentPublicationItem['badgeVariant'],
+              title: p.titulo,
+              location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
+              price: `$${(p.precioBase || 0).toLocaleString('es-CL')} CLP`,
+              href: `/publicaciones/${p.idPublicacion}`,
+            };
+          },
+        );
       }
     }
   } catch (err: unknown) {
