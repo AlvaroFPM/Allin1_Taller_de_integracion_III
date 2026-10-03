@@ -123,6 +123,7 @@ kubectl apply -f ingress.yaml
 - Secretos K8s: `<servicio>-db-secret` (ej. `iam-db-secret`)
 - Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
   - Ejemplo backend: `am4roo/allin1-iam-go:latest`
+  - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261003-d0b1f3e`
   - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
   - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
@@ -324,7 +325,7 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | `catalog.exe` commiteado en repo | `backend-go/catalog.exe` | Eliminar ejecutable de Windows del control de versiones y verificar regla en `.gitignore` |
 | Cookies con sameSite/expiración inconsistentes | `frontend-marketplace/src/lib/authCookies.ts`, `login-form.tsx`, `useAuthStore.ts` | `authCookies` usa `sameSite: 'strict'` (1 día de expiración) mientras `login-form` usa `document.cookie` con `SameSite=Lax` (7 días). Centralizar y homogeneizar atributos de cookies de sesión |
 | Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |
-| Catalog no valida JWT | `backend-go/cmd/catalog/main.go` | Registrar el interceptor JWT (`grpc.NewServer(grpc.UnaryInterceptor(...))`) y tomar `id_usuario_vendedor` desde el token, no del body. Hasta entonces `POST /v1/publications` es público |
+| ~~Catalog no valida JWT~~ | ~~`backend-go/cmd/catalog/main.go`~~ | ✅ Resuelto — Interceptor JWT registrado en Catalog; CreatePublication exige token y toma id_usuario_vendedor del contexto (spoofing corregido, commit d0b1f3e) |
 | Exclusión de nodo agent-02 (nodeAffinity) | `backend-go/k8s/catalog/postgres-catalog.yaml` | Attach de volúmenes Cinder falla en `rke2-estudiantes-agent-02` (`FailedAttachVolume: "already attached to instances"`). Se agregó `nodeAffinity` con `NotIn` para excluir dicho nodo temporalmente; remover cuando el administrador del cluster lo resuelva |
 
 ## 13. GitFlow y Branching
