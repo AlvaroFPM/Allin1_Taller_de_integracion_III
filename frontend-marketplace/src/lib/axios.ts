@@ -1,42 +1,50 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
+import { getAccessToken, removeAuthTokens } from '@/lib/authCookies';
+import { useAuthStore } from '@/store/useAuthStore';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_CATALOG_API_URL ||
-  'http://localhost:8082';
+// URL base para el API Gateway o Microservicio principal
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
-export const api = axios.create({
-  baseURL: API_BASE_URL,
+export const apiClient = axios.create({
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Envío de cookies entre cliente y backend Go
 });
 
-// Interceptor para inyectar Token Bearer desde Cookie o LocalStorage
-api.interceptors.request.use(
+// Interceptor de Request: Inyección centralizada de JWT en el header Authorization
+apiClient.interceptors.request.use(
   (config) => {
-    const token =
-      Cookies.get('auth_token') ||
-      (typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null);
+    const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error: unknown) => Promise.reject(error),
 );
 
-// Interceptor para captura de errores globales (ej: 401)
-api.interceptors.response.use(
+// Interceptor de Response: Manejo automático de expiración de sesión (401)
+apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      Cookies.remove('auth_token');
-      localStorage.removeItem('auth_token');
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
+      // 1. Limpieza de tokens en cookies
+      removeAuthTokens();
+
+      // 2. Limpieza del estado global en Zustand
+      useAuthStore.getState().clearAuth();
+
+      // 3. Redirección limpia al login si aplica
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = '/login?session=expired';
+      }
     }
     return Promise.reject(error);
   },
 );
 
-export default api;
+export const api = apiClient;
+export default apiClient;

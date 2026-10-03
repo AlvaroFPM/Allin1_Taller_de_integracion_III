@@ -7,8 +7,10 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Habilita el envío de cookies entre cliente y servidor Go
 });
 
+// Interceptor de Peticiones (Request): Inyección centralizada del token JWT desde Cookies
 apiClient.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
@@ -20,18 +22,18 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Interceptor de Respuestas (Response) para capturar 401
+// Interceptor de Respuestas (Response): Manejo de sesión expirada (401)
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Limpiar tokens de las cookies
+      // 1. Limpiar tokens de las cookies mediante el helper unificado
       removeAuthTokens();
 
-      // Limpiar estado global de Zustand
+      // 2. Limpiar estado global en Zustand
       useAuthStore.getState().clearAuth();
 
-      // Redirigir al usuario al login si no esta en rutas publicas
+      // 3. Redirigir al usuario si no está en una ruta pública de login
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = '/login?session=expired';
@@ -40,3 +42,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export default apiClient;
