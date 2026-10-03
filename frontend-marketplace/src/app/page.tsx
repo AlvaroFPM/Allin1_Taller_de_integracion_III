@@ -1,54 +1,60 @@
+'use client';
+
+import * as React from 'react';
 import {
-  HomeCategories,
   HomeHero,
+  HomeCategories,
   HomeHowItWorks,
   HomeRecentActivity,
   HomeReviews,
 } from '@/components/shared';
-export const dynamic = 'force-dynamic';
+import { publicationService, type CatalogPublication } from '@/services/publicationService';
+import type { RecentPublication, PublicationBadgeVariant } from '@/types/home';
 
-export default async function HomePage() {
-  let recentPublications = [];
-  try {
-    const CATALOG_BASE =
-      process.env.CATALOG_INTERNAL_URL ??
-      process.env.NEXT_PUBLIC_CATALOG_API_URL ??
-      'http://localhost:8082';
-    const res = await fetch(`${CATALOG_BASE}/v1/publications?limit=3`, { cache: 'no-store' });
-    const data = await res.json();
-    if (data && data.publications) {
-      recentPublications = data.publications.map((p: any) => ({
-        id: p.idPublicacion.toString(),
-        badgeLabel: p.tipoServicio === 'OFERTA' ? 'Ofrece Servicio' : 'Busca Servicio',
-        badgeVariant: p.tipoServicio === 'OFERTA' ? 'serv' : 'serv',
-        title: p.titulo,
-        location: `📍 ${p.ciudad || 'Santiago'}, ${p.region || 'RM'}`,
-        price: `$${p.precioBase || 0} CLP`,
-        href: `/publicaciones/${p.idPublicacion}`,
-      }));
-    }
-  } catch (err) {
-    console.error('Error fetching publications:', err);
-  }
+export default function HomePage() {
+  const [recentPublications, setRecentPublications] = React.useState<RecentPublication[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const data = await publicationService.getPublications({ limit: 6 });
+        if (data && data.publications) {
+          const mapped: RecentPublication[] = data.publications.map((item: CatalogPublication) => {
+            const isOffer = item.type === 'OFERTA';
+
+            // Asigna 'serv' para ofertas/servicios e 'item' para solicitudes/productos
+            const badgeVariant: PublicationBadgeVariant = isOffer ? 'serv' : 'item';
+
+            return {
+              id: String(item.id),
+              badgeLabel: isOffer ? 'Oferta' : 'Solicitud',
+              badgeVariant,
+              title: item.title,
+              location: 'Santiago, Chile',
+              price: `$${item.price.toLocaleString('es-CL')}`,
+              href: `/catalogo/${item.id}`,
+            };
+          });
+          setRecentPublications(mapped);
+        }
+      } catch (error) {
+        console.error('Error fetching home publications:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, []);
 
   return (
-    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-16 sm:space-y-20">
-      {/* 1. Nube / Lluvia de categorías flotantes */}
-      <HomeCategories />
-
-      {/* 2. Sección central: Eslogan y Propósito */}
+    <main className="min-h-screen bg-surface-base">
       <HomeHero />
-
-      {/* 3. ¿Cómo funciona Allin1 en 3 pasos? */}
+      <HomeCategories />
       <HomeHowItWorks />
-
-      {/* 4. Actividad reciente en tiempo real */}
-      <HomeRecentActivity
-        publications={recentPublications.length > 0 ? recentPublications : undefined}
-      />
-
-      {/* 5. Reseñas y testimonios de la comunidad */}
+      <HomeRecentActivity publications={recentPublications} isLoading={isLoading} />
       <HomeReviews />
-    </div>
+    </main>
   );
 }

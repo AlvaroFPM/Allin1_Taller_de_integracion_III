@@ -13,7 +13,11 @@ export interface CreatePublicationFormProps {
   onChange: (fields: Partial<CreatePublicationFormState>) => void;
 }
 
-export function CreatePublicationForm({ formState, categories, onChange }: CreatePublicationFormProps) {
+export function CreatePublicationForm({
+  formState,
+  categories,
+  onChange,
+}: CreatePublicationFormProps) {
   const { titulo, categoriaId, descripcion, ubicacion, moneda, precioBase } = formState;
 
   return (

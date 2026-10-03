@@ -22,7 +22,23 @@ export interface ListPublicationsParams {
   tipoServicio?: 'OFERTA' | 'DEMANDA';
 }
 
-// URL base para el microservicio de Catálogo. Usa variable de entorno o cae a localhost para desarrollo.
+interface RawBackendCategory {
+  idCategoria: number;
+  nombre: string;
+  slug: string;
+  iconoUrl?: string;
+}
+
+interface RawBackendPublication {
+  idPublicacion: number;
+  titulo: string;
+  descripcion: string;
+  precioBase: number;
+  tipoServicio: string;
+  idUsuarioVendedor: number;
+  categoriaId: number;
+}
+
 const CATALOG_API_URL = process.env.NEXT_PUBLIC_CATALOG_API_URL || 'http://localhost:8082';
 
 export const publicationService = {
@@ -31,12 +47,10 @@ export const publicationService = {
    */
   getCategories: async (): Promise<PublicationCategory[]> => {
     try {
-      // Usamos axios directamente a la URL de Catálogo
       const response = await api.get(`${CATALOG_API_URL}/v1/categories`);
-      
-      // Mapeamos el proto Category al interface del frontend
-      if (response.data && response.data.categories) {
-        return response.data.categories.map((c: any) => ({
+
+      if (response.data && Array.isArray(response.data.categories)) {
+        return response.data.categories.map((c: RawBackendCategory) => ({
           id: c.idCategoria,
           nombre: c.nombre,
           slug: c.slug,
@@ -44,7 +58,7 @@ export const publicationService = {
         }));
       }
       return [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching categories:', error);
       return [];
     }
@@ -53,12 +67,14 @@ export const publicationService = {
   /**
    * Obtiene la lista paginada de publicaciones
    */
-  getPublications: async (params: ListPublicationsParams = {}): Promise<{ publications: CatalogPublication[], total: number }> => {
+  getPublications: async (
+    params: ListPublicationsParams = {},
+  ): Promise<{ publications: CatalogPublication[]; total: number }> => {
     try {
       const response = await api.get(`${CATALOG_API_URL}/v1/publications`, { params });
-      
-      if (response.data && response.data.publications) {
-        const publications = response.data.publications.map((p: any) => ({
+
+      if (response.data && Array.isArray(response.data.publications)) {
+        const publications = response.data.publications.map((p: RawBackendPublication) => ({
           id: p.idPublicacion,
           title: p.titulo,
           description: p.descripcion,
@@ -67,16 +83,16 @@ export const publicationService = {
           type: p.tipoServicio,
           sellerId: p.idUsuarioVendedor,
           categoryId: p.categoriaId,
-          createdAtRelative: 'Recientemente', // TODO: Parsear google.protobuf.Timestamp
+          createdAtRelative: 'Recientemente',
         }));
-        
+
         return {
           publications,
           total: response.data.totalRecords || publications.length,
         };
       }
       return { publications: [], total: 0 };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching publications:', error);
       return { publications: [], total: 0 };
     }
@@ -85,11 +101,11 @@ export const publicationService = {
   /**
    * Crea una nueva publicación
    */
-  createPublication: async (data: Omit<CatalogPublication, 'id' | 'createdAtRelative'>): Promise<CatalogPublication | null> => {
+  createPublication: async (
+    data: Omit<CatalogPublication, 'id' | 'createdAtRelative'>,
+  ): Promise<CatalogPublication | null> => {
     try {
-      // Mapear TRABAJO/SERVICIO/ARTICULO a OFERTA/DEMANDA según el proto de Go
       const mapTipoServicio = (tipo: string) => {
-        // Asumimos que si ofrecen servicio es OFERTA, de lo contrario DEMANDA
         if (tipo === 'TRABAJO' || tipo === 'DEMANDA') return 'DEMANDA';
         return 'OFERTA';
       };
@@ -101,14 +117,14 @@ export const publicationService = {
         descripcion: data.description,
         tipo_servicio: mapTipoServicio(data.type),
         precio_base: data.price,
-        ciudad: "Santiago", // Por defecto
-        region: "RM", // Por defecto
+        ciudad: 'Santiago',
+        region: 'RM',
       };
-      
+
       const response = await api.post(`${CATALOG_API_URL}/v1/publications`, payload);
-      
+
       if (response.data && response.data.publication) {
-        const p = response.data.publication;
+        const p: RawBackendPublication = response.data.publication;
         return {
           id: p.idPublicacion,
           title: p.titulo,
@@ -122,9 +138,9 @@ export const publicationService = {
         };
       }
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating publication:', error);
       throw error;
     }
-  }
+  },
 };

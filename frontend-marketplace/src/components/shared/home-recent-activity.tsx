@@ -1,6 +1,9 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { RecentPublication } from '@/types/home';
 
 const defaultPublications: RecentPublication[] = [
@@ -33,11 +36,15 @@ const defaultPublications: RecentPublication[] = [
   },
 ];
 
+export interface HomeRecentActivityProps {
+  publications?: RecentPublication[];
+  isLoading?: boolean;
+}
+
 export function HomeRecentActivity({
   publications = defaultPublications,
-}: {
-  publications?: RecentPublication[];
-}) {
+  isLoading = false,
+}: HomeRecentActivityProps) {
   return (
     <section className="space-y-6">
       {/* Cabecera con indicador en vivo */}
@@ -61,41 +68,62 @@ export function HomeRecentActivity({
         </div>
       </div>
 
-      {/* Cuadrícula de 3 publicaciones */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {publications.map((pub) => {
-          const badgeColor =
-            pub.badgeVariant === 'serv'
-              ? 'brand'
-              : pub.badgeVariant === 'trans'
-                ? 'warning'
-                : 'neutral';
-
-          return (
-            <Link
-              key={pub.id}
-              href={pub.href}
-              className="group flex flex-col justify-between p-5 rounded-2xl bg-surface-main border border-border-base transition-all duration-200 hover:border-brand/50 hover:shadow-lg hover:-translate-y-0.5"
+      {/* Cuadrícula de publicaciones o Skeletons */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="p-5 rounded-2xl bg-surface-main border border-border-base space-y-4"
             >
               <div className="space-y-3">
-                <Badge variant={badgeColor} size="sm">
-                  {pub.badgeLabel}
-                </Badge>
-                <h3 className="text-sm sm:text-base font-bold text-content-main line-clamp-2 leading-snug group-hover:text-brand transition-colors">
-                  {pub.title}
-                </h3>
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-3/4" />
               </div>
+              <div className="pt-4 border-t border-border-base/70 flex items-center justify-between">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {publications.map((pub) => {
+            const badgeColor =
+              pub.badgeVariant === 'serv'
+                ? 'brand'
+                : pub.badgeVariant === 'trans'
+                  ? 'warning'
+                  : 'neutral';
 
-              <div className="pt-4 mt-4 border-t border-border-base/70 flex items-center justify-between text-xs">
-                <span className="text-content-muted font-medium">{pub.location}</span>
-                <span className="text-sm font-extrabold text-brand tracking-tight">
-                  {pub.price}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+            return (
+              <Link
+                key={pub.id}
+                href={pub.href}
+                className="group flex flex-col justify-between p-5 rounded-2xl bg-surface-main border border-border-base transition-all duration-200 hover:border-brand/50 hover:shadow-lg hover:-translate-y-0.5"
+              >
+                <div className="space-y-3">
+                  <Badge variant={badgeColor} size="sm">
+                    {pub.badgeLabel}
+                  </Badge>
+                  <h3 className="text-sm sm:text-base font-bold text-content-main line-clamp-2 leading-snug group-hover:text-brand transition-colors">
+                    {pub.title}
+                  </h3>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-border-base/70 flex items-center justify-between text-xs">
+                  <span className="text-content-muted font-medium">{pub.location}</span>
+                  <span className="text-sm font-extrabold text-brand tracking-tight">
+                    {pub.price}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

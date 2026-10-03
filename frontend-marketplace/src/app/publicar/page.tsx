@@ -1,143 +1,179 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  PublicationTypeSelector,
-  PublicationLivePreview,
-  CreatePublicationForm,
-} from '@/components/shared';
-import type { CreatePublicationFormState } from '@/types/publication';
-import { publicationService } from '@/services/publicationService';
+import { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { publicationService } from '@/services/publicationService';
+import type { PublicationCategory } from '@/types/publication';
 
 export default function PublicarPage() {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [categories, setCategories] = React.useState<any[]>([]);
-
-  React.useEffect(() => {
-    publicationService.getCategories().then(setCategories);
-  }, []);
-
-  const [formState, setFormState] = React.useState<CreatePublicationFormState>({
-    tipo: 'TRABAJO',
-    titulo: '',
-    categoriaId: '',
-    descripcion: '',
-    ubicacion: 'Providencia',
-    moneda: 'CLP',
-    precioBase: '',
-  });
-
-  const handleChange = (fields: Partial<CreatePublicationFormState>) => {
-    setFormState((prev) => ({ ...prev, ...fields }));
-  };
-
   const { user } = useAuthStore();
 
-  const handleSubmit = async () => {
-    if (!formState.titulo.trim()) {
-      alert('Por favor ingresa un título para tu publicación.');
-      return;
-    }
-    if (!formState.categoriaId) {
-      alert('Por favor selecciona una categoría.');
-      return;
-    }
+  const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const [formData, setFormData] = React.useState({
+    titulo: '',
+    descripcion: '',
+    tipoServicio: 'OFERTA',
+    precioBase: '',
+    categoriaId: '',
+  });
+
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await publicationService.getCategories();
+        setCategories(data);
+      } catch (error: unknown) {
+        console.error('Error al cargar categorías:', error);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
     if (!user) {
-      alert('Debes iniciar sesión para publicar.');
+      setErrorMessage('Debes iniciar sesión para publicar');
       return;
     }
 
-    setIsSubmitting(true);
+    if (
+      !formData.titulo ||
+      !formData.descripcion ||
+      !formData.categoriaId ||
+      !formData.precioBase
+    ) {
+      setErrorMessage('Por favor completa todos los campos obligatorios');
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
       await publicationService.createPublication({
-        title: formState.titulo,
-        description: formState.descripcion,
-        categoryId: Number(formState.categoriaId),
-        price: Number(formState.precioBase) || 0,
-        currency: formState.moneda,
-        type: formState.tipo,
-        sellerId: user.id
+        title: formData.titulo,
+        description: formData.descripcion,
+        price: Number(formData.precioBase),
+        currency: 'CLP',
+        type: formData.tipoServicio,
+        sellerId: Number(user.id),
+        categoryId: Number(formData.categoriaId),
       });
-      alert('¡Publicación creada con éxito! Redirigiendo...');
-      router.push('/');
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
-      alert(`No se pudo crear: ${errorMsg}`);
+
+      router.push('/catalogo');
+    } catch (err: unknown) {
+      console.error('Error al crear publicación:', err);
+      const error = err as AxiosError<{ message?: string }>;
+      setErrorMessage(error.response?.data?.message || 'Ocurrió un error al crear la publicación');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
-      {/* Navegación superior hacia atrás */}
-      <div className="w-full text-left">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-content-muted hover:text-brand transition-colors select-none"
+    <main className="container max-w-2xl mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">Crear nueva publicación</h1>
+
+      {errorMessage && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
+          {errorMessage}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs font-bold mb-1">Título *</label>
+          <input
+            type="text"
+            name="titulo"
+            value={formData.titulo}
+            onChange={handleChange}
+            placeholder="Ej: Servicio de gasfitería a domicilio"
+            className="w-full h-10 px-3.5 text-sm bg-surface-base border rounded-xl"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold mb-1">Categoría *</label>
+          <select
+            name="categoriaId"
+            value={formData.categoriaId}
+            onChange={handleChange}
+            className="w-full h-10 px-3.5 text-sm bg-surface-base border rounded-xl"
+            disabled={isLoadingCategories}
+          >
+            <option value="">Selecciona una categoría</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold mb-1">Tipo de Servicio *</label>
+          <select
+            name="tipoServicio"
+            value={formData.tipoServicio}
+            onChange={handleChange}
+            className="w-full h-10 px-3.5 text-sm bg-surface-base border rounded-xl"
+          >
+            <option value="OFERTA">Ofrezco un servicio (Oferta)</option>
+            <option value="DEMANDA">Busco un servicio (Demanda)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold mb-1">Precio Base (CLP) *</label>
+          <input
+            type="number"
+            name="precioBase"
+            value={formData.precioBase}
+            onChange={handleChange}
+            placeholder="15000"
+            className="w-full h-10 px-3.5 text-sm bg-surface-base border rounded-xl"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold mb-1">Descripción *</label>
+          <textarea
+            name="descripcion"
+            rows={4}
+            value={formData.descripcion}
+            onChange={handleChange}
+            placeholder="Describe detalladamente el servicio..."
+            className="w-full p-3.5 text-sm bg-surface-base border rounded-xl"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full h-10 bg-brand text-white font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          <span>Volver al inicio</span>
-        </Link>
-      </div>
-
-      {/* Encabezado: Título y Subtítulo */}
-      <div className="text-center max-w-2xl mx-auto space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-content-main">
-          Nueva Publicación
-        </h1>
-        <p className="text-xs sm:text-sm text-content-muted">
-          Crea tu solicitud, servicio o artículo para el marketplace completando los siguientes
-          pasos.
-        </p>
-
-        {/* Stepper visual de progreso */}
-        <div className="pt-6 max-w-md mx-auto space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-bold tracking-wider">
-            <span className="text-brand">PASO 1: TIPO</span>
-            <span className="text-brand">PASO 2: DETALLES</span>
-            <span className="text-content-muted">PASO 3: PUBLICAR</span>
-          </div>
-          <div className="w-full h-1.5 bg-surface-base rounded-full overflow-hidden flex">
-            <div className="w-2/3 h-full bg-linear-to-r from-brand-dark to-brand rounded-full transition-all" />
-          </div>
-        </div>
-      </div>
-
-      {/* Layout de 2 Columnas: Formulario a la izquierda y Vista Previa a la derecha */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
-        {/* Columna Izquierda: Pasos 1 y 2 */}
-        <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
-          <PublicationTypeSelector
-            value={formState.tipo}
-            onChange={(tipo) => handleChange({ tipo })}
-          />
-
-          <hr className="border-border-base/70" />
-
-          <CreatePublicationForm formState={formState} categories={categories} onChange={handleChange} />
-        </div>
-
-        {/* Columna Derecha: Vista Previa en Vivo (Paso 3) Sticky */}
-        <div className="lg:col-span-5 lg:sticky lg:top-8">
-          <PublicationLivePreview
-            formState={formState}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
-        </div>
-      </div>
-    </div>
+          {isSubmitting ? 'Publicando...' : 'Publicar'}
+        </button>
+      </form>
+    </main>
   );
 }

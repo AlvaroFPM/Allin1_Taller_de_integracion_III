@@ -1,39 +1,39 @@
-import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
-// Instancia centralizada de Axios
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_CATALOG_API_URL ||
+  'http://localhost:8082';
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
 });
 
-// Interceptor de peticiones (Request): Inyección del token JWT (#55)
+// Interceptor para inyectar Token Bearer desde Cookie o LocalStorage
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+  (config) => {
+    const token =
+      Cookies.get('auth_token') ||
+      (typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null);
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error: AxiosError) => Promise.reject(error),
+  (error) => Promise.reject(error),
 );
 
-// Interceptor de respuestas (Response): Manejo de sesión expirada 401 (#55)
+// Interceptor para captura de errores globales (ej: 401)
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      Cookies.remove('auth_token');
       localStorage.removeItem('auth_token');
-      document.cookie = 'auth_token=; path=/; max-age=0; SameSite=Lax';
-      if (!window.location.pathname.includes('/login')) {
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = '/login?expired=true';
-      }
     }
     return Promise.reject(error);
   },
