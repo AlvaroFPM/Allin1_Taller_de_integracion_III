@@ -39,7 +39,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
   const onSubmit = async (data: LoginFormData) => {
     try {
       setErrorMessage(null);
-
+      // Petición real al backend Go
       const loginResponse = await api.post('/v1/auth/login', {
         email: data.email,
         password: data.password,
@@ -52,6 +52,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         setAuthTokens(token);
       }
 
+      // Traer el perfil real protegido
       const profileResponse = await api.get('/v1/auth/profile');
       const profile = profileResponse.data;
 
@@ -74,6 +75,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left" noValidate>
+      {/* Alerta de sesión expirada (proveniente de axios 401) */}
       {sessionExpired && (
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
           <svg
@@ -93,6 +95,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         </div>
       )}
 
+      {/* Alerta de Error General */}
       {errorMessage && (
         <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
           <svg
@@ -112,6 +115,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         </div>
       )}
 
+      {/* Alerta de Éxito de Validación */}
       {submitSuccess && (
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
           <svg
@@ -126,6 +130,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         </div>
       )}
 
+      {/* Campo: Correo Electrónico */}
       <div className="space-y-1.5">
         <label className="block text-xs font-bold text-content-main">
           Correo electrónico <span className="text-red-500">*</span>
@@ -159,6 +164,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         )}
       </div>
 
+      {/* Campo: Contraseña */}
       <div className="space-y-1.5">
         <label className="block text-xs font-bold text-content-main">
           Contraseña <span className="text-red-500">*</span>
@@ -184,6 +190,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
                 : 'border-border-base focus:border-brand focus:ring-2 focus:ring-brand/20'
             }`}
           />
+          {/* Botón para alternar visibilidad de contraseña */}
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
@@ -224,6 +231,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         )}
       </div>
 
+      {/* Fila: Recordarme y Olvidé mi Contraseña */}
       <div className="flex items-center justify-between text-xs pt-1">
         <label className="flex items-center gap-2 text-content-muted cursor-pointer select-none">
           <input
@@ -241,6 +249,7 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
         </Link>
       </div>
 
+      {/* Botón de Submit */}
       <div className="pt-2">
         <Button
           type="submit"
