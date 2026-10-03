@@ -59,7 +59,7 @@ export function CreatePublicationForm({
             <option value="">Selecciona una categoría...</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
-                {cat.icono} {cat.nombre}
+                {cat.nombre}
               </option>
             ))}
           </select>
