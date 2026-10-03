@@ -6,6 +6,7 @@ import (
 	"math"
 
 	pb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
+	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,8 +34,18 @@ func (s *PublicationServiceServer) CreatePublication(ctx context.Context, req *p
 		return nil, err
 	}
 
+	// SEGURIDAD: Sobrescribir el id_usuario_vendedor del body con el ID real del token JWT
+	userIDCtx := ctx.Value(middleware.UserIDKey)
+	var realUserID uint
+	if userIDCtx != nil {
+		realUserID = userIDCtx.(uint)
+	} else {
+		// Fallback (no debería pasar por el interceptor, pero por seguridad)
+		realUserID = uint(req.GetIdUsuarioVendedor())
+	}
+
 	nuevaPublicacion := models.Publicacion{
-		IDUsuarioVendedor: uint(req.GetIdUsuarioVendedor()),
+		IDUsuarioVendedor: realUserID,
 		CategoriaID:       uint(req.GetCategoriaId()),
 		Titulo:            req.GetTitulo(),
 		Descripcion:       req.GetDescripcion(),
