@@ -1,14 +1,19 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "auth.proto",
-    "version": "version not set"
+    "title": "Allin1 - IAM (Auth y Perfil)",
+    "description": "Registro, login y perfil de usuario. Los endpoints de perfil requieren el token JWT obtenido en login o registro, enviado en el header Authorization con el formato: Bearer TOKEN.",
+    "version": "1.0"
   },
   "tags": [
     {
       "name": "AuthService",
       "description": "AuthService provee métodos para registro, login y perfil."
     }
+  ],
+  "schemes": [
+    "http",
+    "https"
   ],
   "consumes": [
     "application/json"
@@ -19,7 +24,8 @@
   "paths": {
     "/v1/auth/login": {
       "post": {
-        "summary": "Login autentica a un usuario y devuelve un token JWT.",
+        "summary": "Iniciar sesion",
+        "description": "Valida correo y contrasena y devuelve un token JWT. No requiere autenticacion. Un correo inexistente y una contrasena incorrecta devuelven el mismo 401.",
         "operationId": "AuthService_Login",
         "responses": {
           "200": {
@@ -27,6 +33,18 @@
             "schema": {
               "$ref": "#/definitions/authLoginResponse"
             }
+          },
+          "400": {
+            "description": "Datos de login invalidos (campos vacios o con formato incorrecto).",
+            "schema": {}
+          },
+          "401": {
+            "description": "Credenciales incorrectas.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno (base de datos o generacion del token).",
+            "schema": {}
           },
           "default": {
             "description": "An unexpected error response.",
@@ -46,13 +64,14 @@
           }
         ],
         "tags": [
-          "AuthService"
+          "Auth"
         ]
       }
     },
     "/v1/auth/profile": {
       "get": {
-        "summary": "GetProfile obtiene el perfil del usuario autenticado actual.",
+        "summary": "Obtener perfil",
+        "description": "Devuelve el perfil del usuario dueno del token. Si el usuario aun no tiene perfil, los campos de perfil vienen vacios (no es un error). Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto alojado en Cloudinary.",
         "operationId": "AuthService_GetProfile",
         "responses": {
           "200": {
@@ -60,6 +79,18 @@
             "schema": {
               "$ref": "#/definitions/authProfileResponse"
             }
+          },
+          "401": {
+            "description": "Token ausente, con formato invalido, invalido o expirado.",
+            "schema": {}
+          },
+          "404": {
+            "description": "El usuario del token no existe.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno al consultar la base de datos.",
+            "schema": {}
           },
           "default": {
             "description": "An unexpected error response.",
@@ -69,11 +100,17 @@
           }
         },
         "tags": [
-          "AuthService"
+          "Perfil"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       },
       "put": {
-        "summary": "UpdateProfile actualiza los datos editables del perfil del usuario autenticado.",
+        "summary": "Actualizar perfil",
+        "description": "Reemplaza los datos editables del perfil (reemplazo total: los campos vacios borran el valor guardado). Crea el perfil si no existia. Devuelve el perfil actualizado.",
         "operationId": "AuthService_UpdateProfile",
         "responses": {
           "200": {
@@ -81,6 +118,22 @@
             "schema": {
               "$ref": "#/definitions/authProfileResponse"
             }
+          },
+          "400": {
+            "description": "Telefono invalido (7 a 20 caracteres: digitos, espacios, +, - o parentesis) o ciudad/region de mas de 100 caracteres.",
+            "schema": {}
+          },
+          "401": {
+            "description": "Token ausente, con formato invalido, invalido o expirado.",
+            "schema": {}
+          },
+          "404": {
+            "description": "El usuario del token no existe.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno al guardar o consultar en la base de datos.",
+            "schema": {}
           },
           "default": {
             "description": "An unexpected error response.",
@@ -100,13 +153,19 @@
           }
         ],
         "tags": [
-          "AuthService"
+          "Perfil"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ]
       }
     },
     "/v1/auth/register": {
       "post": {
-        "summary": "Register registra a un nuevo usuario en el sistema.",
+        "summary": "Registrar usuario",
+        "description": "Crea una cuenta nueva y devuelve un token JWT para iniciar sesion de inmediato. No requiere autenticacion.",
         "operationId": "AuthService_Register",
         "responses": {
           "200": {
@@ -114,6 +173,18 @@
             "schema": {
               "$ref": "#/definitions/authRegisterResponse"
             }
+          },
+          "400": {
+            "description": "Datos de registro invalidos (RUT, nombre, correo o contrasena).",
+            "schema": {}
+          },
+          "409": {
+            "description": "El correo ya esta registrado.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno (base de datos, hash de contrasena o generacion del token).",
+            "schema": {}
           },
           "default": {
             "description": "An unexpected error response.",
@@ -133,7 +204,7 @@
           }
         ],
         "tags": [
-          "AuthService"
+          "Auth"
         ]
       }
     }
@@ -194,7 +265,12 @@
           "type": "string"
         },
         "fotoPerfilUrl": {
-          "type": "string"
+          "type": "string",
+          "description": "URL de la foto de perfil. Si el usuario no tiene foto propia, es el avatar por defecto (Cloudinary)."
+        },
+        "rol": {
+          "type": "string",
+          "description": "Rol del usuario (por ejemplo CLIENTE o PROVEEDOR)."
         }
       }
     },
@@ -282,6 +358,14 @@
           }
         }
       }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "description": "Token JWT. Escribir el valor completo: Bearer TOKEN (con la palabra Bearer y un espacio).",
+      "name": "Authorization",
+      "in": "header"
     }
   }
 }
