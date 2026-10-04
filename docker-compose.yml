@@ -99,6 +99,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD_CATALOG}
       DB_NAME: catalog_db
       DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET}
       GRPC_PORT: "50051"
       HTTP_PORT: "8080"
     ports:
@@ -126,7 +127,12 @@ services:
     build:
       context: ./frontend-marketplace
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8081
+        NEXT_PUBLIC_CATALOG_API_URL: http://localhost:8082
     container_name: frontend-marketplace
+    environment:
+      CATALOG_INTERNAL_URL: http://catalog:8080
     ports:
       - "3000:3000"
     networks:
