@@ -40,7 +40,7 @@ export function NavbarUserDropdown({ user, isOpen, onClose, onLogout }: NavbarUs
         <Link
           href="/perfil"
           onClick={onClose}
-          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
+          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base focus-visible:outline-hidden focus-visible:bg-surface-base focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset transition-colors"
         >
           <svg
             className="w-4 h-4 text-content-muted"
@@ -60,7 +60,7 @@ export function NavbarUserDropdown({ user, isOpen, onClose, onLogout }: NavbarUs
         <Link
           href="/perfil#billetera"
           onClick={onClose}
-          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
+          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base focus-visible:outline-hidden focus-visible:bg-surface-base focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset transition-colors"
         >
           <svg
             className="w-4 h-4 text-content-muted"
@@ -80,7 +80,7 @@ export function NavbarUserDropdown({ user, isOpen, onClose, onLogout }: NavbarUs
         <Link
           href="/soporte"
           onClick={onClose}
-          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base transition-colors"
+          className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-content-main hover:bg-surface-base focus-visible:outline-hidden focus-visible:bg-surface-base focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset transition-colors"
         >
           <svg
             className="w-4 h-4 text-content-muted"
@@ -104,7 +104,7 @@ export function NavbarUserDropdown({ user, isOpen, onClose, onLogout }: NavbarUs
         <button
           type="button"
           onClick={onLogout}
-          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 focus-visible:outline-hidden focus-visible:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-inset active:scale-[0.99] transition-colors cursor-pointer"
         >
           <svg
             className="w-4 h-4 text-red-500"

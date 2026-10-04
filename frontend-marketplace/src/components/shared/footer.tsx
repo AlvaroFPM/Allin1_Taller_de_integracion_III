@@ -61,7 +61,7 @@ export function Footer({ sections = defaultFooterSections }: FooterProps) {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-content-muted hover:text-brand transition-colors"
+                      className="text-sm text-content-muted hover:text-content-main hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded transition-colors"
                     >
                       {link.label}
                     </Link>

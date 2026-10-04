@@ -131,7 +131,7 @@ export function NavbarUser({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar gasfitería, fletes, artículos..."
-              className="w-full h-9.5 pl-9 pr-14 text-xs bg-surface-base border border-border-base rounded-full focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all placeholder:text-content-muted"
+              className="w-full h-9.5 pl-9 pr-14 text-xs bg-surface-base border border-border-base rounded-full hover:border-gray-400 focus-visible:outline-hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 transition-all duration-150 placeholder:text-gray-500"
             />
             <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-content-muted bg-surface-main border border-border-base rounded shadow-2xs pointer-events-none">
               ⌘K
@@ -145,7 +145,7 @@ export function NavbarUser({
             <Link
               key={item.label}
               href={item.href}
-              className="px-3.5 py-1.5 text-sm font-medium text-content-muted hover:text-content-main hover:bg-surface-base rounded-lg transition-colors"
+              className="px-3.5 py-1.5 text-sm font-medium text-content-muted hover:text-content-main hover:bg-surface-base rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               {item.label}
             </Link>
@@ -181,7 +181,7 @@ export function NavbarUser({
                 e.stopPropagation();
                 setIsDropdownOpen((prev) => !prev);
               }}
-              className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-brand/30 transition-all cursor-pointer select-none"
+              className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-brand/30 transition-all cursor-pointer select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               aria-expanded={isDropdownOpen}
               aria-label="Menú de cuenta de usuario"
             >

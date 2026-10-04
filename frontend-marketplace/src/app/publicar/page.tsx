@@ -8,11 +8,8 @@ import {
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
-import { publicationService } from '@/services/publicationService';
-import { useAuthStore } from '@/store/useAuthStore';
-import { publicationService } from '@/services/publicationService';
 import type { PublicationCategory } from '@/types/publication';
+import { publicationService } from '@/services/publicationService';
 
 export default function PublicarPage() {
   const router = useRouter();
@@ -107,7 +104,7 @@ export default function PublicarPage() {
         <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
           {errorMessage}
         </div>
-      </div>
+      )}
 
       {/* Layout de 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
@@ -117,26 +114,6 @@ export default function PublicarPage() {
             value={formState.tipo}
             onChange={(tipo) => handleChange({ tipo })}
           />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold mb-1">Categoría *</label>
-          <select
-            name="categoriaId"
-            value={formData.categoriaId}
-            onChange={handleChange}
-            className="w-full h-10 px-3.5 text-sm bg-surface-base border rounded-xl"
-            disabled={isLoadingCategories}
-          >
-            <option value="">Selecciona una categoría</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-
           <CreatePublicationForm
             formState={formState}
             categories={categories}
@@ -152,27 +129,7 @@ export default function PublicarPage() {
             isSubmitting={isSubmitting}
           />
         </div>
-
-        <div>
-          <label className="block text-xs font-bold mb-1">Descripción *</label>
-          <textarea
-            name="descripcion"
-            rows={4}
-            value={formData.descripcion}
-            onChange={handleChange}
-            placeholder="Describe detalladamente el servicio..."
-            className="w-full p-3.5 text-sm bg-surface-base border rounded-xl"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-10 bg-brand text-white font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {isSubmitting ? 'Publicando...' : 'Publicar'}
-        </button>
-      </form>
+      </div>
     </main>
   );
 }

@@ -54,7 +54,7 @@ export function FilterBar({
             value={searchValue}
             onChange={(e) => onSearchChange?.(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-10 pl-10 pr-4 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all placeholder:text-content-muted"
+            className="w-full h-10 pl-10 pr-4 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl hover:border-gray-400 focus-visible:outline-hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 transition-all duration-150 placeholder:text-gray-500"
           />
         </div>
 
@@ -72,10 +72,11 @@ export function FilterBar({
                 type="button"
                 onClick={() => onTabChange?.(tab.id)}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer',
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-[0.98]',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1',
                   isActive
                     ? 'bg-brand text-surface-main shadow-xs'
-                    : 'text-content-muted hover:text-content-main hover:bg-surface-base',
+                    : 'text-gray-700 hover:text-content-main hover:bg-gray-100',
                 )}
               >
                 <span>{tab.label}</span>

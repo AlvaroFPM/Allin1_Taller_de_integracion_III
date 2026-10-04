@@ -52,7 +52,7 @@ export function CatalogGrid({
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as 'recent' | 'price_asc' | 'price_desc')}
           className={cn(
-            'h-9 px-3 text-xs bg-surface-main border border-border-base rounded-xl text-content-main focus:outline-hidden focus:border-brand cursor-pointer shrink-0 self-start sm:self-auto',
+            'h-9 px-3 text-xs bg-surface-main border border-border-base rounded-xl text-content-main hover:border-gray-400 focus-visible:outline-hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 transition-all duration-150 cursor-pointer shrink-0 self-start sm:self-auto',
             isLoading && 'opacity-60 cursor-not-allowed',
           )}
         >
@@ -99,10 +99,11 @@ export function CatalogGrid({
               type="button"
               onClick={() => onPageChange?.(page)}
               className={cn(
-                'w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center',
+                'w-9 h-9 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center active:scale-[0.98]',
+                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2',
                 currentPage === page
                   ? 'bg-emerald-800 text-surface-main shadow-2xs'
-                  : 'bg-surface-main border border-border-base text-content-main hover:bg-surface-base',
+                  : 'bg-surface-main border border-border-base text-content-main hover:bg-surface-base hover:border-gray-400',
               )}
             >
               {page}
@@ -111,7 +112,7 @@ export function CatalogGrid({
           <button
             type="button"
             onClick={() => onPageChange?.(currentPage + 1)}
-            className="h-9 px-3 rounded-xl text-xs font-bold bg-surface-main border border-border-base text-content-main hover:bg-surface-base transition-all cursor-pointer flex items-center justify-center"
+            className="h-9 px-3 rounded-xl text-xs font-bold bg-surface-main border border-border-base text-content-main hover:bg-surface-base hover:border-gray-400 active:scale-[0.98] transition-all duration-150 cursor-pointer flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
             aria-label="Página siguiente"
           >
             →

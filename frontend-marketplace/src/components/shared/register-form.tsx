@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AxiosError } from 'axios';
 
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { registerSchema, type RegisterFormData } from '@/types/auth';
 import { useAuthStore } from '@/store/useAuthStore';
 import { mapProfileToUser } from '@/lib/mappers/auth';
+import api from '@/lib/axios';
+import { setAuthTokens } from '@/lib/authCookies';
 
 export interface RegisterFormProps {
   onSuccess?: (data: RegisterFormData) => void;
@@ -22,6 +24,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -48,8 +51,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     { label: 'Un carácter especial (@#$%)', valid: /[^A-Za-z0-9]/.test(passwordValue) },
   ];
 
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setErrorMessage(null);
@@ -63,11 +64,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         password: data.password,
       });
 
-      const token = loginResponse.data.token;
+      const token = registerResponse.data.token;
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', token);
-        Cookies.set('auth_token', token, { expires: 7, path: '/', sameSite: 'lax' });
+      if (token) {
+        setAuthTokens(token);
       }
 
       const profileResponse = await api.get('/v1/auth/profile');

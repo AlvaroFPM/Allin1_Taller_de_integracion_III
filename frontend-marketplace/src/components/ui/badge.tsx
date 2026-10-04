@@ -7,11 +7,11 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses = {
-  brand: 'bg-brand-light text-brand-dark border-brand/20',
-  warning: 'bg-status-warning-bg text-status-warning border-status-warning/20',
-  success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  danger: 'bg-red-50 text-red-700 border-red-200',
-  neutral: 'bg-surface-base text-content-muted border-border-base',
+  brand: 'bg-brand-light text-brand-dark border-brand/30 font-semibold',
+  warning: 'bg-status-warning-bg text-amber-900 border-amber-300 font-semibold',
+  success: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold',
+  danger: 'bg-red-50 text-red-800 border-red-300 font-semibold',
+  neutral: 'bg-surface-base text-content-muted border-border-base font-semibold',
 };
 
 const sizeClasses = {
