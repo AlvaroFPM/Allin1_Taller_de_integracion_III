@@ -31,7 +31,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const iconConfig = {
     danger: {
-      bg: 'bg-red-50 text-red-600 border-red-200',
+      bg: 'bg-red-50 text-red-700 border-red-200',
       svg: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -44,7 +44,7 @@ export function ConfirmDialog({
       ),
     },
     warning: {
-      bg: 'bg-status-warning-bg text-status-warning border-status-warning/30',
+      bg: 'bg-status-warning-bg text-amber-900 border-amber-300',
       svg: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -57,7 +57,7 @@ export function ConfirmDialog({
       ),
     },
     primary: {
-      bg: 'bg-brand-light text-brand-hover border-brand/25',
+      bg: 'bg-brand-light text-brand-dark border-brand/30',
       svg: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

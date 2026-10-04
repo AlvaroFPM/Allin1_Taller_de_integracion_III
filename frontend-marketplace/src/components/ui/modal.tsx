@@ -98,7 +98,7 @@ export function Modal({
             <button
               onClick={onClose}
               type="button"
-              className="text-content-muted hover:text-content-main p-1 rounded-md hover:bg-surface-base transition-colors"
+              className="text-content-muted hover:text-content-main p-1.5 rounded-lg hover:bg-surface-base focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 transition-all cursor-pointer"
               aria-label="Cerrar modal"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

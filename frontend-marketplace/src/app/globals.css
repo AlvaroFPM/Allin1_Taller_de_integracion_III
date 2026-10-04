@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  /* Brand (Verde Esmeralda Corporativo) */
-  --brand: #0E9F6E;
-  --brand-hover: #057A55;
+  /* Brand (Verde Esmeralda Corporativo accesible WCAG AA 4.9:1+) */
+  --brand: #077A55;
+  --brand-hover: #056445;
   --brand-light: #EBF5F0;
-  --brand-dark: #065F46;
+  --brand-dark: #044D35;
 
   /* Surface */
   --surface-base: #F8FAF9;
   --surface-main: #FFFFFF;
 
-  /* Content (Texto) */
+  /* Content (Texto con contraste alto WCAG AA 7.0:1) */
   --content-main: #111827;
-  --content-muted: #6B7280;
+  --content-muted: #4B5563;
 
   /* Border */
   --border-base: #E5E7EB;
 
-  /* Status (Escrow / Alertas) */
-  --status-warning: #D97706;
+  /* Status (Escrow / Alertas accesibles WCAG AA) */
+  --status-warning: #B45309;
   --status-warning-bg: #FEF3C7;
 }
 
@@ -48,4 +48,10 @@ body {
   background-color: var(--surface-base);
   color: var(--content-main);
   font-family: var(--font-sans);
+}
+
+/* Accesibilidad universal para navegación por teclado (WCAG 2.4.7 Focus Visible) */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }

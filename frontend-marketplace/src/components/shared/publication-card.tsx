@@ -20,15 +20,15 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
   const displayDate = publication.createdAtRelative || formatRelativeTime(rawCreatedAt);
 
   return (
-    <article className="bg-surface-main border border-border-base rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between text-left gap-4">
+    <article className="bg-surface-main border border-border-base rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-emerald-600/30 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between text-left gap-4 group">
       {/* Cabecera: Badge de tipo y tiempo relativo */}
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
             'px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-extrabold tracking-wide uppercase',
-            isJob && 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
-            isArticle && 'bg-purple-50 text-purple-700 border border-purple-200/60',
-            !isJob && !isArticle && 'bg-blue-50 text-blue-700 border border-blue-200/60',
+            isJob && 'bg-emerald-50 text-emerald-800 border border-emerald-300',
+            isArticle && 'bg-purple-50 text-purple-800 border border-purple-300',
+            !isJob && !isArticle && 'bg-blue-50 text-blue-800 border border-blue-300',
           )}
         >
           {publication.type === 'TRABAJO' && 'TRABAJO SOLICITADO'}
@@ -40,7 +40,7 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
 
       {/* Contenido: Título y descripción */}
       <div className="space-y-1.5">
-        <h3 className="text-sm sm:text-base font-bold text-content-main leading-snug line-clamp-1">
+        <h3 className="text-sm sm:text-base font-bold text-content-main leading-snug line-clamp-1 group-hover:text-brand transition-colors">
           {publication.title}
         </h3>
         <p className="text-xs text-content-muted leading-relaxed line-clamp-2">
@@ -68,7 +68,7 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
           <span className="block text-[10px] font-bold tracking-wider text-content-muted uppercase">
             {publication.priceTypeLabel}
           </span>
-          <span className="text-lg sm:text-xl font-black text-emerald-800 tracking-tight">
+          <span className="text-lg sm:text-xl font-black text-emerald-900 tracking-tight">
             ${publication.price.toLocaleString('es-CL')} {publication.currency}
           </span>
         </div>
@@ -77,10 +77,11 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
           type="button"
           onClick={() => onAction?.(publication)}
           className={cn(
-            'px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs hover:shadow-xs active:scale-98',
+            'px-4 py-2 rounded-xl text-xs font-bold transition-all duration-150 shrink-0 cursor-pointer shadow-2xs hover:shadow-xs active:scale-[0.98]',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
             publication.actionButtonText === 'Aceptar Trabajo'
-              ? 'bg-emerald-800 text-surface-main hover:bg-emerald-700'
-              : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100',
+              ? 'bg-emerald-800 text-surface-main hover:bg-emerald-900 focus-visible:ring-emerald-800'
+              : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400 focus-visible:ring-emerald-700',
           )}
         >
           {publication.actionButtonText}

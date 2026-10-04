@@ -34,8 +34,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={!!error}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
           className={cn(
-            'w-full px-3.5 py-2.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors resize-y',
-            'placeholder:text-content-muted/60',
+            'w-full px-3.5 py-2.5 text-sm bg-surface-main text-content-main rounded-lg border transition-all duration-150 resize-y',
+            'placeholder:text-gray-500 hover:border-gray-400',
             'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1',
             'disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base',
             error
@@ -47,7 +47,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         />
 
         {error ? (
-          <p id={errorId} className="text-xs font-medium text-red-600">
+          <p id={errorId} className="text-xs font-semibold text-red-700">
             {error}
           </p>
         ) : helperText ? (

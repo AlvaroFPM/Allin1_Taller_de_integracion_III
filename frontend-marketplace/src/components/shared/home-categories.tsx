@@ -147,8 +147,9 @@ export function HomeCategories({
               key={cat.id}
               href={cat.href}
               className={cn(
-                'inline-flex items-center gap-2 rounded-full transition-all duration-200 cursor-pointer select-none',
+                'inline-flex items-center gap-2 rounded-full transition-all duration-200 cursor-pointer select-none active:scale-95',
                 'hover:-translate-y-1 hover:scale-105 hover:border-brand hover:shadow-md',
+                'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
                 cat.highlight
                   ? 'bg-brand-light border-brand/30 text-brand-hover hover:bg-surface-main'
                   : 'bg-surface-main border-border-base text-content-main hover:text-brand',

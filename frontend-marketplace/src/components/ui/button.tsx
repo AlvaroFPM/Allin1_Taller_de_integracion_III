@@ -15,14 +15,14 @@ const variantClasses = {
   primary:
     'bg-brand text-surface-main hover:bg-brand-hover shadow-xs active:bg-brand-dark focus-visible:ring-brand',
   secondary:
-    'bg-surface-main text-content-main border border-border-base hover:bg-surface-base active:bg-border-base/50 focus-visible:ring-brand',
+    'bg-surface-main text-content-main border border-border-base hover:bg-surface-base hover:border-gray-400 active:bg-border-base/70 focus-visible:ring-brand',
   outline:
-    'border border-brand text-brand bg-transparent hover:bg-brand-light active:bg-brand-light/80 focus-visible:ring-brand',
+    'border-2 border-brand text-brand bg-transparent hover:bg-brand-light active:bg-brand-light/80 focus-visible:ring-brand',
   ghost:
-    'text-content-main bg-transparent hover:bg-surface-base active:bg-border-base/50 focus-visible:ring-brand',
-  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-500',
+    'text-content-main bg-transparent hover:bg-surface-base hover:text-brand-dark active:bg-border-base/50 focus-visible:ring-brand',
+  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-600',
   warning:
-    'bg-status-warning text-white hover:bg-amber-600 active:bg-amber-700 focus-visible:ring-status-warning',
+    'bg-status-warning text-white hover:bg-amber-700 active:bg-amber-800 focus-visible:ring-status-warning',
 };
 
 const sizeClasses = {
@@ -54,9 +54,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-colors cursor-pointer select-none',
+          'inline-flex items-center justify-center font-semibold transition-all duration-150 cursor-pointer select-none',
           'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
-          'disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed',
+          'active:scale-[0.98]',
+          'disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:scale-100',
           variantClasses[variant],
           sizeClasses[size],
           fullWidth && 'w-full',

@@ -58,8 +58,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={!!error}
             aria-describedby={error ? errorId : helperText ? helperId : undefined}
             className={cn(
-              'w-full h-10 px-3.5 text-sm bg-surface-main text-content-main rounded-lg border transition-colors',
-              'placeholder:text-content-muted/60',
+              'w-full h-10 px-3.5 text-sm bg-surface-main text-content-main rounded-lg border transition-all duration-150',
+              'placeholder:text-gray-500 hover:border-gray-400',
               'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1',
               'disabled:bg-surface-base disabled:text-content-muted disabled:cursor-not-allowed disabled:border-border-base',
               error
@@ -80,7 +80,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         </div>
 
         {error ? (
-          <p id={errorId} className="text-xs font-medium text-red-600">
+          <p id={errorId} className="text-xs font-semibold text-red-700">
             {error}
           </p>
         ) : helperText ? (
