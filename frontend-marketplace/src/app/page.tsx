@@ -50,11 +50,13 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-surface-base">
-      <HomeHero />
-      <HomeCategories />
-      <HomeHowItWorks />
-      <HomeRecentActivity publications={recentPublications} isLoading={isLoading} />
-      <HomeReviews />
+      <div className="container mx-auto px-4 py-8 space-y-16 lg:space-y-24">
+        <HomeHero />
+        <HomeCategories />
+        <HomeHowItWorks />
+        <HomeRecentActivity publications={recentPublications} isLoading={isLoading} />
+        <HomeReviews />
+      </div>
     </main>
   );
 }

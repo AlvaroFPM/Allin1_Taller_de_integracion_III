@@ -100,6 +100,7 @@ export const publicationService = {
           };
         });
 
+        const meta = response.data.meta;
         return {
           publications,
           total: Number(meta?.totalRecords ?? publications.length),
@@ -161,11 +162,6 @@ export const publicationService = {
       }
       return null;
     } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        console.error('Error creating publication:', error.response?.data || error.message);
-      } else {
-        console.error('Error creating publication:', error);
-      }
       throw error;
     }
   },

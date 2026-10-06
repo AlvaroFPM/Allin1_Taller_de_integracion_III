@@ -61,7 +61,6 @@ export function LoginForm({ onSuccess, sessionExpired = false }: LoginFormProps)
       useAuthStore.getState().setAuth(realUser, token);
       onSuccess?.(data);
     } catch (error: unknown) {
-      console.error('Error en login:', error);
       if (isAxiosError(error)) {
         setErrorMessage(
           error.response?.data?.message || 'Credenciales incorrectas o error de servidor',

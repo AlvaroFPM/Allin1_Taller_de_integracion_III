@@ -10,25 +10,23 @@ import {
 } from '@/components/shared';
 import type { PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const { user } = useAuthStore();
 
-  React.useEffect(() => {
-    publicationService
-      .getCategories()
-      .then((data) => setCategories(data as PublicationCategory[]))
-      .catch((err: unknown) => console.error('Error cargando categorías:', err));
-  }, []);
-
-  const [formData, setFormData] = React.useState({
+  const [formState, setFormState] = React.useState({
     titulo: '',
     descripcion: '',
-    tipoServicio: 'OFERTA',
+    tipo: 'SERVICIO',
     precioBase: '',
     categoriaId: '',
+    moneda: 'CLP',
   });
 
   React.useEffect(() => {
@@ -46,11 +44,8 @@ export default function PublicarPage() {
     fetchCategories();
   }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (fields: Partial<typeof formState>) => {
+    setFormState((prev) => ({ ...prev, ...fields }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,10 +58,10 @@ export default function PublicarPage() {
     }
 
     if (
-      !formData.titulo ||
-      !formData.descripcion ||
-      !formData.categoriaId ||
-      !formData.precioBase
+      !formState.titulo ||
+      !formState.descripcion ||
+      !formState.categoriaId ||
+      !formState.precioBase
     ) {
       setErrorMessage('Por favor completa todos los campos obligatorios');
       return;
@@ -97,7 +92,7 @@ export default function PublicarPage() {
   };
 
   return (
-    <main className="container max-w-2xl mx-auto px-4 py-8">
+    <main className="container max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Crear nueva publicación</h1>
 
       {errorMessage && (
@@ -112,7 +107,7 @@ export default function PublicarPage() {
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
           <PublicationTypeSelector
             value={formState.tipo}
-            onChange={(tipo) => handleChange({ tipo })}
+            onChange={(tipo) => setFormState(prev => ({ ...prev, tipo }))}
           />
           <CreatePublicationForm
             formState={formState}
