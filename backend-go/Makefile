@@ -22,7 +22,7 @@ generate: deps
 		--go_out=$(OUT_DIR)/auth --go_opt=paths=source_relative \
 		--go-grpc_out=$(OUT_DIR)/auth --go-grpc_opt=paths=source_relative \
 		--grpc-gateway_out=$(OUT_DIR)/auth --grpc-gateway_opt=paths=source_relative \
-		--openapiv2_out=$(OPENAPI_DIR) --openapiv2_opt=logtostderr=true \
+		--openapiv2_out=$(OPENAPI_DIR) --openapiv2_opt=logtostderr=true,openapi_configuration=$(OPENAPI_DIR)/auth.config.yaml \
 		$(PROTO_DIR)/auth.proto
 		
 	@echo "Archivos OpenAPI generados:"

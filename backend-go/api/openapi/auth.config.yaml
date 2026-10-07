@@ -1,0 +1,90 @@
+openapiOptions:
+  file:
+    - file: auth.proto
+      option:
+        info:
+          title: "Allin1 - IAM (Auth y Perfil)"
+          version: "1.0"
+          description: "Registro, login y perfil de usuario. Los endpoints de perfil requieren el token JWT obtenido en login o registro, enviado en el header Authorization con el formato: Bearer TOKEN."
+        schemes:
+          - HTTP
+          - HTTPS
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        securityDefinitions:
+          security:
+            BearerAuth:
+              type: TYPE_API_KEY
+              in: IN_HEADER
+              name: Authorization
+              description: "Token JWT. Escribir el valor completo: Bearer TOKEN (con la palabra Bearer y un espacio)."
+  method:
+    - method: auth.AuthService.Register
+      option:
+        summary: "Registrar usuario"
+        description: "Crea una cuenta nueva y devuelve un token JWT para iniciar sesion de inmediato. No requiere autenticacion."
+        tags:
+          - Auth
+        responses:
+          "400":
+            description: "Datos de registro invalidos (RUT, nombre, correo o contrasena)."
+          "409":
+            description: "El correo ya esta registrado."
+          "500":
+            description: "Error interno (base de datos, hash de contrasena o generacion del token)."
+    - method: auth.AuthService.Login
+      option:
+        summary: "Iniciar sesion"
+        description: "Valida correo y contrasena y devuelve un token JWT. No requiere autenticacion. Un correo inexistente y una contrasena incorrecta devuelven el mismo 401."
+        tags:
+          - Auth
+        responses:
+          "400":
+            description: "Datos de login invalidos (campos vacios o con formato incorrecto)."
+          "401":
+            description: "Credenciales incorrectas."
+          "500":
+            description: "Error interno (base de datos o generacion del token)."
+    - method: auth.AuthService.GetProfile
+      option:
+        summary: "Obtener perfil"
+        description: "Devuelve el perfil del usuario dueno del token. Si el usuario aun no tiene perfil, los campos de perfil vienen vacios (no es un error). Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto alojado en Cloudinary."
+        tags:
+          - Perfil
+        security:
+          - securityRequirement:
+              BearerAuth: {}
+        responses:
+          "401":
+            description: "Token ausente, con formato invalido, invalido o expirado."
+          "404":
+            description: "El usuario del token no existe."
+          "500":
+            description: "Error interno al consultar la base de datos."
+    - method: auth.AuthService.UpdateProfile
+      option:
+        summary: "Actualizar perfil"
+        description: "Reemplaza los datos editables del perfil (reemplazo total: los campos vacios borran el valor guardado). Crea el perfil si no existia. Devuelve el perfil actualizado."
+        tags:
+          - Perfil
+        security:
+          - securityRequirement:
+              BearerAuth: {}
+        responses:
+          "400":
+            description: "Telefono invalido (7 a 20 caracteres: digitos, espacios, +, - o parentesis) o ciudad/region de mas de 100 caracteres."
+          "401":
+            description: "Token ausente, con formato invalido, invalido o expirado."
+          "404":
+            description: "El usuario del token no existe."
+          "500":
+            description: "Error interno al guardar o consultar en la base de datos."
+  field:
+    - field: auth.ProfileResponse.foto_perfil_url
+      option:
+        description: "URL de la foto de perfil. Si el usuario no tiene foto propia, es el avatar por defecto (Cloudinary)."
+    - field: auth.ProfileResponse.rol
+      option:
+        description: "Rol del usuario (por ejemplo CLIENTE o PROVEEDOR)."
