@@ -1,0 +1,8 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Scripts y archivos de configuracion
+*.cmd text eol=crlf
+Makefile text eol=lf
+*.sh text eol=lf
+*.js text eol=lf
