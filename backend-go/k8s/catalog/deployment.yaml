@@ -29,8 +29,8 @@ spec:
       containers:
         - name: catalog
           # Imagen en Docker Hub. Tag formato YYYYMMDD-<hash-corto-git> (nunca latest)
-          image: am4roo/allin1-catalog-go:20261003-d0b1f3e
-          imagePullPolicy: Always
+          image: am4roo/allin1-catalog-go:20261006-5cdbdee
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8082
               name: http-gateway

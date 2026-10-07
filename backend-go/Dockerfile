@@ -77,10 +77,14 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /app/bin/service /service
 
 # EXPOSE: Puertos de comunicación del microservicio.
-# - 50051: Puerto gRPC nativo (servidor gRPC inicializado en main.go).
-# - 8080:  Puerto REST del gRPC-Gateway (proxy HTTP -> gRPC, también inicializado en main.go).
+# - 50051: Puerto gRPC de IAM (default en cmd/iam/main.go).
+# - 8080:  Puerto REST (gRPC-Gateway) de IAM.
+# - 50052: Puerto gRPC de Catalog (default en cmd/catalog/main.go).
+# - 8082:  Puerto REST (gRPC-Gateway) de Catalog.
 EXPOSE 50051
 EXPOSE 8080
+EXPOSE 50052
+EXPOSE 8082
 
 # ENTRYPOINT: Ejecuta directamente el binario compilado como proceso principal (PID 1).
 # No usamos 'go run' (que es solo para desarrollo y requiere el SDK completo),

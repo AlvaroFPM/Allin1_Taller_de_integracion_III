@@ -45,12 +45,10 @@ spec:
       containers:
         - name: iam
           # Imagen publicada en Docker Hub por el equipo
-          image: am4roo/allin1-iam-go:latest
+          image: am4roo/allin1-iam-go:20261006-5cdbdee
 
-          # Always: Fuerza a Kubernetes a descargar la imagen en cada
-          # rollout/restart, asegurando que siempre use la versión más
-          # reciente del tag :latest
-          imagePullPolicy: Always
+          # IfNotPresent: usa la imagen local si ya fue descargada (tag inmutable)
+          imagePullPolicy: IfNotPresent
 
           # Puerto del contenedor: 8080 (gRPC-Gateway REST + CORS)
           ports:
