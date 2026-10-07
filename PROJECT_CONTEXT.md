@@ -122,8 +122,8 @@ kubectl apply -f ingress.yaml
 - Namespace: `student-aalarcon`
 - Secretos K8s: `<servicio>-db-secret` (ej. `iam-db-secret`)
 - Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
-  - Ejemplo backend: `am4roo/allin1-iam-go:latest`
-  - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261003-d0b1f3e`
+  - Tag vigente de IAM: `am4roo/allin1-iam-go:20261006-5cdbdee`
+  - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261006-5cdbdee`
   - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
   - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
@@ -321,7 +321,7 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | Login y GetProfile devuelven datos mock | `internal/service/auth_service.go` | Confirmar si ya usan JWT real + GORM o siguen siendo stubs; bloquea validar HDU #238 de punta a punta |
 | Media microservice | — | No implementado aún |
 | CORS del Go sigue con localhost | `backend-go/cmd/iam/main.go` | `AllowedOrigins` solo tiene `localhost:3000` y `localhost:3001`. CORS de producción se maneja en Nginx, pero si se elimina el gateway habría que actualizar Go |
-| Tag `latest` en iam | `backend-go/k8s/iam/deployment.yaml` | Migrar a tags únicos (`YYYYMMDD-<hash>`) como el frontend |
+| ~~Tag `latest` en iam~~ | ~~`backend-go/k8s/iam/deployment.yaml`~~ | ✅ Resuelto — Migrado a tag único `20261006-5cdbdee` con `imagePullPolicy: IfNotPresent` |
 | `catalog.exe` commiteado en repo | `backend-go/catalog.exe` | Eliminar ejecutable de Windows del control de versiones y verificar regla en `.gitignore` |
 | Cookies con sameSite/expiración inconsistentes | `frontend-marketplace/src/lib/authCookies.ts`, `login-form.tsx`, `useAuthStore.ts` | `authCookies` usa `sameSite: 'strict'` (1 día de expiración) mientras `login-form` usa `document.cookie` con `SameSite=Lax` (7 días). Centralizar y homogeneizar atributos de cookies de sesión |
 | Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |

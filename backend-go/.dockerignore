@@ -36,3 +36,6 @@ logs/
 # Archivos temporales o de documentación no necesarios para la compilación
 *.md
 tmp/
+
+# Secretos de Kubernetes (nunca deben entrar al build context)
+k8s/**/secret.yaml
