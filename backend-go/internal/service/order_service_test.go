@@ -227,3 +227,232 @@ func TestCreateOrder_AllowsNewOrderIfPreviousWasCancelledOrCompleted(t *testing.
 	assert.Equal(t, models.EstadoOrdenPendiente, nueva.Estado)
 	assert.NotEqual(t, ordenAntigua.IDOrden, nueva.IDOrden)
 }
+
+// ============================================================================
+// 3. TESTS UNITARIOS PUROS DE TRANSICIÓN Y PERMISOS (ALL-77)
+// ============================================================================
+
+func TestValidateOrderTransition_PureValidation(t *testing.T) {
+	tests := []struct {
+		name         string
+		estadoActual string
+		nuevoEstado  string
+		wantCode     codes.Code
+		wantErrPart  string
+	}{
+		// Transiciones válidas
+		{
+			name:         "Éxito: PENDIENTE -> ACEPTADA",
+			estadoActual: models.EstadoOrdenPendiente,
+			nuevoEstado:  models.EstadoOrdenAceptada,
+			wantCode:     codes.OK,
+		},
+		{
+			name:         "Éxito: PENDIENTE -> CANCELADA",
+			estadoActual: models.EstadoOrdenPendiente,
+			nuevoEstado:  models.EstadoOrdenCancelada,
+			wantCode:     codes.OK,
+		},
+		{
+			name:         "Éxito: ACEPTADA -> COMPLETADA",
+			estadoActual: models.EstadoOrdenAceptada,
+			nuevoEstado:  models.EstadoOrdenCompletada,
+			wantCode:     codes.OK,
+		},
+		{
+			name:         "Éxito: ACEPTADA -> CANCELADA",
+			estadoActual: models.EstadoOrdenAceptada,
+			nuevoEstado:  models.EstadoOrdenCancelada,
+			wantCode:     codes.OK,
+		},
+
+		// Transiciones inválidas
+		{
+			name:         "Falla: PENDIENTE -> COMPLETADA (salto de etapa)",
+			estadoActual: models.EstadoOrdenPendiente,
+			nuevoEstado:  models.EstadoOrdenCompletada,
+			wantCode:     codes.FailedPrecondition,
+			wantErrPart:  "no se puede pasar de PENDIENTE a COMPLETADA",
+		},
+		{
+			name:         "Falla: ACEPTADA -> PENDIENTE (regresión de estado)",
+			estadoActual: models.EstadoOrdenAceptada,
+			nuevoEstado:  models.EstadoOrdenPendiente,
+			wantCode:     codes.FailedPrecondition,
+			wantErrPart:  "no se puede pasar de ACEPTADA a PENDIENTE",
+		},
+		{
+			name:         "Falla: COMPLETADA -> CANCELADA (estado final inmutable)",
+			estadoActual: models.EstadoOrdenCompletada,
+			nuevoEstado:  models.EstadoOrdenCancelada,
+			wantCode:     codes.FailedPrecondition,
+			wantErrPart:  "transición no permitida",
+		},
+		{
+			name:         "Falla: CANCELADA -> ACEPTADA (estado final inmutable)",
+			estadoActual: models.EstadoOrdenCancelada,
+			nuevoEstado:  models.EstadoOrdenAceptada,
+			wantCode:     codes.FailedPrecondition,
+			wantErrPart:  "transición no permitida",
+		},
+		{
+			name:         "Falla: estado pedido no existe en el dominio",
+			estadoActual: models.EstadoOrdenPendiente,
+			nuevoEstado:  "ENVIADA",
+			wantCode:     codes.InvalidArgument,
+			wantErrPart:  "estado de orden desconocido",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOrderTransition(tc.estadoActual, tc.nuevoEstado)
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantCode, st.Code())
+			assert.Contains(t, st.Message(), tc.wantErrPart)
+		})
+	}
+}
+
+func TestValidateOrderPermissions_PureValidation(t *testing.T) {
+	ordenBase := models.Orden{
+		IDOrden:            1,
+		IDUsuarioComprador: 10,
+		IDUsuarioVendedor:  20,
+		Estado:             models.EstadoOrdenPendiente,
+	}
+
+	tests := []struct {
+		name        string
+		usuarioID   uint
+		nuevoEstado string
+		wantCode    codes.Code
+		wantErrPart string
+	}{
+		// Aceptar orden
+		{
+			name:        "Éxito: Vendedor acepta la orden",
+			usuarioID:   20,
+			nuevoEstado: models.EstadoOrdenAceptada,
+			wantCode:    codes.OK,
+		},
+		{
+			name:        "Falla: Comprador intenta aceptar su propia orden",
+			usuarioID:   10,
+			nuevoEstado: models.EstadoOrdenAceptada,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "solo el vendedor puede aceptar",
+		},
+		{
+			name:        "Falla: Tercero ajeno intenta aceptar la orden",
+			usuarioID:   99,
+			nuevoEstado: models.EstadoOrdenAceptada,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "no tienes autorización",
+		},
+
+		// Completar orden
+		{
+			name:        "Éxito: Vendedor completa la orden",
+			usuarioID:   20,
+			nuevoEstado: models.EstadoOrdenCompletada,
+			wantCode:    codes.OK,
+		},
+		{
+			name:        "Éxito: Comprador completa la orden",
+			usuarioID:   10,
+			nuevoEstado: models.EstadoOrdenCompletada,
+			wantCode:    codes.OK,
+		},
+		{
+			name:        "Falla: Tercero ajeno intenta completar la orden",
+			usuarioID:   99,
+			nuevoEstado: models.EstadoOrdenCompletada,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "no tienes autorización",
+		},
+
+		// Cancelar orden
+		{
+			name:        "Éxito: Comprador cancela la orden",
+			usuarioID:   10,
+			nuevoEstado: models.EstadoOrdenCancelada,
+			wantCode:    codes.OK,
+		},
+		{
+			name:        "Éxito: Vendedor cancela la orden",
+			usuarioID:   20,
+			nuevoEstado: models.EstadoOrdenCancelada,
+			wantCode:    codes.OK,
+		},
+		{
+			name:        "Falla: Tercero ajeno intenta cancelar la orden",
+			usuarioID:   99,
+			nuevoEstado: models.EstadoOrdenCancelada,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "no tienes autorización",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOrderPermissions(&ordenBase, tc.usuarioID, tc.nuevoEstado)
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantCode, st.Code())
+			assert.Contains(t, st.Message(), tc.wantErrPart)
+		})
+	}
+}
+
+// ============================================================================
+// 4. TESTS DE INTEGRACIÓN DE BD PARA PATCH (ALL-77)
+// ============================================================================
+
+func TestPatchOrderStatus_SuccessCycle(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// 1. Crear orden inicial en PENDIENTE
+	orden, err := svc.CreateOrder(ctx, 10, 20, 5, 30000)
+	require.NoError(t, err)
+	require.Equal(t, models.EstadoOrdenPendiente, orden.Estado)
+
+	// 2. Vendedor (20) acepta la orden
+	ordenAceptada, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 20, models.EstadoOrdenAceptada)
+	require.NoError(t, err)
+	assert.Equal(t, models.EstadoOrdenAceptada, ordenAceptada.Estado)
+
+	// 3. Comprador (10) completa la orden
+	ordenCompletada, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 10, models.EstadoOrdenCompletada)
+	require.NoError(t, err)
+	assert.Equal(t, models.EstadoOrdenCompletada, ordenCompletada.Estado)
+}
+
+func TestPatchOrderStatus_FailsIfOrderNotFound(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	res, err := svc.PatchOrderStatus(ctx, 99999, 20, models.EstadoOrdenAceptada)
+	assert.Nil(t, res)
+	require.Error(t, err)
+
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
+}
