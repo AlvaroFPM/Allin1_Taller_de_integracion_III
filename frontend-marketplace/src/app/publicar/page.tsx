@@ -2,13 +2,16 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { AxiosError } from 'axios';
+import type { AxiosError } from 'axios';
 import {
   PublicationTypeSelector,
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type { PublicationCategory } from '@/types/publication';
+import type {
+  PublicationCategory,
+  CreatePublicationFormState,
+} from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -16,18 +19,19 @@ export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
-  const [formState, setFormState] = React.useState({
-    titulo: '',
-    descripcion: '',
-    tipo: 'SERVICIO',
-    precioBase: '',
-    categoriaId: '',
-    moneda: 'CLP',
-  });
+  const [formState, setFormState] =
+    React.useState<CreatePublicationFormState>({
+      titulo: '',
+      descripcion: '',
+      tipo: 'SERVICIO',
+      precioBase: '',
+      categoriaId: '',
+      moneda: 'CLP',
+      ubicacion: '',
+    });
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -36,20 +40,18 @@ export default function PublicarPage() {
         setCategories(data);
       } catch (error: unknown) {
         console.error('Error al cargar categorías:', error);
-      } finally {
-        setIsLoadingCategories(false);
       }
     };
 
-    fetchCategories();
+    void fetchCategories();
   }, []);
 
-  const handleChange = (fields: Partial<typeof formState>) => {
+  const handleChange = (fields: Partial<CreatePublicationFormState>) => {
     setFormState((prev) => ({ ...prev, ...fields }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setErrorMessage(null);
 
     if (!user) {
@@ -70,7 +72,7 @@ export default function PublicarPage() {
     try {
       setIsSubmitting(true);
 
-      await publicationService.createPublication({
+      const publication = await publicationService.createPublication({
         title: formState.titulo,
         description: formState.descripcion,
         categoryId: Number(formState.categoriaId),
@@ -79,12 +81,20 @@ export default function PublicarPage() {
         type: formState.tipo,
         sellerId: user.id,
       });
+
+      if (!publication) {
+        setErrorMessage('La API no devolvió la publicación creada.');
+        return;
+      }
+
       alert('¡Publicación creada con éxito! Redirigiendo...');
       router.push('/');
     } catch (error: unknown) {
       const err = error as AxiosError<{ message?: string }>;
       const errorMsg =
-        err.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
+        err.response?.data?.message ||
+        'Ocurrió un error desconocido al crear la publicación.';
+
       alert(`No se pudo crear: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
@@ -96,7 +106,10 @@ export default function PublicarPage() {
       <h1 className="text-2xl font-bold mb-6">Crear nueva publicación</h1>
 
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
+        <div
+          role="alert"
+          className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs"
+        >
           {errorMessage}
         </div>
       )}
@@ -107,8 +120,11 @@ export default function PublicarPage() {
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
           <PublicationTypeSelector
             value={formState.tipo}
-            onChange={(tipo) => setFormState(prev => ({ ...prev, tipo }))}
+            onChange={(tipo) =>
+              setFormState((prev) => ({ ...prev, tipo }))
+            }
           />
+
           <CreatePublicationForm
             formState={formState}
             categories={categories}
