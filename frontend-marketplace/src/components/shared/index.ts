@@ -24,3 +24,6 @@ export * from './profile-reputation-card';
 export * from './profile-activity-panel';
 export * from './profile-edit-modal';
 export * from './publication-card-skeleton';
+export * from './public-profile-header';
+export * from './public-profile-reputation';
+export * from './public-profile-publications';
