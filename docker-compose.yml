@@ -138,7 +138,115 @@ services:
     networks:
       - allin1_network
 
+  # ==========================================
+  # Servicios bajo perfiles (orders, chat)
+  # ==========================================
+  # Estos microservicios aún no tienen código Go implementado
+  # (no existen backend-go/cmd/orders ni backend-go/cmd/chat).
+  # Se colocan bajo perfiles de Compose para no romper `docker compose up` normal.
+  # Levantar con: docker compose --profile orders --profile chat up -d --build
+
+  # ---------- Bases de datos (Orders, Chat) ----------
+
+  postgres_orders:
+    image: postgres:16-alpine
+    container_name: postgres_orders
+    profiles: ["orders"]
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_ORDERS}
+      POSTGRES_DB: orders_db
+    volumes:
+      - orders_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres_chat:
+    image: postgres:16-alpine
+    container_name: postgres_chat
+    profiles: ["chat"]
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CHAT}
+      POSTGRES_DB: chat_db
+    volumes:
+      - chat_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Microservicios (Orders, Chat) ----------
+
+  # Sin healthcheck de Compose: la imagen es scratch (sin wget/shell).
+  # En Kubernetes se usan probes tcpSocket.
+  # Reintroducir cuando el servicio exponga /healthz y se agregue un mecanismo de auto-chequeo.
+  orders:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile.orders
+    container_name: orders
+    profiles: ["orders"]
+    depends_on:
+      postgres_orders:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres_orders
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD_ORDERS}
+      DB_NAME: orders_db
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_PORT: "50053"
+      HTTP_PORT: "8084"
+    ports:
+      - "8084:8084"
+    networks:
+      - allin1_network
+
+  # Sin healthcheck de Compose: la imagen es scratch (sin wget/shell).
+  # En Kubernetes se usan probes tcpSocket.
+  # Reintroducir cuando el servicio exponga /healthz y se agregue un mecanismo de auto-chequeo.
+  chat:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile.chat
+    container_name: chat
+    profiles: ["chat"]
+    depends_on:
+      postgres_chat:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres_chat
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD_CHAT}
+      DB_NAME: chat_db
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_PORT: "50054"
+      HTTP_PORT: "8085"
+    ports:
+      - "8085:8085"
+    networks:
+      - allin1_network
+
 # Definimos los volúmenes nombrados para la persistencia de datos de PostgreSQL
 volumes:
   iam_db_data:
   catalog_db_data:
+  orders_db_data:
+  chat_db_data:
