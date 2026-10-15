@@ -8,10 +8,7 @@ import {
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type {
-  PublicationCategory,
-  CreatePublicationFormState,
-} from '@/types/publication';
+import type { PublicationCategory, CreatePublicationFormState } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -22,16 +19,15 @@ export default function PublicarPage() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
-  const [formState, setFormState] =
-    React.useState<CreatePublicationFormState>({
-      titulo: '',
-      descripcion: '',
-      tipo: 'SERVICIO',
-      precioBase: '',
-      categoriaId: '',
-      moneda: 'CLP',
-      ubicacion: '',
-    });
+  const [formState, setFormState] = React.useState<CreatePublicationFormState>({
+    titulo: '',
+    descripcion: '',
+    tipo: 'SERVICIO',
+    precioBase: '',
+    categoriaId: '',
+    moneda: 'CLP',
+    ubicacion: '',
+  });
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -92,8 +88,7 @@ export default function PublicarPage() {
     } catch (error: unknown) {
       const err = error as AxiosError<{ message?: string }>;
       const errorMsg =
-        err.response?.data?.message ||
-        'Ocurrió un error desconocido al crear la publicación.';
+        err.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
 
       alert(`No se pudo crear: ${errorMsg}`);
     } finally {
@@ -120,9 +115,7 @@ export default function PublicarPage() {
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
           <PublicationTypeSelector
             value={formState.tipo}
-            onChange={(tipo) =>
-              setFormState((prev) => ({ ...prev, tipo }))
-            }
+            onChange={(tipo) => setFormState((prev) => ({ ...prev, tipo }))}
           />
 
           <CreatePublicationForm
