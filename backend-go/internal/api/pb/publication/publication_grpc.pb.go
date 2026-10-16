@@ -19,10 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PublicationService_CreatePublication_FullMethodName = "/publication.PublicationService/CreatePublication"
-	PublicationService_GetCategories_FullMethodName     = "/publication.PublicationService/GetCategories"
-	PublicationService_GetPublication_FullMethodName    = "/publication.PublicationService/GetPublication"
-	PublicationService_ListPublications_FullMethodName  = "/publication.PublicationService/ListPublications"
+	PublicationService_CreatePublication_FullMethodName    = "/publication.PublicationService/CreatePublication"
+	PublicationService_UpdatePublication_FullMethodName    = "/publication.PublicationService/UpdatePublication"
+	PublicationService_GetCategories_FullMethodName        = "/publication.PublicationService/GetCategories"
+	PublicationService_GetPublication_FullMethodName       = "/publication.PublicationService/GetPublication"
+	PublicationService_GetPublicationDetail_FullMethodName = "/publication.PublicationService/GetPublicationDetail"
+	PublicationService_ListPublications_FullMethodName     = "/publication.PublicationService/ListPublications"
 )
 
 // PublicationServiceClient is the client API for PublicationService service.
@@ -32,8 +34,10 @@ const (
 // Servicio gRPC con endpoints REST vía grpc-gateway
 type PublicationServiceClient interface {
 	CreatePublication(ctx context.Context, in *CreatePublicationRequest, opts ...grpc.CallOption) (*CreatePublicationResponse, error)
+	UpdatePublication(ctx context.Context, in *UpdatePublicationRequest, opts ...grpc.CallOption) (*UpdatePublicationResponse, error)
 	GetCategories(ctx context.Context, in *GetCategoriesRequest, opts ...grpc.CallOption) (*GetCategoriesResponse, error)
 	GetPublication(ctx context.Context, in *GetPublicationRequest, opts ...grpc.CallOption) (*GetPublicationResponse, error)
+	GetPublicationDetail(ctx context.Context, in *GetPublicationDetailRequest, opts ...grpc.CallOption) (*GetPublicationDetailResponse, error)
 	ListPublications(ctx context.Context, in *ListPublicationsRequest, opts ...grpc.CallOption) (*ListPublicationsResponse, error)
 }
 
@@ -49,6 +53,16 @@ func (c *publicationServiceClient) CreatePublication(ctx context.Context, in *Cr
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreatePublicationResponse)
 	err := c.cc.Invoke(ctx, PublicationService_CreatePublication_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *publicationServiceClient) UpdatePublication(ctx context.Context, in *UpdatePublicationRequest, opts ...grpc.CallOption) (*UpdatePublicationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdatePublicationResponse)
+	err := c.cc.Invoke(ctx, PublicationService_UpdatePublication_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +89,16 @@ func (c *publicationServiceClient) GetPublication(ctx context.Context, in *GetPu
 	return out, nil
 }
 
+func (c *publicationServiceClient) GetPublicationDetail(ctx context.Context, in *GetPublicationDetailRequest, opts ...grpc.CallOption) (*GetPublicationDetailResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPublicationDetailResponse)
+	err := c.cc.Invoke(ctx, PublicationService_GetPublicationDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *publicationServiceClient) ListPublications(ctx context.Context, in *ListPublicationsRequest, opts ...grpc.CallOption) (*ListPublicationsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListPublicationsResponse)
@@ -92,8 +116,10 @@ func (c *publicationServiceClient) ListPublications(ctx context.Context, in *Lis
 // Servicio gRPC con endpoints REST vía grpc-gateway
 type PublicationServiceServer interface {
 	CreatePublication(context.Context, *CreatePublicationRequest) (*CreatePublicationResponse, error)
+	UpdatePublication(context.Context, *UpdatePublicationRequest) (*UpdatePublicationResponse, error)
 	GetCategories(context.Context, *GetCategoriesRequest) (*GetCategoriesResponse, error)
 	GetPublication(context.Context, *GetPublicationRequest) (*GetPublicationResponse, error)
+	GetPublicationDetail(context.Context, *GetPublicationDetailRequest) (*GetPublicationDetailResponse, error)
 	ListPublications(context.Context, *ListPublicationsRequest) (*ListPublicationsResponse, error)
 	mustEmbedUnimplementedPublicationServiceServer()
 }
@@ -108,11 +134,17 @@ type UnimplementedPublicationServiceServer struct{}
 func (UnimplementedPublicationServiceServer) CreatePublication(context.Context, *CreatePublicationRequest) (*CreatePublicationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePublication not implemented")
 }
+func (UnimplementedPublicationServiceServer) UpdatePublication(context.Context, *UpdatePublicationRequest) (*UpdatePublicationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdatePublication not implemented")
+}
 func (UnimplementedPublicationServiceServer) GetCategories(context.Context, *GetCategoriesRequest) (*GetCategoriesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCategories not implemented")
 }
 func (UnimplementedPublicationServiceServer) GetPublication(context.Context, *GetPublicationRequest) (*GetPublicationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPublication not implemented")
+}
+func (UnimplementedPublicationServiceServer) GetPublicationDetail(context.Context, *GetPublicationDetailRequest) (*GetPublicationDetailResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPublicationDetail not implemented")
 }
 func (UnimplementedPublicationServiceServer) ListPublications(context.Context, *ListPublicationsRequest) (*ListPublicationsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListPublications not implemented")
@@ -156,6 +188,24 @@ func _PublicationService_CreatePublication_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PublicationService_UpdatePublication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePublicationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicationServiceServer).UpdatePublication(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PublicationService_UpdatePublication_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicationServiceServer).UpdatePublication(ctx, req.(*UpdatePublicationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PublicationService_GetCategories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetCategoriesRequest)
 	if err := dec(in); err != nil {
@@ -192,6 +242,24 @@ func _PublicationService_GetPublication_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PublicationService_GetPublicationDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPublicationDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicationServiceServer).GetPublicationDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PublicationService_GetPublicationDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicationServiceServer).GetPublicationDetail(ctx, req.(*GetPublicationDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PublicationService_ListPublications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListPublicationsRequest)
 	if err := dec(in); err != nil {
@@ -222,12 +290,20 @@ var PublicationService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PublicationService_CreatePublication_Handler,
 		},
 		{
+			MethodName: "UpdatePublication",
+			Handler:    _PublicationService_UpdatePublication_Handler,
+		},
+		{
 			MethodName: "GetCategories",
 			Handler:    _PublicationService_GetCategories_Handler,
 		},
 		{
 			MethodName: "GetPublication",
 			Handler:    _PublicationService_GetPublication_Handler,
+		},
+		{
+			MethodName: "GetPublicationDetail",
+			Handler:    _PublicationService_GetPublicationDetail_Handler,
 		},
 		{
 			MethodName: "ListPublications",
