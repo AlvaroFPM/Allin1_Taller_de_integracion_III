@@ -16,7 +16,7 @@ export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
+  const [, setIsLoadingCategories] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
@@ -107,7 +107,7 @@ export default function PublicarPage() {
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
           <PublicationTypeSelector
             value={formState.tipo}
-            onChange={(tipo) => setFormState(prev => ({ ...prev, tipo }))}
+            onChange={(tipo) => setFormState((prev) => ({ ...prev, tipo }))}
           />
           <CreatePublicationForm
             formState={formState}
