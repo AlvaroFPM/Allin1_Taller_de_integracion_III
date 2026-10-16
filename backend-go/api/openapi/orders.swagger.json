@@ -1,0 +1,585 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "orders.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "OrderService",
+      "description": "==========================================\nServicio OrderService (gRPC + REST Gateway)\n=========================================="
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/ordenes": {
+      "post": {
+        "summary": "Crear una nueva orden / contratación",
+        "operationId": "OrderService_CreateOrder2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersCreateOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ordersCreateOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/ordenes/mis-compras": {
+      "get": {
+        "summary": "Listar órdenes donde el usuario autenticado es el comprador",
+        "operationId": "OrderService_ListMyPurchases2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersListOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/ordenes/mis-ventas": {
+      "get": {
+        "summary": "Listar órdenes donde el usuario autenticado es el vendedor",
+        "operationId": "OrderService_ListMySales2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersListOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/ordenes/{idOrden}": {
+      "get": {
+        "summary": "Obtener detalle de una orden específica",
+        "operationId": "OrderService_GetOrder2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersGetOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idOrden",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      },
+      "patch": {
+        "summary": "Actualizar el estado de una orden",
+        "operationId": "OrderService_PatchOrderStatus2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersPatchOrderStatusResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idOrden",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrderServicePatchOrderStatusBody"
+            }
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/orders": {
+      "post": {
+        "summary": "Crear una nueva orden / contratación",
+        "operationId": "OrderService_CreateOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersCreateOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ordersCreateOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/orders/mis-compras": {
+      "get": {
+        "summary": "Listar órdenes donde el usuario autenticado es el comprador",
+        "operationId": "OrderService_ListMyPurchases",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersListOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/orders/mis-ventas": {
+      "get": {
+        "summary": "Listar órdenes donde el usuario autenticado es el vendedor",
+        "operationId": "OrderService_ListMySales",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersListOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    },
+    "/v1/orders/{idOrden}": {
+      "get": {
+        "summary": "Obtener detalle de una orden específica",
+        "operationId": "OrderService_GetOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersGetOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idOrden",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      },
+      "patch": {
+        "summary": "Actualizar el estado de una orden",
+        "operationId": "OrderService_PatchOrderStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ordersPatchOrderStatusResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idOrden",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OrderServicePatchOrderStatusBody"
+            }
+          }
+        ],
+        "tags": [
+          "OrderService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "OrderServicePatchOrderStatusBody": {
+      "type": "object",
+      "properties": {
+        "nuevoEstado": {
+          "type": "string",
+          "title": "PENDIENTE, ACEPTADA, COMPLETADA, CANCELADA"
+        }
+      },
+      "title": "Cambiar estado de la orden (FSM: Aceptar, Completar, Cancelar)"
+    },
+    "ordersCreateOrderRequest": {
+      "type": "object",
+      "properties": {
+        "idUsuarioVendedor": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idPublicacion": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "precio": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "Crear orden / Contratar servicio o producto"
+    },
+    "ordersCreateOrderResponse": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "$ref": "#/definitions/ordersOrder"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "ordersEstadoOrden": {
+      "type": "string",
+      "enum": [
+        "ESTADO_ORDEN_UNSPECIFIED",
+        "PENDIENTE",
+        "ACEPTADA",
+        "COMPLETADA",
+        "CANCELADA"
+      ],
+      "default": "ESTADO_ORDEN_UNSPECIFIED",
+      "description": "Estados posibles dentro del ciclo de vida de una orden (FSM)"
+    },
+    "ordersGetOrderResponse": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "$ref": "#/definitions/ordersOrder"
+        }
+      }
+    },
+    "ordersListOrdersResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/ordersOrder"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/ordersPaginationMeta"
+        }
+      },
+      "title": "Respuesta genérica de lista de órdenes con paginación"
+    },
+    "ordersOrder": {
+      "type": "object",
+      "properties": {
+        "idOrden": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idUsuarioComprador": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idUsuarioVendedor": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "idPublicacion": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "estado": {
+          "$ref": "#/definitions/ordersEstadoOrden"
+        },
+        "estadoStr": {
+          "type": "string"
+        },
+        "precio": {
+          "type": "string",
+          "format": "int64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "Entidad principal Orden / Contratación"
+    },
+    "ordersPaginationMeta": {
+      "type": "object",
+      "properties": {
+        "totalRecords": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currentPage": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "title": "Metadata de paginación"
+    },
+    "ordersPatchOrderStatusResponse": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "$ref": "#/definitions/ordersOrder"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

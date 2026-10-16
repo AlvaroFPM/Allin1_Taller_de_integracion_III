@@ -8,7 +8,7 @@ import {
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type { PublicationCategory } from '@/types/publication';
+import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -16,17 +16,18 @@ export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = React.useState(true);
+  const [, setIsLoadingCategories] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
-  const [formState, setFormState] = React.useState({
+  const [formState, setFormState] = React.useState<CreatePublicationFormState>({
     titulo: '',
     descripcion: '',
     tipo: 'SERVICIO',
     precioBase: '',
     categoriaId: '',
     moneda: 'CLP',
+    ubicacion: 'Temuco',
   });
 
   React.useEffect(() => {
@@ -44,12 +45,12 @@ export default function PublicarPage() {
     fetchCategories();
   }, []);
 
-  const handleChange = (fields: Partial<typeof formState>) => {
+  const handleChange = (fields: Partial<CreatePublicationFormState>) => {
     setFormState((prev) => ({ ...prev, ...fields }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMessage(null);
 
     if (!user) {
@@ -107,7 +108,7 @@ export default function PublicarPage() {
         <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
           <PublicationTypeSelector
             value={formState.tipo}
-            onChange={(tipo) => setFormState(prev => ({ ...prev, tipo }))}
+            onChange={(tipo) => setFormState((prev) => ({ ...prev, tipo }))}
           />
           <CreatePublicationForm
             formState={formState}
