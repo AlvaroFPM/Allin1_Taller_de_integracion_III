@@ -8,7 +8,7 @@ import {
   PublicationLivePreview,
   CreatePublicationForm,
 } from '@/components/shared';
-import type { PublicationCategory } from '@/types/publication';
+import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -20,13 +20,14 @@ export default function PublicarPage() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
-  const [formState, setFormState] = React.useState({
+  const [formState, setFormState] = React.useState<CreatePublicationFormState>({
     titulo: '',
     descripcion: '',
     tipo: 'SERVICIO',
     precioBase: '',
     categoriaId: '',
     moneda: 'CLP',
+    ubicacion: 'Temuco',
   });
 
   React.useEffect(() => {
@@ -44,12 +45,12 @@ export default function PublicarPage() {
     fetchCategories();
   }, []);
 
-  const handleChange = (fields: Partial<typeof formState>) => {
+  const handleChange = (fields: Partial<CreatePublicationFormState>) => {
     setFormState((prev) => ({ ...prev, ...fields }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMessage(null);
 
     if (!user) {
