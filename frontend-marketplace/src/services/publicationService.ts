@@ -1,7 +1,7 @@
 import axios from 'axios';
 import api from '@/lib/axios';
 import type { PublicationCategory } from '@/types/publication';
-import { formatRelativeTime, ProtobufTimestamp } from '@/lib/dateUtils';
+import { formatRelativeTime, type ProtobufTimestamp } from '@/lib/dateUtils';
 
 export interface CatalogPublication {
   id: number;
@@ -24,7 +24,14 @@ export interface ListPublicationsParams {
   tipoServicio?: 'OFERTA' | 'DEMANDA';
 }
 
-// Interfaces internas para mapear las respuestas raw del backend Go en Protobuf
+export interface ListPublicationsResult {
+  publications: CatalogPublication[];
+  total: number;
+  totalPages?: number;
+  currentPage?: number;
+}
+
+// Interfaces internas para mapear las respuestas del backend.
 interface RawCategory {
   idCategoria: number;
   nombre: string;
@@ -36,7 +43,7 @@ interface RawPublication {
   idPublicacion: number;
   titulo: string;
   descripcion: string;
-  precioBase: number;
+  precioBase: string | number;
   tipoServicio: string;
   idUsuarioVendedor: number;
   categoriaId: number;
@@ -44,68 +51,107 @@ interface RawPublication {
   createdAt?: ProtobufTimestamp | string;
 }
 
-// URL base para el microservicio de Catálogo
+interface PublicationResponse {
+  publication?: RawPublication;
+}
+
+interface ListPublicationsResponse {
+  publications?: RawPublication[];
+  meta?: {
+    totalRecords?: string | number;
+    totalPages?: number;
+    currentPage?: number;
+  };
+}
+
+// URL base para el microservicio de Catálogo.
 const CATALOG_API_URL = process.env.NEXT_PUBLIC_CATALOG_API_URL || 'http://localhost:8082';
 
 export const publicationService = {
   /**
-   * Obtiene la lista de categorías reales desde el backend
+   * Obtiene una publicación por su ID.
+   * Los errores se propagan para que la página pueda mostrarlos.
+   */
+  getPublicationById: async (id: string, signal?: AbortSignal): Promise<CatalogPublication> => {
+    const response = await api.get<PublicationResponse>(
+      `${CATALOG_API_URL}/v1/publications/${encodeURIComponent(id)}`,
+      { signal },
+    );
+
+    const publication = response.data.publication;
+
+    if (!publication) {
+      throw new Error('La API no devolvió la publicación.');
+    }
+
+    return {
+      id: publication.idPublicacion,
+      title: publication.titulo,
+      description: publication.descripcion,
+      price: Number(publication.precioBase),
+      currency: 'CLP',
+      type: publication.tipoServicio,
+      sellerId: publication.idUsuarioVendedor,
+      categoryId: publication.categoriaId,
+      createdAtRelative: formatRelativeTime(publication.fechaCreacion || publication.createdAt),
+    };
+  },
+
+  /**
+   * Obtiene la lista de categorías reales desde el backend.
    */
   getCategories: async (): Promise<PublicationCategory[]> => {
     try {
-      const response = await api.get(`${CATALOG_API_URL}/v1/categories`);
+      const response = await api.get<{ categories?: RawCategory[] }>(
+        `${CATALOG_API_URL}/v1/categories`,
+      );
 
-      if (response.data && response.data.categories) {
-        return response.data.categories.map((c: RawCategory) => ({
-          id: c.idCategoria,
-          nombre: c.nombre,
-          slug: c.slug,
-          icono: c.iconoUrl || '📌',
-        }));
-      }
-      return [];
+      return (response.data.categories ?? []).map((category) => ({
+        id: category.idCategoria,
+        nombre: category.nombre,
+        slug: category.slug,
+        icono: category.iconoUrl || '📌',
+      }));
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         console.error('Error fetching categories:', error.response?.data || error.message);
       } else {
         console.error('Error fetching categories:', error);
       }
+
       return [];
     }
   },
 
   /**
-   * Obtiene la lista paginada de publicaciones formateando la fecha de creación
+   * Obtiene la lista paginada de publicaciones.
    */
-  getPublications: async (
-    params: ListPublicationsParams = {},
-  ): Promise<{
-    publications: CatalogPublication[];
-    total: number;
-    totalPages?: number;
-    currentPage?: number;
-  }> => {
+  getPublications: async (params: ListPublicationsParams = {}): Promise<ListPublicationsResult> => {
     try {
-      const response = await api.get(`${CATALOG_API_URL}/v1/publications`, { params });
+      const response = await api.get<ListPublicationsResponse>(
+        `${CATALOG_API_URL}/v1/publications`,
+        { params },
+      );
 
-      if (response.data && response.data.publications) {
-        const publications = response.data.publications.map((p: RawPublication) => {
-          const rawDate = p.fechaCreacion || p.createdAt;
-
-          return {
-            id: p.idPublicacion,
-            title: p.titulo,
-            description: p.descripcion,
-            price: p.precioBase,
+      if (response.data.publications) {
+        const publications: CatalogPublication[] = response.data.publications.map(
+          (publication) => ({
+            id: publication.idPublicacion,
+            title: publication.titulo,
+            description: publication.descripcion,
+            price: Number(publication.precioBase),
             currency: 'CLP',
-            type: p.tipoServicio,
-            sellerId: p.idUsuarioVendedor,
-            categoryId: p.categoriaId,
-            createdAtRelative: formatRelativeTime(rawDate),
-          };
-        });
+            type: publication.tipoServicio,
+            sellerId: publication.idUsuarioVendedor,
+            categoryId: publication.categoriaId,
+            createdAtRelative: formatRelativeTime(
+              publication.fechaCreacion || publication.createdAt,
+            ),
+          }),
+        );
 
         const meta = response.data.meta;
+
         return {
           publications,
           total: Number(meta?.totalRecords ?? publications.length),
@@ -113,6 +159,7 @@ export const publicationService = {
           currentPage: meta?.currentPage,
         };
       }
+
       return { publications: [], total: 0 };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -120,54 +167,54 @@ export const publicationService = {
       } else {
         console.error('Error fetching publications:', error);
       }
+
       return { publications: [], total: 0 };
     }
   },
 
   /**
-   * Crea una nueva publicación
+   * Crea una nueva publicación.
    */
   createPublication: async (
     data: Omit<CatalogPublication, 'id' | 'createdAtRelative'>,
   ): Promise<CatalogPublication | null> => {
-    try {
-      const mapTipoServicio = (tipo: string) => {
-        if (tipo === 'TRABAJO' || tipo === 'DEMANDA') return 'DEMANDA';
-        return 'OFERTA';
-      };
+    const mapTipoServicio = (tipo: string) => {
+      if (tipo === 'TRABAJO' || tipo === 'DEMANDA') return 'DEMANDA';
+      return 'OFERTA';
+    };
 
-      const payload = {
-        id_usuario_vendedor: data.sellerId,
-        categoria_id: data.categoryId,
-        titulo: data.title,
-        descripcion: data.description,
-        tipo_servicio: mapTipoServicio(data.type),
-        precio_base: data.price,
-        ciudad: 'Santiago',
-        region: 'RM',
-      };
+    const payload = {
+      id_usuario_vendedor: data.sellerId,
+      categoria_id: data.categoryId,
+      titulo: data.title,
+      descripcion: data.description,
+      tipo_servicio: mapTipoServicio(data.type),
+      precio_base: data.price,
+      ciudad: 'Santiago',
+      region: 'RM',
+    };
 
-      const response = await api.post(`${CATALOG_API_URL}/v1/publications`, payload);
+    const response = await api.post<PublicationResponse>(
+      `${CATALOG_API_URL}/v1/publications`,
+      payload,
+    );
 
-      if (response.data && response.data.publication) {
-        const p: RawPublication = response.data.publication;
-        const rawDate = p.fechaCreacion || p.createdAt;
+    const publication = response.data.publication;
 
-        return {
-          id: p.idPublicacion,
-          title: p.titulo,
-          description: p.descripcion,
-          price: Number(p.precioBase) || 0,
-          currency: 'CLP',
-          type: p.tipoServicio,
-          sellerId: p.idUsuarioVendedor,
-          categoryId: p.categoriaId,
-          createdAtRelative: formatRelativeTime(rawDate),
-        };
-      }
+    if (!publication) {
       return null;
-    } catch (error: unknown) {
-      throw error;
     }
+
+    return {
+      id: publication.idPublicacion,
+      title: publication.titulo,
+      description: publication.descripcion,
+      price: Number(publication.precioBase) || 0,
+      currency: 'CLP',
+      type: publication.tipoServicio,
+      sellerId: publication.idUsuarioVendedor,
+      categoryId: publication.categoriaId,
+      createdAtRelative: formatRelativeTime(publication.fechaCreacion || publication.createdAt),
+    };
   },
 };
