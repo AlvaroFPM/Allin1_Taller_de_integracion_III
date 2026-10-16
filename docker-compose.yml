@@ -45,6 +45,25 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres_media:
+    image: postgres:16-alpine
+    container_name: postgres_media
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MEDIA}
+      POSTGRES_DB: media_db
+    volumes:
+      - media_db_data:/var/lib/postgresql/data
+    networks:
+      - allin1_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ==========================================
   # Microservicios de Backend (Go)
   # ==========================================
@@ -112,6 +131,33 @@ services:
       timeout: 5s
       retries: 5
 
+  media:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: cmd/media
+    container_name: media
+    depends_on:
+      postgres_media:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres_media
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD_MEDIA}
+      DB_NAME: media_db
+      DB_SSLMODE: disable
+      MEDIA_PORT: "8083"
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8083:8083"
+    networks:
+      - allin1_network
+
   # ==========================================
   # (NestJS API Gateway removido)
   # El backend NestJS (backend-microservices/) fue descartado; se usa exclusivamente backend-go/.
@@ -151,9 +197,9 @@ services:
   postgres_orders:
     image: postgres:16-alpine
     container_name: postgres_orders
-    profiles: ["orders"]
+    profiles: [ "orders" ]
     ports:
-      - "5435:5432"
+      - "5437:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_ORDERS}
@@ -171,7 +217,7 @@ services:
   postgres_chat:
     image: postgres:16-alpine
     container_name: postgres_chat
-    profiles: ["chat"]
+    profiles: [ "chat" ]
     ports:
       - "5436:5432"
     environment:
@@ -198,7 +244,7 @@ services:
       context: ./backend-go
       dockerfile: Dockerfile.orders
     container_name: orders
-    profiles: ["orders"]
+    profiles: [ "orders" ]
     depends_on:
       postgres_orders:
         condition: service_healthy
@@ -225,7 +271,7 @@ services:
       context: ./backend-go
       dockerfile: Dockerfile.chat
     container_name: chat
-    profiles: ["chat"]
+    profiles: [ "chat" ]
     depends_on:
       postgres_chat:
         condition: service_healthy
@@ -250,3 +296,4 @@ volumes:
   catalog_db_data:
   orders_db_data:
   chat_db_data:
+  media_db_data:

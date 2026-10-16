@@ -79,7 +79,12 @@ export const publicationService = {
    */
   getPublications: async (
     params: ListPublicationsParams = {},
-  ): Promise<{ publications: CatalogPublication[]; total: number }> => {
+  ): Promise<{
+    publications: CatalogPublication[];
+    total: number;
+    totalPages?: number;
+    currentPage?: number;
+  }> => {
     try {
       const response = await api.get(`${CATALOG_API_URL}/v1/publications`, { params });
 
