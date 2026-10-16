@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 
@@ -30,11 +31,19 @@ func main() {
 	uploadHandler := apiMedia.NewUploadHandler(uploadService)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 	mux.HandleFunc("/upload/multiple", uploadHandler.Handle)
 
-	port := ":8083"
-	fmt.Printf("Servidor Media escuchando en %s\n", port)
-	if err := http.ListenAndServe(port, mux); err != nil {
+	port := os.Getenv("MEDIA_PORT")
+	if port == "" {
+		port = "8083"
+	}
+	addr := ":" + port
+	fmt.Printf("Servidor Media escuchando en %s\n", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("Error al iniciar servidor: %v", err)
 	}
 }
