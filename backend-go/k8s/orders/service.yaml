@@ -1,0 +1,25 @@
+# ==============================================================================
+# Service: orders
+# ==============================================================================
+# Service de tipo ClusterIP que expone el microservicio Orders internamente
+# dentro del clúster de Kubernetes. Será consumido por el API Gateway Nginx.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+  namespace: student-aalarcon
+  labels:
+    app: orders
+    project: allin1
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: orders
+    project: allin1
+  ports:
+    - name: http-gateway
+      protocol: TCP
+      port: 8084
+      targetPort: 8084
