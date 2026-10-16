@@ -153,6 +153,7 @@ services:
         CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
         CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
         CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+        JWT_SECRET: ${JWT_SECRET}
       ports:
         - "8083:8083"
       networks:
