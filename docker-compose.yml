@@ -45,6 +45,26 @@ services:
       timeout: 5s
       retries: 5
 
+
+  postgres_media:
+      image: postgres:16-alpine
+      container_name: postgres_media
+      ports:
+        - "5435:5432"
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MEDIA}
+        POSTGRES_DB: media_db
+      volumes:
+        - media_db_data:/var/lib/postgresql/data
+      networks:
+        - allin1_network
+      healthcheck:
+        test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
   # ==========================================
   # Microservicios de Backend (Go)
   # ==========================================
@@ -112,6 +132,33 @@ services:
       timeout: 5s
       retries: 5
 
+  media:
+      build:
+        context: ./backend-go
+        dockerfile: Dockerfile
+        args:
+          SERVICE_PATH: cmd/media
+      container_name: media
+      depends_on:
+        postgres_media:
+          condition: service_healthy
+      environment:
+        DB_HOST: postgres_media
+        DB_PORT: "5432"
+        DB_USER: postgres
+        DB_PASSWORD: ${POSTGRES_PASSWORD_MEDIA}
+        DB_NAME: media_db
+        DB_SSLMODE: disable
+        MEDIA_PORT: "8083"
+        CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+        CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+        CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+        JWT_SECRET: ${JWT_SECRET}
+      ports:
+        - "8083:8083"
+      networks:
+        - allin1_network
+
   # ==========================================
   # (NestJS API Gateway removido)
   # El backend NestJS (backend-microservices/) fue descartado; se usa exclusivamente backend-go/.
@@ -142,3 +189,4 @@ services:
 volumes:
   iam_db_data:
   catalog_db_data:
+  media_db_data:
