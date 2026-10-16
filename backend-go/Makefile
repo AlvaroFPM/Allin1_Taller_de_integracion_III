@@ -10,6 +10,7 @@ generate: deps
 	@mkdir -p $(OUT_DIR)/publication
 	@mkdir -p $(OUT_DIR)/auth
 	@mkdir -p $(OUT_DIR)/chat
+	@mkdir -p $(OUT_DIR)/orders
 	@mkdir -p $(OPENAPI_DIR)
 	
 	protoc -I=$(PROTO_DIR) -I=third_party \
@@ -32,6 +33,13 @@ generate: deps
 		--grpc-gateway_out=$(OUT_DIR)/chat --grpc-gateway_opt=paths=source_relative \
 		--openapiv2_out=$(OPENAPI_DIR) --openapiv2_opt=logtostderr=true \
 		$(PROTO_DIR)/chat.proto
+
+	protoc -I=$(PROTO_DIR) -I=third_party \
+		--go_out=$(OUT_DIR)/orders --go_opt=paths=source_relative \
+		--go-grpc_out=$(OUT_DIR)/orders --go-grpc_opt=paths=source_relative \
+		--grpc-gateway_out=$(OUT_DIR)/orders --grpc-gateway_opt=paths=source_relative \
+		--openapiv2_out=$(OPENAPI_DIR) --openapiv2_opt=logtostderr=true \
+		$(PROTO_DIR)/orders.proto
 		
 	@echo "Archivos OpenAPI generados:"
 	@ls -1 $(OPENAPI_DIR)/*.swagger.json 2>/dev/null || true
