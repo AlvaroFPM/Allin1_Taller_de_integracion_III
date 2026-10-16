@@ -16,7 +16,9 @@ const ENV_EXAMPLE_PATH = path.join(ROOT_DIR, '.env.example');
 const REQUIRED_VARS = [
   'JWT_SECRET',
   'POSTGRES_PASSWORD_IAM',
-  'POSTGRES_PASSWORD_CATALOG'
+  'POSTGRES_PASSWORD_CATALOG',
+  'POSTGRES_PASSWORD_ORDERS',
+  'POSTGRES_PASSWORD_CHAT'
 ];
 
 // Valores reconocidos como placeholders que deben reemplazarse
