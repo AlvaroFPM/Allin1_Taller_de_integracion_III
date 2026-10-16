@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package orders;
+
+option go_package = "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/orders;orderspb";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// Estados posibles dentro del ciclo de vida de una orden (FSM)
+enum EstadoOrden {
+  ESTADO_ORDEN_UNSPECIFIED = 0;
+  PENDIENTE = 1;
+  ACEPTADA = 2;
+  COMPLETADA = 3;
+  CANCELADA = 4;
+}
+
+// Entidad principal Orden / Contratación
+message Order {
+  uint32 id_orden = 1;
+  uint32 id_usuario_comprador = 2;
+  uint32 id_usuario_vendedor = 3;
+  uint32 id_publicacion = 4;
+  EstadoOrden estado = 5;
+  string estado_str = 6;
+  int64 precio = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Metadata de paginación
+message PaginationMeta {
+  int64 total_records = 1;
+  int32 current_page = 2;
+  int32 total_pages = 3;
+  int32 limit = 4;
+}
+
+// ==========================================
+// Peticiones y Respuestas
+// ==========================================
+
+// Crear orden / Contratar servicio o producto
+message CreateOrderRequest {
+  uint32 id_usuario_vendedor = 1;
+  uint32 id_publicacion = 2;
+  int64 precio = 3;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+  string message = 2;
+}
+
+// Cambiar estado de la orden (FSM: Aceptar, Completar, Cancelar)
+message PatchOrderStatusRequest {
+  uint32 id_orden = 1;
+  string nuevo_estado = 2; // PENDIENTE, ACEPTADA, COMPLETADA, CANCELADA
+}
+
+message PatchOrderStatusResponse {
+  Order order = 1;
+  string message = 2;
+}
+
+// Consultar orden por ID
+message GetOrderRequest {
+  uint32 id_orden = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+// Listar mis compras (comprador)
+message ListMyPurchasesRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  optional string estado = 3;
+}
+
+// Listar mis ventas (vendedor)
+message ListMySalesRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  optional string estado = 3;
+}
+
+// Respuesta genérica de lista de órdenes con paginación
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  PaginationMeta meta = 2;
+}
+
+// ==========================================
+// Servicio OrderService (gRPC + REST Gateway)
+// ==========================================
+service OrderService {
+  // Crear una nueva orden / contratación
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+      additional_bindings {
+        post: "/v1/ordenes"
+        body: "*"
+      }
+    };
+  }
+
+  // Actualizar el estado de una orden
+  rpc PatchOrderStatus(PatchOrderStatusRequest) returns (PatchOrderStatusResponse) {
+    option (google.api.http) = {
+      patch: "/v1/orders/{id_orden}"
+      body: "*"
+      additional_bindings {
+        patch: "/v1/ordenes/{id_orden}"
+        body: "*"
+      }
+    };
+  }
+
+  // Obtener detalle de una orden específica
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse) {
+    option (google.api.http) = {
+      get: "/v1/orders/{id_orden}"
+      additional_bindings {
+        get: "/v1/ordenes/{id_orden}"
+      }
+    };
+  }
+
+  // Listar órdenes donde el usuario autenticado es el comprador
+  rpc ListMyPurchases(ListMyPurchasesRequest) returns (ListOrdersResponse) {
+    option (google.api.http) = {
+      get: "/v1/orders/mis-compras"
+      additional_bindings {
+        get: "/v1/ordenes/mis-compras"
+      }
+    };
+  }
+
+  // Listar órdenes donde el usuario autenticado es el vendedor
+  rpc ListMySales(ListMySalesRequest) returns (ListOrdersResponse) {
+    option (google.api.http) = {
+      get: "/v1/orders/mis-ventas"
+      additional_bindings {
+        get: "/v1/ordenes/mis-ventas"
+      }
+    };
+  }
+}

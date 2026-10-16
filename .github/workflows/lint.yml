@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - develop
+    paths:
+      - 'frontend-marketplace/**'
+      - '.github/workflows/lint.yml'
   pull_request:
     branches:
       - develop
+    paths:
+      - 'frontend-marketplace/**'
+      - '.github/workflows/lint.yml'
 
 jobs:
   lint-frontend:
