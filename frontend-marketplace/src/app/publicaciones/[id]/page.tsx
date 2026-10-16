@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
+import {
+  PublicationDetailHero,
+  PublicationDetailContact,
+  PublicationDetailSidebar,
+} from '@/components/shared';
 import { publicationService, type CatalogPublication } from '@/services/publicationService';
 
 type DetailState =
@@ -15,7 +20,6 @@ type DetailState =
 export default function PublicationDetailPage() {
   const { id } = useParams<{ id: string }>();
 
-  // Reinicia el estado si cambia el ID de la ruta.
   return <PublicationDetail key={id} id={id} />;
 }
 
@@ -57,59 +61,87 @@ function PublicationDetail({ id }: { id: string }) {
     setRetryCount((previous) => previous + 1);
   }
 
+  if (state.status !== 'success') {
+    return (
+      <main className="min-h-screen bg-surface-base py-8">
+        <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+          <Link href="/explorar" className="text-brand underline">
+            Volver a explorar
+          </Link>
+
+          <section className="rounded-3xl border border-border-base bg-surface-main p-6 shadow-2xs sm:p-8">
+            {state.status === 'loading' && (
+              <p role="status" className="text-content-muted">
+                Cargando publicación…
+              </p>
+            )}
+
+            {state.status === 'not-found' && (
+              <div className="space-y-3">
+                <h1 className="text-2xl font-bold text-content-main">Publicación no encontrada</h1>
+                <p className="text-content-muted">
+                  No encontramos una publicación con este identificador.
+                </p>
+              </div>
+            )}
+
+            {state.status === 'error' && (
+              <div role="alert" className="space-y-4">
+                <h1 className="text-2xl font-bold text-content-main">
+                  No pudimos cargar la publicación
+                </h1>
+                <p className="text-content-muted">Inténtalo nuevamente.</p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="rounded-lg bg-brand px-4 py-2 font-semibold text-white"
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  const { publication } = state;
+
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
-      <Link href="/explorar" className="text-sm text-emerald-700 underline">
-        Volver a explorar
-      </Link>
+    <main className="min-h-screen bg-surface-base py-6 sm:py-10">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 sm:space-y-8 sm:px-6 lg:px-8">
+        <PublicationDetailHero
+          title={publication.title}
+          type={publication.type}
+          publishedRelative={publication.createdAtRelative}
+        />
 
-      <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        {state.status === 'loading' && <p role="status">Cargando publicación…</p>}
-
-        {state.status === 'not-found' && (
-          <div>
-            <h1 className="text-2xl font-bold">Publicación no encontrada</h1>
-            <p className="mt-3">No encontramos una publicación con este identificador.</p>
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+          <div className="space-y-6 sm:space-y-8 lg:col-span-8">
+            <section className="space-y-4 rounded-3xl border border-border-base bg-surface-main p-6 shadow-2xs sm:p-8">
+              <h2 className="text-lg font-bold text-content-main sm:text-xl">Descripción</h2>
+              <p className="text-sm leading-relaxed whitespace-pre-line text-content-main/90 sm:text-base">
+                {publication.description}
+              </p>
+            </section>
           </div>
-        )}
 
-        {state.status === 'error' && (
-          <div role="alert">
-            <p>No pudimos cargar la publicación. Inténtalo nuevamente.</p>
-            <button
-              type="button"
-              onClick={retry}
-              className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-white"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:col-span-4">
+            <PublicationDetailSidebar
+              price={publication.price}
+              currency={publication.currency}
+              priceLabel="Precio publicado"
+              actionText="Acción no disponible"
+            />
 
-        {state.status === 'success' && (
-          <article>
-            <p className="text-sm text-gray-600">{state.publication.type}</p>
-
-            <h1 className="mt-2 text-3xl font-bold">{state.publication.title}</h1>
-
-            <p className="mt-4 text-2xl font-semibold text-emerald-700">
-              {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: state.publication.currency,
-                maximumFractionDigits: 0,
-              }).format(state.publication.price)}
-            </p>
-
-            <h2 className="mt-6 text-lg font-semibold">Descripción</h2>
-
-            <p className="mt-2 whitespace-pre-wrap">{state.publication.description}</p>
-
-            <p className="mt-6 text-sm text-gray-600">
-              Publicado: {state.publication.createdAtRelative}
-            </p>
-          </article>
-        )}
-      </section>
+            <PublicationDetailContact
+              sellerId={publication.sellerId}
+              sellerName={publication.sellerName}
+            />
+          </aside>
+        </div>
+      </div>
     </main>
   );
 }
