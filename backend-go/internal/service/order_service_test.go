@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -455,4 +457,447 @@ func TestPatchOrderStatus_FailsIfOrderNotFound(t *testing.T) {
 	st, ok := status.FromError(err)
 	require.True(t, ok)
 	assert.Equal(t, codes.NotFound, st.Code())
-}
+}
+
+// ============================================================================
+// 5. TESTS UNITARIOS PUROS PARA GET ÓRDENES (ALL-78)
+// ============================================================================
+
+func TestOrder_NormalizePagination_PureValidation(t *testing.T) {
+	tests := []struct {
+		name       string
+		page       int32
+		limit      int32
+		wantPage   int32
+		wantLimit  int32
+		wantOffset int
+	}{
+		{
+			name:       "Valores normales válidos",
+			page:       2,
+			limit:      20,
+			wantPage:   2,
+			wantLimit:  20,
+			wantOffset: 20,
+		},
+		{
+			name:       "Page menor a 1 se normaliza a 1",
+			page:       0,
+			limit:      15,
+			wantPage:   1,
+			wantLimit:  15,
+			wantOffset: 0,
+		},
+		{
+			name:       "Page negativa se normaliza a 1",
+			page:       -3,
+			limit:      10,
+			wantPage:   1,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "Limit menor o igual a 0 se normaliza a 10 por defecto",
+			page:       1,
+			limit:      0,
+			wantPage:   1,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "Limit negativo se normaliza a 10 por defecto",
+			page:       1,
+			limit:      -5,
+			wantPage:   1,
+			wantLimit:  10,
+			wantOffset: 0,
+		},
+		{
+			name:       "Limit sobre 100 se recorta al máximo permitido de 100",
+			page:       3,
+			limit:      250,
+			wantPage:   3,
+			wantLimit:  100,
+			wantOffset: 200,
+		},
+		{
+			name:       "Límite exacto de 100 se mantiene",
+			page:       1,
+			limit:      100,
+			wantPage:   1,
+			wantLimit:  100,
+			wantOffset: 0,
+		},
+		{
+			name:       "Página muy grande no desborda offset y calcula valor positivo en 64 bits",
+			page:       30000000,
+			limit:      100,
+			wantPage:   30000000,
+			wantLimit:  100,
+			wantOffset: 2999999900,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotPage, gotLimit, gotOffset := normalizePagination(tc.page, tc.limit)
+			assert.Equal(t, tc.wantPage, gotPage)
+			assert.Equal(t, tc.wantLimit, gotLimit)
+			assert.Equal(t, tc.wantOffset, gotOffset)
+		})
+	}
+}
+
+func TestValidateOrderFilterState_PureValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		estado      string
+		wantCode    codes.Code
+		wantErrPart string
+	}{
+		{
+			name:     "Estado vacío no devuelve error (no se filtra)",
+			estado:   "",
+			wantCode: codes.OK,
+		},
+		{
+			name:     "Estado PENDIENTE es válido",
+			estado:   models.EstadoOrdenPendiente,
+			wantCode: codes.OK,
+		},
+		{
+			name:     "Estado ACEPTADA es válido",
+			estado:   models.EstadoOrdenAceptada,
+			wantCode: codes.OK,
+		},
+		{
+			name:     "Estado COMPLETADA es válido",
+			estado:   models.EstadoOrdenCompletada,
+			wantCode: codes.OK,
+		},
+		{
+			name:     "Estado CANCELADA es válido",
+			estado:   models.EstadoOrdenCancelada,
+			wantCode: codes.OK,
+		},
+		{
+			name:        "Estado no reconocido retorna InvalidArgument",
+			estado:      "ESTADO_DESCONOCIDO",
+			wantCode:    codes.InvalidArgument,
+			wantErrPart: "estado de orden inválido",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOrderFilterState(tc.estado)
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantCode, st.Code())
+			assert.Contains(t, st.Message(), tc.wantErrPart)
+		})
+	}
+}
+
+func TestListOrders_UserZero_ReturnsUnauthenticated_Pure(t *testing.T) {
+	svc := NewOrderService(nil)
+	ctx := context.Background()
+
+	// ListMyPurchases con compradorID = 0
+	compras, totalCompras, errCompras := svc.ListMyPurchases(ctx, 0, 1, 10, nil)
+	assert.Nil(t, compras)
+	assert.Equal(t, int64(0), totalCompras)
+	require.Error(t, errCompras)
+	stCompras, ok := status.FromError(errCompras)
+	require.True(t, ok)
+	assert.Equal(t, codes.Unauthenticated, stCompras.Code())
+	assert.Contains(t, stCompras.Message(), "usuario no autenticado")
+
+	// ListMySales con vendedorID = 0
+	ventas, totalVentas, errVentas := svc.ListMySales(ctx, 0, 1, 10, nil)
+	assert.Nil(t, ventas)
+	assert.Equal(t, int64(0), totalVentas)
+	require.Error(t, errVentas)
+	stVentas, ok := status.FromError(errVentas)
+	require.True(t, ok)
+	assert.Equal(t, codes.Unauthenticated, stVentas.Code())
+	assert.Contains(t, stVentas.Message(), "usuario no autenticado")
+}
+
+func TestListOrders_InvalidState_ReturnsInvalidArgument_Pure(t *testing.T) {
+	svc := NewOrderService(nil)
+	ctx := context.Background()
+	estadoInvalido := "ESTADO_INEXISTENTE"
+
+	// ListMyPurchases con estado inválido
+	compras, totalCompras, errCompras := svc.ListMyPurchases(ctx, 10, 1, 10, &estadoInvalido)
+	assert.Nil(t, compras)
+	assert.Equal(t, int64(0), totalCompras)
+	require.Error(t, errCompras)
+	stCompras, ok := status.FromError(errCompras)
+	require.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, stCompras.Code())
+
+	// ListMySales con estado inválido
+	ventas, totalVentas, errVentas := svc.ListMySales(ctx, 20, 1, 10, &estadoInvalido)
+	assert.Nil(t, ventas)
+	assert.Equal(t, int64(0), totalVentas)
+	require.Error(t, errVentas)
+	stVentas, ok := status.FromError(errVentas)
+	require.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, stVentas.Code())
+
+	// Estado con espacios alrededor pero válido (ej. "  PENDIENTE  ") se recorta y se acepta
+	estadoEspaciado := "  PENDIENTE  "
+	errEspaciado := validateOrderFilterState(strings.TrimSpace(estadoEspaciado))
+	assert.NoError(t, errEspaciado)
+}
+
+// ============================================================================
+// 6. TESTS DE INTEGRACIÓN DE BD PARA GET ÓRDENES (ALL-78)
+// ============================================================================
+
+func TestListOrders_AislamientoPorComprador(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// 1. Crear 2 órdenes para el comprador 101 (con diferentes publicaciones y vendedores)
+	orden1, err := svc.CreateOrder(ctx, 101, 201, 10, 15000)
+	require.NoError(t, err)
+	orden2, err := svc.CreateOrder(ctx, 101, 202, 11, 25000)
+	require.NoError(t, err)
+
+	// 2. Crear 1 orden para el comprador 102
+	orden3, err := svc.CreateOrder(ctx, 102, 201, 12, 35000)
+	require.NoError(t, err)
+
+	// 3. Consultar compras del comprador 101
+	compras101, total101, err := svc.ListMyPurchases(ctx, 101, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total101)
+	require.Len(t, compras101, 2)
+	for _, o := range compras101 {
+		assert.Equal(t, uint(101), o.IDUsuarioComprador)
+	}
+
+	// 4. Consultar compras del comprador 102
+	compras102, total102, err := svc.ListMyPurchases(ctx, 102, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total102)
+	require.Len(t, compras102, 1)
+	assert.Equal(t, orden3.IDOrden, compras102[0].IDOrden)
+	assert.Equal(t, uint(102), compras102[0].IDUsuarioComprador)
+
+	// Verificar que las órdenes de 101 no aparecen en 102
+	assert.NotEqual(t, orden1.IDOrden, compras102[0].IDOrden)
+	assert.NotEqual(t, orden2.IDOrden, compras102[0].IDOrden)
+}
+
+func TestListOrders_ComprasYVentasNoSeMezclan(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// Usuario 50 es COMPRADOR en ordenA (vendedor 60)
+	ordenA, err := svc.CreateOrder(ctx, 50, 60, 20, 10000)
+	require.NoError(t, err)
+
+	// Usuario 50 es VENDEDOR en ordenB (comprador 70)
+	ordenB, err := svc.CreateOrder(ctx, 70, 50, 21, 20000)
+	require.NoError(t, err)
+
+	// ListMyPurchases para usuario 50 debe traer SOLO ordenA
+	compras, totalCompras, err := svc.ListMyPurchases(ctx, 50, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalCompras)
+	require.Len(t, compras, 1)
+	assert.Equal(t, ordenA.IDOrden, compras[0].IDOrden)
+	assert.Equal(t, uint(50), compras[0].IDUsuarioComprador)
+
+	// ListMySales para usuario 50 debe traer SOLO ordenB
+	ventas, totalVentas, err := svc.ListMySales(ctx, 50, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalVentas)
+	require.Len(t, ventas, 1)
+	assert.Equal(t, ordenB.IDOrden, ventas[0].IDOrden)
+	assert.Equal(t, uint(50), ventas[0].IDUsuarioVendedor)
+}
+
+func TestListOrders_FiltroPorEstado(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// 1. Crear 3 órdenes para el comprador 80
+	oPendiente, err := svc.CreateOrder(ctx, 80, 90, 31, 10000)
+	require.NoError(t, err)
+
+	oAceptada, err := svc.CreateOrder(ctx, 80, 91, 32, 20000)
+	require.NoError(t, err)
+	_, err = svc.PatchOrderStatus(ctx, oAceptada.IDOrden, 91, models.EstadoOrdenAceptada)
+	require.NoError(t, err)
+
+	oCompletada, err := svc.CreateOrder(ctx, 80, 92, 33, 30000)
+	require.NoError(t, err)
+	_, err = svc.PatchOrderStatus(ctx, oCompletada.IDOrden, 92, models.EstadoOrdenAceptada)
+	require.NoError(t, err)
+	_, err = svc.PatchOrderStatus(ctx, oCompletada.IDOrden, 80, models.EstadoOrdenCompletada)
+	require.NoError(t, err)
+
+	// 2. Filtrar por ACEPTADA
+	estadoAceptada := models.EstadoOrdenAceptada
+	resAceptada, totalAceptada, err := svc.ListMyPurchases(ctx, 80, 1, 10, &estadoAceptada)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalAceptada)
+	require.Len(t, resAceptada, 1)
+	assert.Equal(t, oAceptada.IDOrden, resAceptada[0].IDOrden)
+	assert.Equal(t, models.EstadoOrdenAceptada, resAceptada[0].Estado)
+
+	// 3. Filtrar por COMPLETADA
+	estadoCompletada := models.EstadoOrdenCompletada
+	resCompletada, totalCompletada, err := svc.ListMyPurchases(ctx, 80, 1, 10, &estadoCompletada)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalCompletada)
+	require.Len(t, resCompletada, 1)
+	assert.Equal(t, oCompletada.IDOrden, resCompletada[0].IDOrden)
+	assert.Equal(t, models.EstadoOrdenCompletada, resCompletada[0].Estado)
+
+	// 4. Filtrar por PENDIENTE con espacios alrededor (" PENDIENTE ") debe funcionar por el trim
+	estadoPendienteEspaciada := " PENDIENTE "
+	resPendiente, totalPendiente, err := svc.ListMyPurchases(ctx, 80, 1, 10, &estadoPendienteEspaciada)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalPendiente)
+	require.Len(t, resPendiente, 1)
+	assert.Equal(t, oPendiente.IDOrden, resPendiente[0].IDOrden)
+	assert.Equal(t, models.EstadoOrdenPendiente, resPendiente[0].Estado)
+
+	// 5. Sin filtro de estado (nil) retorna las 3 órdenes
+	resTodas, totalTodas, err := svc.ListMyPurchases(ctx, 80, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), totalTodas)
+	assert.Len(t, resTodas, 3)
+}
+
+func TestListOrders_Paginacion(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// Crear 3 órdenes para el comprador 95
+	o1, err := svc.CreateOrder(ctx, 95, 101, 41, 10000)
+	require.NoError(t, err)
+	o2, err := svc.CreateOrder(ctx, 95, 102, 42, 20000)
+	require.NoError(t, err)
+	o3, err := svc.CreateOrder(ctx, 95, 103, 43, 30000)
+	require.NoError(t, err)
+
+	// Como el orden es fecha_creacion DESC, id_orden DESC:
+	// La más reciente es o3, luego o2, luego o1.
+
+	// Página 1 con limit=2 debe devolver exactamente [o3, o2]
+	pag1, total1, err := svc.ListMyPurchases(ctx, 95, 1, 2, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total1, "el total de registros debe ser 3")
+	require.Len(t, pag1, 2, "la página 1 debe devolver exactamente 2 órdenes")
+	assert.Equal(t, o3.IDOrden, pag1[0].IDOrden, "el primer elemento de la pág 1 debe ser o3")
+	assert.Equal(t, o2.IDOrden, pag1[1].IDOrden, "el segundo elemento de la pág 1 debe ser o2")
+
+	// Página 2 con limit=2 debe devolver exactamente [o1]
+	pag2, total2, err := svc.ListMyPurchases(ctx, 95, 2, 2, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total2, "el total de registros debe seguir siendo 3")
+	require.Len(t, pag2, 1, "la página 2 debe devolver la orden restante")
+	assert.Equal(t, o1.IDOrden, pag2[0].IDOrden, "el único elemento de la pág 2 debe ser o1")
+}
+
+func TestListOrders_OrdenDescendenteFecha(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// 1. Crear orden antigua (tendrá id_orden menor)
+	ordenAntigua, err := svc.CreateOrder(ctx, 110, 210, 51, 10000)
+	require.NoError(t, err)
+
+	// 2. Crear orden reciente (tendrá id_orden mayor)
+	ordenReciente, err := svc.CreateOrder(ctx, 110, 211, 52, 20000)
+	require.NoError(t, err)
+
+	// 3. Para verificar rigurosamente que el criterio principal es la FECHA y no el id_orden DESC,
+	// modificamos explícitamente ordenReciente (con mayor ID) para que tenga fecha anterior (hace 2 horas),
+	// y ordenAntigua (con menor ID) para que tenga fecha más reciente (hace 1 hora).
+	fechaPasada := time.Now().Add(-2 * time.Hour)
+	fechaMasReciente := time.Now().Add(-1 * time.Hour)
+
+	require.NoError(t, tx.Model(&models.Orden{}).Where("id_orden = ?", ordenReciente.IDOrden).
+		Update("fecha_creacion", fechaPasada).Error)
+	require.NoError(t, tx.Model(&models.Orden{}).Where("id_orden = ?", ordenAntigua.IDOrden).
+		Update("fecha_creacion", fechaMasReciente).Error)
+
+	compras, total, err := svc.ListMyPurchases(ctx, 110, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	require.Len(t, compras, 2)
+
+	// ordenAntigua debe quedar PRIMERA porque su fecha_creacion es más reciente (-1h vs -2h),
+	// a pesar de tener un ID de orden menor. Si el orden fuera por ID DESC, fallaría aquí.
+	assert.Equal(t, ordenAntigua.IDOrden, compras[0].IDOrden, "la orden con fecha más reciente debe salir primero aunque tenga menor ID")
+	assert.Equal(t, ordenReciente.IDOrden, compras[1].IDOrden, "la orden con fecha más antigua debe salir después aunque tenga mayor ID")
+}
+
+func TestListOrders_SoftDelete_OrdenEliminadaNoAparece(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// 1. Crear 2 órdenes para el comprador 120
+	oActiva, err := svc.CreateOrder(ctx, 120, 220, 61, 10000)
+	require.NoError(t, err)
+	oParaBorrar, err := svc.CreateOrder(ctx, 120, 221, 62, 20000)
+	require.NoError(t, err)
+
+	// 2. Eliminar una de las órdenes con Delete de GORM (Soft delete)
+	require.NoError(t, tx.Delete(&oParaBorrar).Error)
+
+	// 3. Consultar compras del comprador 120
+	compras, total, err := svc.ListMyPurchases(ctx, 120, 1, 10, nil)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total, "el total de registros activos debe ser 1")
+	require.Len(t, compras, 1, "solo debe retornar la orden activa que no fue borrada")
+	assert.Equal(t, oActiva.IDOrden, compras[0].IDOrden)
+
+	// 4. Verificar que la orden eliminada no es accesible en búsquedas normales pero sigue en BD
+	var ordenVerificacion models.Orden
+	errFind := tx.First(&ordenVerificacion, oParaBorrar.IDOrden).Error
+	assert.ErrorIs(t, errFind, gorm.ErrRecordNotFound, "consulta normal no debe encontrar el registro con soft-delete")
+
+	errUnscoped := tx.Unscoped().First(&ordenVerificacion, oParaBorrar.IDOrden).Error
+	require.NoError(t, errUnscoped, "unscoped sí debe encontrar el registro en la base de datos")
+	assert.True(t, ordenVerificacion.DeletedAt.Valid, "la columna deleted_at debe estar marcada como válida")
+}
+
+func TestListOrders_UsuarioSinOrdenes_RetornaSliceVacioYTotalCero(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	ctx := context.Background()
+
+	// Usuario 99999 que no tiene compras ni ventas
+	compras, totalCompras, errCompras := svc.ListMyPurchases(ctx, 99999, 1, 10, nil)
+	assert.NoError(t, errCompras)
+	assert.Equal(t, int64(0), totalCompras)
+	assert.NotNil(t, compras, "el slice no debe ser nil para evitar TypeError en el frontend")
+	assert.Empty(t, compras)
+
+	ventas, totalVentas, errVentas := svc.ListMySales(ctx, 99999, 1, 10, nil)
+	assert.NoError(t, errVentas)
+	assert.Equal(t, int64(0), totalVentas)
+	assert.NotNil(t, ventas, "el slice no debe ser nil para evitar TypeError en el frontend")
+	assert.Empty(t, ventas)
+}
+
