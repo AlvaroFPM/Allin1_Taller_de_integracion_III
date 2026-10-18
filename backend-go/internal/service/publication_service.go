@@ -89,6 +89,7 @@ func (s *PublicationServiceServer) GetPublication(ctx context.Context, req *pb.G
 
 	return &pb.GetPublicationResponse{
 		Publication: mapModelToProto(&pub),
+		Vendedor:    buildSellerSummary(&pub),
 	}, nil
 }
 
