@@ -68,7 +68,9 @@ El backend sigue Clean Architecture dentro de un monorepo Go:
 |----------|------------|----------------------|-------------|
 | IAM      | 50051      | 8080                 | Autenticación (register, login, profile) |
 | Catalog  | 50052      | 8082                 | Publicaciones del marketplace |
-| Media    | —          | —                    | Gestión de imágenes (pendiente) |
+| Media    | —          | 8083                 | Gestión de imágenes y subida a Cloudinary (`cmd/media`) |
+| Orders   | 50053      | 8084                 | Gestión de órdenes y contrataciones (`cmd/orders` pendiente de implementar; manifiestos K8s listos) |
+| Chat     | 50054      | 8085                 | Mensajería entre usuarios (`cmd/chat` implementado; puertos propuestos según Dockerfile.chat; manifiestos K8s en `k8s/chat/`, aún no aplicados) |
 | Gateway  | —          | 8080                 | Reverse proxy Nginx, único punto de entrada externo |
 | Frontend | —          | 3000                 | Next.js (standalone), marketplace UI |
 
@@ -113,8 +115,29 @@ kubectl apply -f ingress.yaml
 ## 6. Docker Compose (desarrollo local)
 
 - `JWT_SECRET` se inyecta al servicio `iam` vía `${JWT_SECRET}` desde `.env`
-- Passwords de PostgreSQL vía `${POSTGRES_PASSWORD_IAM}` y `${POSTGRES_PASSWORD_CATALOG}`
-- Ver `.env.example` para la lista completa de variables
+- Passwords de PostgreSQL vía `${POSTGRES_PASSWORD_IAM}`, `${POSTGRES_PASSWORD_CATALOG}`, `${POSTGRES_PASSWORD_ORDERS}` y `${POSTGRES_PASSWORD_CHAT}`
+- Ver `.env.example` para la lista completa de variables y `node scripts/gen-env.js` para generación automática de secretos en desarrollo.
+- **Servicios bajo perfiles (`orders` y `chat`)**:
+  - `postgres_orders` (perfil `orders`): PostgreSQL 16 Alpine, puerto host `5437:5432`, base de datos `orders_db`, volumen `orders_db_data`.
+  - `postgres_chat` (perfil `chat`): PostgreSQL 16 Alpine, puerto host `5436:5432`, base de datos `chat_db`, volumen `chat_db_data`.
+  - `orders` (perfil `orders`): Build con `backend-go/Dockerfile.orders`, puerto HTTP `8084:8084` publicado (gRPC 50053 no publicado en host), depende de `postgres_orders` (healthy). Sin healthcheck de Compose por basarse en imagen `scratch` (sin `wget` ni shell).
+  - `chat` (perfil `chat`): Build con `backend-go/Dockerfile.chat`, puerto HTTP `8085:8085` publicado (gRPC 50054 no publicado en host), depende de `postgres_chat` (healthy). Sin healthcheck de Compose por basarse en imagen `scratch`.
+  - Comando para levantar los servicios con perfiles: `docker compose --profile orders --profile chat up -d --build` (requiere `POSTGRES_PASSWORD_ORDERS` y `POSTGRES_PASSWORD_CHAT` en el `.env` local).
+  - `make up` y `docker compose up` estándar (sin perfiles) continúan levantando únicamente los servicios base (`postgres_iam`, `postgres_catalog`, `postgres_media`, `iam`, `catalog`, `media`, `frontend-marketplace`).
+- **Mapa de puertos de bases de datos en el host**:
+  - IAM: `5433`
+  - Catalog: `5434`
+  - Media: `5435`
+  - Chat: `5436`
+  - Orders: `5437` (reasignado para resolver choque previo con Media en 5435)
+- **Mapa de puertos HTTP en el host**:
+  - Frontend: `3000`
+  - IAM: `8081`
+  - Catalog: `8082`
+  - Media: `8083`
+  - Orders: `8084`
+  - Chat: `8085`
+- **Volúmenes persistentes**: `iam_db_data`, `catalog_db_data`, `media_db_data`, `orders_db_data`, `chat_db_data`.
 
 ## 7. Convenciones de Naming
 
@@ -124,6 +147,8 @@ kubectl apply -f ingress.yaml
 - Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
   - Tag vigente de IAM: `am4roo/allin1-iam-go:20261006-5cdbdee`
   - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261006-5cdbdee`
+  - Imagen de Orders: `am4roo/allin1-orders-go:<tag>` (tag en manifiesto K8s: `TAG_A_DEFINIR`, sin build oficial aún)
+  - Imagen de Chat: `am4roo/allin1-chat-go:<tag>` (tag en manifiesto K8s: `TAG_A_DEFINIR`, sin build oficial aún)
   - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
   - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
@@ -184,6 +209,80 @@ kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
 
 # 6. Actualización del API Gateway
+kubectl apply -f ../gateway/configmap.yaml
+kubectl rollout restart deployment/api-gateway
+```
+
+### Manifiestos de Orders (`backend-go/k8s/orders/`)
+
+| Archivo | Recurso | Descripción |
+|---------|---------|-------------|
+| `deployment.yaml` | Deployment `orders` | Microservicio Orders (Go) — puertos 8084 (HTTP) y 50053 (gRPC), imagen `am4roo/allin1-orders-go:TAG_A_DEFINIR` |
+| `service.yaml` | Service `orders` | ClusterIP, port 8084 → targetPort 8084 (no expone gRPC externamente, igual que Catalog) |
+
+> **ADVERTENCIA — NO APLICAR AÚN AL CLÚSTER**:
+> Los manifiestos están validados únicamente con `kubectl apply --dry-run=client` y `kubectl apply --dry-run=server`. NO deben aplicarse al clúster hasta que se creen las siguientes dependencias en otros tickets:
+> 1. ConfigMap `orders-db-config` (`DB_HOST=postgres-orders`, `DB_PORT=5432`, `GRPC_PORT=50053`, `HTTP_PORT=8084`).
+> 2. Secret `orders-db-secret` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`).
+> 3. Base de datos PostgreSQL dedicada `postgres-orders`.
+> 4. Imagen construida en Docker Hub sustituyendo el placeholder `TAG_A_DEFINIR` por un tag inmutable `YYYYMMDD-<hash-corto-git>`.
+> 5. Ruta `/v1/orders` configurada en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`).
+
+**Orden de apply para Orders (cuando existan las dependencias):**
+```bash
+# 1. Secretos de BD (pendiente de crear secret.example.yaml)
+kubectl apply -f secret.yaml
+
+# 2. ConfigMap no sensible (pendiente de crear configmap.yaml)
+kubectl apply -f configmap.yaml
+
+# 3. Base de datos PostgreSQL (pendiente de crear postgres-orders.yaml)
+kubectl apply -f postgres-orders.yaml
+
+# 4. Deployment de Orders (tras build y reemplazo de TAG_A_DEFINIR por tag real)
+kubectl apply -f deployment.yaml
+
+# 5. Service interno
+kubectl apply -f service.yaml
+
+# 6. Actualización del API Gateway Nginx (enrutar /v1/orders)
+kubectl apply -f ../gateway/configmap.yaml
+kubectl rollout restart deployment/api-gateway
+```
+
+### Manifiestos de Chat (`backend-go/k8s/chat/`)
+
+| Archivo | Recurso | Descripción |
+|---------|---------|-------------|
+| `deployment.yaml` | Deployment `chat` | Microservicio Chat (Go) — puertos 8085 (HTTP) y 50054 (gRPC), imagen `am4roo/allin1-chat-go:TAG_A_DEFINIR` |
+| `service.yaml` | Service `chat` | ClusterIP, port 8085 → targetPort 8085 (no expone gRPC externamente, igual que Orders y Catalog) |
+
+> **ADVERTENCIA — NO APLICAR AÚN AL CLÚSTER**:
+> Los manifiestos están validados únicamente con `kubectl apply --dry-run=client` y sintaxis YAML con PyYAML. NO deben aplicarse al clúster hasta que se creen las siguientes dependencias en otros tickets:
+> 1. ConfigMap `chat-db-config` (`DB_HOST=postgres-chat`, `DB_PORT=5432`, `GRPC_PORT=50054`, `HTTP_PORT=8085`).
+> 2. Secret `chat-db-secret` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`).
+> 3. Base de datos PostgreSQL dedicada `postgres-chat`.
+> 4. Imagen construida en Docker Hub sustituyendo el placeholder `TAG_A_DEFINIR` por un tag inmutable `YYYYMMDD-<hash-corto-git>`.
+> 5. Rutas `/v1/chat/*` y configuración de CORS en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`).
+
+**Orden de apply para Chat (cuando existan las dependencias):**
+```bash
+# 1. Secretos de BD (pendiente de crear secret.example.yaml)
+kubectl apply -f secret.yaml
+
+# 2. ConfigMap no sensible (pendiente de crear configmap.yaml)
+kubectl apply -f configmap.yaml
+
+# 3. Base de datos PostgreSQL (pendiente de crear postgres-chat.yaml)
+kubectl apply -f postgres-chat.yaml
+
+# 4. Deployment de Chat (tras build y reemplazo de TAG_A_DEFINIR por tag real)
+kubectl apply -f deployment.yaml
+
+# 5. Service interno
+kubectl apply -f service.yaml
+
+# 6. Actualización del API Gateway Nginx (enrutar /v1/chat/* y CORS)
 kubectl apply -f ../gateway/configmap.yaml
 kubectl rollout restart deployment/api-gateway
 ```
@@ -290,6 +389,34 @@ Internet
 | `DB_SSLMODE` | Secret `catalog-db-secret` | Modo SSL (`disable`) |
 | `JWT_SECRET` | Secret `iam-db-secret` | Clave JWT compartida desde el secreto de IAM |
 
+### Variables de Orders (`orders-db-config` / `orders-db-secret`) *(ConfigMap y Secret pendientes de crear)*
+
+| Variable | Fuente K8s | Descripción |
+|----------|-----------|-------------|
+| `DB_HOST` | ConfigMap `orders-db-config` (pendiente) | Host de PostgreSQL (`postgres-orders`) |
+| `DB_PORT` | ConfigMap `orders-db-config` (pendiente) | Puerto de PostgreSQL (`5432`) |
+| `GRPC_PORT` | ConfigMap `orders-db-config` (pendiente) | Puerto del servidor gRPC (`50053`) |
+| `HTTP_PORT` | ConfigMap `orders-db-config` (pendiente) | Puerto del servidor HTTP / gRPC-Gateway (`8084`) |
+| `DB_USER` | Secret `orders-db-secret` (pendiente) | Usuario de PostgreSQL |
+| `DB_PASSWORD` | Secret `orders-db-secret` (pendiente) | Password de PostgreSQL |
+| `DB_NAME` | Secret `orders-db-secret` (pendiente) | Nombre de la base de datos (`orders_db`) |
+| `DB_SSLMODE` | Secret `orders-db-secret` (pendiente) | Modo SSL (`disable`) |
+| `JWT_SECRET` | Secret `iam-db-secret` | Clave JWT compartida desde el secreto de IAM |
+
+### Variables de Chat (`chat-db-config` / `chat-db-secret`) *(ConfigMap y Secret pendientes de crear)*
+
+| Variable | Fuente K8s | Descripción |
+|----------|-----------|-------------|
+| `DB_HOST` | ConfigMap `chat-db-config` (pendiente) | Host de PostgreSQL (`postgres-chat`) |
+| `DB_PORT` | ConfigMap `chat-db-config` (pendiente) | Puerto de PostgreSQL (`5432`) |
+| `GRPC_PORT` | ConfigMap `chat-db-config` (pendiente) | Puerto del servidor gRPC (`50054`) |
+| `HTTP_PORT` | ConfigMap `chat-db-config` (pendiente) | Puerto del servidor HTTP / gRPC-Gateway (`8085`) |
+| `DB_USER` | Secret `chat-db-secret` (pendiente) | Usuario de PostgreSQL |
+| `DB_PASSWORD` | Secret `chat-db-secret` (pendiente) | Password de PostgreSQL |
+| `DB_NAME` | Secret `chat-db-secret` (pendiente) | Nombre de la base de datos (`chat_db`) |
+| `DB_SSLMODE` | Secret `chat-db-secret` (pendiente) | Modo SSL (`disable`) |
+| `JWT_SECRET` | Secret `iam-db-secret` | Clave JWT compartida desde el secreto de IAM |
+
 ## 10. Seguridad — Reglas del Repo
 
 - `secret.yaml` está en `.gitignore` — NUNCA versionar secretos reales
@@ -327,6 +454,15 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | Dos clientes HTTP en el frontend | `src/lib/axios.ts` y `src/lib/apiClient.ts` | Consolidar en un solo cliente para evitar inconsistencias de baseURL |
 | ~~Catalog no valida JWT~~ | ~~`backend-go/cmd/catalog/main.go`~~ | ✅ Resuelto — Interceptor JWT registrado en Catalog; CreatePublication exige token y toma id_usuario_vendedor del contexto (spoofing corregido, commit d0b1f3e) |
 | Exclusión de nodo agent-02 (nodeAffinity) | `backend-go/k8s/catalog/postgres-catalog.yaml` | Attach de volúmenes Cinder falla en `rke2-estudiantes-agent-02` (`FailedAttachVolume: "already attached to instances"`). Se agregó `nodeAffinity` con `NotIn` para excluir dicho nodo temporalmente; remover cuando el administrador del cluster lo resuelva |
+| Manifiestos de Orders con dependencias pendientes | `backend-go/k8s/orders/` | Faltan `orders-db-config`, `orders-db-secret`, `postgres-orders` y reemplazo de `TAG_A_DEFINIR` por tag real antes de aplicar al clúster |
+| Rutas de Orders y Chat no enrutadas en gateway | `backend-go/k8s/gateway/configmap.yaml` | Falta configurar `/v1/orders` en Nginx hacia `orders:8084`, así como rutas y CORS para Chat (`/v1/chat/*`) |
+| ~~Chat sin manifiestos K8s (Deployment/Service)~~ | ~~`backend-go/k8s/chat/`~~ | ✅ Resuelto — Creados `deployment.yaml` y `service.yaml` en `k8s/chat/` |
+| Manifiestos de Chat con dependencias pendientes | `backend-go/k8s/chat/` | Faltan `chat-db-config`, `chat-db-secret`, `postgres-chat` y reemplazo de `TAG_A_DEFINIR` por tag real antes de aplicar al clúster |
+| Puertos y motor de base de datos de Chat | `backend-go/Dockerfile.chat`, `cmd/chat/main.go`, `docker-compose.yml` | Puertos 8085 (HTTP) y 50054 (gRPC) y motor PostgreSQL asumidos/adoptados en código; confirmar estabilidad y requerimientos definitivos al desplegar |
+| orders y chat sin healthcheck en Compose | `docker-compose.yml` | Imágenes basadas en `scratch` no cuentan con shell ni `wget`; reintroducir healthcheck cuando los servicios expongan `/healthz` y se añada un mecanismo de auto-chequeo |
+| wait-ports.js no verifica puertos de nuevos servicios | `scripts/wait-ports.js` | El script solo espera 5433, 5434, 8081, 8082 y 3000; no incluye 5435 (Media), 5436 (Chat DB), 5437 (Orders DB), 8083 (Media), 8084 (Orders) ni 8085 (Chat) porque los servicios son opcionales por perfil |
+| Inconsistencia de scopes en GitFlow | `README.md` | `README.md` no lista `orders` ni `media` dentro de los scopes de GitFlow (`iam`, `catalog`, `chat`, etc.), pero la rama de #281 utilizó el scope `orders` por decisión del equipo |
+| Alineación de puertos de base de datos del host | `docker-compose.yml`, `PROJECT_STRUCTURE.md` | Puerto host de `postgres_orders` se reasignó a `5437` para resolver colisión con `postgres_media` (`5435`); mantener `PROJECT_STRUCTURE.md` sincronizado |
 
 ## 13. GitFlow y Branching
 
@@ -337,3 +473,6 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 El workflow `backend-go-ci.yml` ejecuta `make install-deps` y `make generate`,
 lo que instala `protoc-gen-openapiv2` y genera los archivos Swagger JSON en
 `api/openapi/` automáticamente junto con el código gRPC/Gateway.
+
+El workflow `lint.yml` restringe su ejecución (mediante filtro `paths`) a cambios
+dentro de `frontend-marketplace/**` y el propio archivo `.github/workflows/lint.yml`.
