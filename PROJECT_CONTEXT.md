@@ -90,6 +90,9 @@ Internet
           → /v1/auth/*       → Service iam:8080     → Pod IAM (Go)
           → /v1/publications → Service catalog:8082 → Pod Catalog (Go)
           → /v1/categories   → Service catalog:8082 → Pod Catalog (Go)
+          → /v1/orders       → Service orders:8084  → Pod Orders (Go)
+          → /v1/ordenes      → Service orders:8084  → Pod Orders (Go)
+          → /v1/chat         → Service chat:8085    → Pod Chat (Go)
           → /*               → 404 JSON
 ```
 
@@ -100,6 +103,11 @@ Internet
 | `service.yaml` | Service `api-gateway` | ClusterIP, port 80 → targetPort 8080 |
 | `ingress.yaml` | Ingress `api-gateway` | Expone el gateway al exterior (host + path /) |
 
+**Resolución Dinámica de Upstreams (variable + resolver):**
+> Para las rutas de `orders` y `chat`, Nginx utiliza directivas `set $upstream ...` con `proxy_pass $upstream` combinadas con `resolver 10.43.40.162 valid=10s ipv6=off;` (CoreDNS del clúster).
+> Si se usara una URL literal (`proxy_pass http://orders:8084;`), Nginx resolvería el nombre únicamente durante el arranque del Pod; si el Service o Pod aún no existe, Nginx falla y el gateway entra en `CrashLoopBackOff`, tirando abajo todo el tráfico.
+> Al usar variables + resolver, la resolución DNS ocurre bajo demanda en tiempo de ejecución (runtime). Si el servicio upstream aún no está desplegado, Nginx simplemente responderá `502 Bad Gateway` en esas rutas sin afectar a `iam`, `catalog` ni la disponibilidad general del gateway.
+
 **Orden de apply para el gateway:**
 ```
 kubectl apply -f configmap.yaml
@@ -108,9 +116,7 @@ kubectl apply -f service.yaml
 kubectl apply -f ingress.yaml
 ```
 
-> **IMPORTANTE**: Aplicar el gateway DESPUÉS de que los Services de los
-> microservicios upstream (iam, catalog) ya existan. Si Nginx no puede
-> resolver un upstream al arrancar, el Pod falla.
+> **IMPORTANTE**: Para los microservicios con upstream literal (iam, catalog), el gateway requiere que sus Services ya existan al arrancar. Para los servicios con upstream dinámico por variable (orders, chat), Nginx puede arrancar incluso si sus Services no existen aún.
 
 ## 6. Docker Compose (desarrollo local)
 
@@ -226,7 +232,7 @@ kubectl rollout restart deployment/api-gateway
 > 2. Secret `orders-db-secret` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`).
 > 3. Base de datos PostgreSQL dedicada `postgres-orders`.
 > 4. Imagen construida en Docker Hub sustituyendo el placeholder `TAG_A_DEFINIR` por un tag inmutable `YYYYMMDD-<hash-corto-git>`.
-> 5. Ruta `/v1/orders` configurada en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`).
+> 5. Rutas `/v1/orders` y `/v1/ordenes` configuradas en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`) — ya configuradas en el repositorio (pendiente de apply en el clúster).
 
 **Orden de apply para Orders (cuando existan las dependencias):**
 ```bash
@@ -245,7 +251,7 @@ kubectl apply -f deployment.yaml
 # 5. Service interno
 kubectl apply -f service.yaml
 
-# 6. Actualización del API Gateway Nginx (enrutar /v1/orders)
+# 6. Actualización del API Gateway Nginx (enrutar /v1/orders y /v1/ordenes)
 kubectl apply -f ../gateway/configmap.yaml
 kubectl rollout restart deployment/api-gateway
 ```
@@ -263,7 +269,7 @@ kubectl rollout restart deployment/api-gateway
 > 2. Secret `chat-db-secret` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`).
 > 3. Base de datos PostgreSQL dedicada `postgres-chat`.
 > 4. Imagen construida en Docker Hub sustituyendo el placeholder `TAG_A_DEFINIR` por un tag inmutable `YYYYMMDD-<hash-corto-git>`.
-> 5. Rutas `/v1/chat/*` y configuración de CORS en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`).
+> 5. Rutas `/v1/chat/*` y configuración de CORS en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`) — ya configuradas en el repositorio (pendiente de apply en el clúster).
 
 **Orden de apply para Chat (cuando existan las dependencias):**
 ```bash
@@ -426,13 +432,15 @@ Internet
 ## 11. CORS
 
 CORS se maneja a nivel del **API Gateway Nginx** (`backend-go/k8s/gateway/configmap.yaml`).
-El bloque `location /v1/auth/` responde preflight `OPTIONS` directamente (204) y añade
+Los bloques `location` (`/v1/auth/`, `/v1/publications`, `/v1/categories`, `/v1/orders`, `/v1/ordenes` y `/v1/chat`) responden preflight `OPTIONS` directamente (204) y añaden
 headers `Access-Control-Allow-*` en las respuestas proxy.
 
-- **Origen permitido**: `https://marketplace-aalarcon.dev.censei.cl`
-- **Métodos**: GET, POST, PUT, DELETE, OPTIONS
-- **Headers**: Content-Type, Authorization
-- **Credentials**: true
+- **Origen permitido**: `https://marketplace-aalarcon.dev.censei.cl` (vía `$cors_origin`)
+- **Métodos**:
+  - `GET, POST, PUT, DELETE, OPTIONS` (bloques IAM y Catalog)
+  - `GET, POST, PUT, PATCH, DELETE, OPTIONS` (bloques Orders y Chat, necesario para actualización de estado de órdenes y lectura de chats)
+- **Headers**: `Content-Type, Authorization`
+- **Credentials**: `true`
 
 > Si se agrega un nuevo frontend o se cambia el dominio, actualizar `$cors_origin` en el ConfigMap
 > y hacer `kubectl rollout restart deployment/api-gateway`.
@@ -455,7 +463,7 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | ~~Catalog no valida JWT~~ | ~~`backend-go/cmd/catalog/main.go`~~ | ✅ Resuelto — Interceptor JWT registrado en Catalog; CreatePublication exige token y toma id_usuario_vendedor del contexto (spoofing corregido, commit d0b1f3e) |
 | Exclusión de nodo agent-02 (nodeAffinity) | `backend-go/k8s/catalog/postgres-catalog.yaml` | Attach de volúmenes Cinder falla en `rke2-estudiantes-agent-02` (`FailedAttachVolume: "already attached to instances"`). Se agregó `nodeAffinity` con `NotIn` para excluir dicho nodo temporalmente; remover cuando el administrador del cluster lo resuelva |
 | Manifiestos de Orders con dependencias pendientes | `backend-go/k8s/orders/` | Faltan `orders-db-config`, `orders-db-secret`, `postgres-orders` y reemplazo de `TAG_A_DEFINIR` por tag real antes de aplicar al clúster |
-| Rutas de Orders y Chat no enrutadas en gateway | `backend-go/k8s/gateway/configmap.yaml` | Falta configurar `/v1/orders` en Nginx hacia `orders:8084`, así como rutas y CORS para Chat (`/v1/chat/*`) |
+| ~~Rutas de Orders y Chat no enrutadas en gateway~~ | ~~`backend-go/k8s/gateway/configmap.yaml`~~ | ✅ Resuelto — Rutas `/v1/orders`, `/v1/ordenes` y `/v1/chat` configuradas con CORS (incluyendo `PATCH`) en `configmap.yaml` usando `proxy_pass` por variable + resolver (`CoreDNS`); devuelve 502/503 hasta que los Services existan en el clúster |
 | ~~Chat sin manifiestos K8s (Deployment/Service)~~ | ~~`backend-go/k8s/chat/`~~ | ✅ Resuelto — Creados `deployment.yaml` y `service.yaml` en `k8s/chat/` |
 | Manifiestos de Chat con dependencias pendientes | `backend-go/k8s/chat/` | Faltan `chat-db-config`, `chat-db-secret`, `postgres-chat` y reemplazo de `TAG_A_DEFINIR` por tag real antes de aplicar al clúster |
 | Puertos y motor de base de datos de Chat | `backend-go/Dockerfile.chat`, `cmd/chat/main.go`, `docker-compose.yml` | Puertos 8085 (HTTP) y 50054 (gRPC) y motor PostgreSQL asumidos/adoptados en código; confirmar estabilidad y requerimientos definitivos al desplegar |
