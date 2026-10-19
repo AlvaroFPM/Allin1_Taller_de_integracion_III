@@ -308,3 +308,55 @@ test('sesion: desmontaje limpia y elimina la suscripcion', async () => {
   assert.equal(store.getState().purchases, purchases);
   assert.equal(store.getState().sales, sales);
 });
+
+function setupOrdersMapper() {
+  const source = fs.readFileSync(path.join(__dirname, '../lib/mappers/orders.ts'), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const moduleObject = { exports: {} };
+  const wrapper = vm.runInThisContext(`(function(require, module, exports) { ${compiled}\n})`);
+  wrapper(require, moduleObject, moduleObject.exports);
+  return moduleObject.exports.toDashboardOrder;
+}
+
+test('mapper: conserva estado e int64 sintético sin inventar pagos', () => {
+  const result = setupOrdersMapper()(
+    { idOrden: 901, estado: 'PENDIENTE', precio: '9007199254740993' },
+    'COMPRA',
+  );
+  assert.equal(result.status, 'PENDIENTE');
+  assert.equal(result.price, '9007199254740993');
+  assert.equal(result.escrowSecured, null);
+  assert.equal(result.type, null);
+  assert.equal(result.currency, undefined);
+  assert.equal(result.counterpartVerified, undefined);
+});
+
+test('mapper: contraparte correcta por lista sintética', () => {
+  const map = setupOrdersMapper();
+  const order = {
+    idOrden: 902,
+    idUsuarioComprador: 101,
+    idUsuarioVendedor: 102,
+    estado: 'ACEPTADA',
+  };
+  assert.equal(map(order, 'COMPRA').counterpartName, 'Usuario #102');
+  assert.equal(map(order, 'VENTA').counterpartName, 'Usuario #101');
+  assert.equal(map(order, 'VENTA').status, 'ACEPTADA');
+});
+
+test('mapper: rechaza ID ausente y estados no reconocidos', () => {
+  const map = setupOrdersMapper();
+  assert.throws(() => map({}, 'COMPRA'));
+  assert.throws(() => map({ idOrden: 903, estado: 'PAGO_CUSTODIADO' }, 'COMPRA'));
+});
+
+test('mapper: monto y estado ausentes no se inventan', () => {
+  const result = setupOrdersMapper()({ idOrden: 904 }, 'VENTA');
+  assert.equal(result.status, 'ESTADO_ORDEN_UNSPECIFIED');
+  assert.equal(result.price, null);
+});
