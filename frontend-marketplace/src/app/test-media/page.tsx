@@ -1,35 +1,36 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
-const MEDIA_URL = "http://localhost:8083";
+const MEDIA_URL = 'http://localhost:8083';
 
 export default function TestMedia() {
-  const [token, setToken] = useState("");
-  const [tipo, setTipo] = useState("PERFIL");
+  const [token, setToken] = useState('');
+  const [tipo, setTipo] = useState('PERFIL');
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState("");
-  const [url, setUrl] = useState("");
-  const [dims, setDims] = useState("");
+  const [result, setResult] = useState('');
+  const [url, setUrl] = useState('');
+  const [dims, setDims] = useState('');
 
   useEffect(() => {
     const m = document.cookie.match(/(?:^|; )auth_token=([^;]*)/);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (m) setToken(decodeURIComponent(m[1]));
   }, []);
 
   async function subir() {
-    setUrl("");
-    setDims("");
+    setUrl('');
+    setDims('');
     if (!file) {
-      setResult("Elige un archivo");
+      setResult('Elige un archivo');
       return;
     }
     const fd = new FormData();
-    fd.append("tipo", tipo);
-    fd.append("file", file);
+    fd.append('tipo', tipo);
+    fd.append('file', file);
     try {
       const res = await fetch(`${MEDIA_URL}/v1/media/upload`, {
-        method: "POST",
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
@@ -45,9 +46,9 @@ export default function TestMedia() {
     <div style={{ padding: 24, maxWidth: 700 }}>
       <h1>Prueba temporal de Media</h1>
       <p>Token (se llena solo si iniciaste sesión; si no, pégalo):</p>
-      <input style={{ width: "100%" }} value={token} onChange={(e) => setToken(e.target.value)} />
+      <input style={{ width: '100%' }} value={token} onChange={(e) => setToken(e.target.value)} />
       <p>
-        Tipo:{" "}
+        Tipo:{' '}
         <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
           <option>PERFIL</option>
           <option>PORTADA</option>
@@ -55,8 +56,10 @@ export default function TestMedia() {
         </select>
       </p>
       <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-      <p><button onClick={subir}>Subir</button></p>
-      <pre style={{ whiteSpace: "pre-wrap" }}>{result}</pre>
+      <p>
+        <button onClick={subir}>Subir</button>
+      </p>
+      <pre style={{ whiteSpace: 'pre-wrap' }}>{result}</pre>
       {url && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -64,9 +67,13 @@ export default function TestMedia() {
             src={url}
             alt="subida"
             style={{ maxWidth: 300 }}
-            onLoad={(e) => setDims(`${e.currentTarget.naturalWidth} x ${e.currentTarget.naturalHeight} px`)}
+            onLoad={(e) =>
+              setDims(`${e.currentTarget.naturalWidth} x ${e.currentTarget.naturalHeight} px`)
+            }
           />
-          <p><b>Dimensiones reales: {dims}</b></p>
+          <p>
+            <b>Dimensiones reales: {dims}</b>
+          </p>
         </>
       )}
     </div>
