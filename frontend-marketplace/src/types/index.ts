@@ -5,3 +5,4 @@ export * from './publication';
 export * from './catalog';
 export * from './profile';
 export * from './dto';
+export * from './orders-dashboard';
