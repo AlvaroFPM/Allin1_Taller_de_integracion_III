@@ -143,3 +143,168 @@ test('una solicitud cancelada vuelve a idle', async () => {
   assert.equal(store.getState().purchases.status, 'idle');
   assert.deepEqual(store.getState().purchases.orders, []);
 });
+
+function setupSessionBoundary() {
+  const { store, queries } = setup();
+  const { create } = require('zustand');
+
+  // Sesión sintética: no usa credenciales ni persistencia reales.
+  const auth = create(() => ({
+    user: { id: 101, name: 'Usuario sintetico A' },
+    token: 'token-sintetico-A',
+    isAuthenticated: true,
+  }));
+
+  let effect;
+  const source = fs.readFileSync(
+    path.join(__dirname, '../components/shared/orders-session-boundary.tsx'),
+    'utf8',
+  );
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const moduleObject = { exports: {} };
+  const wrapper = vm.runInThisContext(`(function(require, module, exports) { ${compiled}\n})`);
+
+  wrapper(
+    (name) => {
+      if (name === 'react') {
+        return {
+          useEffect: (callback) => {
+            effect = callback;
+          },
+        };
+      }
+      if (name === '@/store/useAuthStore') return { useAuthStore: auth };
+      if (name === '@/store/useOrdersStore') return { useOrdersStore: store };
+      return require(name);
+    },
+    moduleObject,
+    moduleObject.exports,
+  );
+
+  const result = moduleObject.exports.OrdersSessionBoundary();
+  assert.equal(result, null);
+  assert.equal(typeof effect, 'function');
+
+  return { store, queries, auth, mount: () => effect() };
+}
+
+async function seedSyntheticLists(store, queries) {
+  queries.getPurchases = async () => ({ orders: [{ idOrden: 901 }] });
+  queries.getSales = async () => ({ orders: [{ idOrden: 902 }] });
+  await store.getState().loadPurchases();
+  await store.getState().loadSales();
+}
+
+function assertOrdersReset(store) {
+  for (const key of ['purchases', 'sales']) {
+    const list = store.getState()[key];
+    assert.deepEqual(list.orders, []);
+    assert.equal(list.status, 'idle');
+    assert.equal(list.meta, null);
+    assert.equal(list.error, null);
+  }
+}
+
+test('sesion: el montaje limpia ambas listas', async () => {
+  const { store, queries, mount } = setupSessionBoundary();
+  await seedSyntheticLists(store, queries);
+  const cleanup = mount();
+  try {
+    assertOrdersReset(store);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: cambiar usuario invalida una respuesta pendiente', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  try {
+    await seedSyntheticLists(store, queries);
+    const pending = deferred();
+    queries.getPurchases = () => pending.promise;
+    const request = store.getState().loadPurchases();
+
+    auth.setState({ user: { id: 102, name: 'Usuario sintetico B' } });
+    assertOrdersReset(store);
+
+    pending.resolve({ orders: [{ idOrden: 903 }] });
+    await request;
+    assertOrdersReset(store);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: cambiar token limpia ambas listas', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  try {
+    await seedSyntheticLists(store, queries);
+    auth.setState({ token: 'token-sintetico-B' });
+    assertOrdersReset(store);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: cierre de sesion limpia ambas listas', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  try {
+    await seedSyntheticLists(store, queries);
+    auth.setState({ user: null, token: null, isAuthenticated: false });
+    assertOrdersReset(store);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: cambio de autenticacion sin cambiar identidad limpia listas', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  try {
+    await seedSyntheticLists(store, queries);
+    auth.setState({ isAuthenticated: false });
+    assertOrdersReset(store);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: actualizar perfil con el mismo ID conserva listas', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  try {
+    await seedSyntheticLists(store, queries);
+    const purchases = store.getState().purchases;
+    const sales = store.getState().sales;
+    auth.setState({ user: { id: 101, name: 'Perfil sintetico actualizado' } });
+    assert.equal(store.getState().purchases, purchases);
+    assert.equal(store.getState().sales, sales);
+  } finally {
+    cleanup();
+  }
+});
+
+test('sesion: desmontaje limpia y elimina la suscripcion', async () => {
+  const { store, queries, auth, mount } = setupSessionBoundary();
+  const cleanup = mount();
+  await seedSyntheticLists(store, queries);
+  cleanup();
+  assertOrdersReset(store);
+
+  await seedSyntheticLists(store, queries);
+  const purchases = store.getState().purchases;
+  const sales = store.getState().sales;
+  auth.setState({ token: 'token-sintetico-tras-desmontaje' });
+  assert.equal(store.getState().purchases, purchases);
+  assert.equal(store.getState().sales, sales);
+});
