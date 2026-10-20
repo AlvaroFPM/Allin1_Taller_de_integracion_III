@@ -36,6 +36,7 @@ Allin1_Taller_de_integracion_III/
 │   │   ├── chat/                    # Deployment y Service (pendientes ConfigMap, Secret y PostgreSQL)
 │   │   ├── gateway/                 # Deployment, Service, Ingress y ConfigMap
 │   │   ├── iam/                     # Deployment, Service, ConfigMap, Secrets y PostgreSQL
+│   │   ├── media/                   # PVC para BD de Media (pvc.yaml; no incluye aún resto de manifiestos)
 │   │   └── orders/                  # Deployment y Service (pendientes ConfigMap, Secret y PostgreSQL)
 │   ├── third_party/                 # Definiciones proto de Google API (annotations, http)
 │   │   └── google/
@@ -259,6 +260,7 @@ Backend distribuido implementado bajo principios de Clean Architecture. Combina 
 - **`chat/`**: `deployment.yaml`, `service.yaml`. Manifiestos preparados para el microservicio Chat (Go). No incluye aún ConfigMap (`chat-db-config`), Secret (`chat-db-secret`) ni PostgreSQL dedicado (`postgres-chat`).
 - **`iam/`**: `configmap.yaml`, `deployment.yaml`, `namespace.yaml`, `postgres-iam.yaml` (BD dedicada), `secret.yaml`, `secret.example.yaml`, `service.yaml`.
 - **`gateway/`**: `configmap.yaml`, `deployment.yaml`, `ingress.yaml`, `service.yaml`.
+- **`media/`**: `pvc.yaml`. PersistentVolumeClaim (`postgres-media-pvc`) para la base de datos PostgreSQL de Media (`media_db`). No incluye aún el resto de manifiestos (`postgres-media`, `deployment.yaml`, `service.yaml`, `configmap.yaml`, `secret.yaml`).
 - **`orders/`**: `deployment.yaml`, `service.yaml`. Manifiestos preparados para el microservicio Orders (Go). No incluye aún ConfigMap (`orders-db-config`), Secret (`orders-db-secret`) ni PostgreSQL dedicado (`postgres-orders`).
 
 ---
