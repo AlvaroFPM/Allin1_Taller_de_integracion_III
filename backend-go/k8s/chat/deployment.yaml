@@ -1,0 +1,129 @@
+# ==============================================================================
+# Deployment: chat
+# ==============================================================================
+# Despliega el microservicio Chat (Mensajería) en Go.
+# Expone gRPC en el puerto 50054 y la API REST vía gRPC-Gateway en el puerto 8085.
+#
+# DEPENDENCIAS PENDIENTES (otros tickets):
+#   - ConfigMap chat-db-config (DB_HOST=postgres-chat, DB_PORT=5432,
+#     GRPC_PORT=50054, HTTP_PORT=8085)
+#   - Secret chat-db-secret (DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE)
+#   - PostgreSQL postgres-chat
+# No aplicar con kubectl apply hasta que existan y la imagen tenga tag real.
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat
+  namespace: student-aalarcon
+  labels:
+    app: chat
+    project: allin1
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat
+      project: allin1
+  template:
+    metadata:
+      labels:
+        app: chat
+        project: allin1
+        tier: backend
+    spec:
+      containers:
+        - name: chat
+          # Reemplazar TAG_A_DEFINIR por el tag real al construir la imagen.
+          # Formato YYYYMMDD-<hash-corto-git> (nunca latest)
+          image: am4roo/allin1-chat-go:TAG_A_DEFINIR
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+              name: http-gateway
+              protocol: TCP
+            - containerPort: 50054
+              name: grpc
+              protocol: TCP
+          env:
+            # ---------------------------------------------------------------
+            # Variables no sensibles (ConfigMap chat-db-config)
+            # ---------------------------------------------------------------
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-db-config
+                  key: DB_PORT
+            - name: GRPC_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-db-config
+                  key: GRPC_PORT
+            - name: HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: chat-db-config
+                  key: HTTP_PORT
+
+            # ---------------------------------------------------------------
+            # Variables sensibles de BD (Secret chat-db-secret)
+            # ---------------------------------------------------------------
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: chat-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chat-db-secret
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: chat-db-secret
+                  key: DB_NAME
+            - name: DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: chat-db-secret
+                  key: DB_SSLMODE
+
+            # ---------------------------------------------------------------
+            # JWT_SECRET (referencia centralizada desde iam-db-secret)
+            # ---------------------------------------------------------------
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: iam-db-secret
+                  key: JWT_SECRET
+
+          resources:
+            requests:
+              cpu: "100m"       # >= 25m requerido por LimitRange
+              memory: "128Mi"   # >= 64Mi requerido por LimitRange
+            limits:
+              cpu: "250m"
+              memory: "512Mi"
+
+          readinessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
