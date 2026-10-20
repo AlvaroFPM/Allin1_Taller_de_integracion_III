@@ -196,6 +196,28 @@ func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) 
 	return s.getProfileByUserID(idUsuario)
 }
 
+// GetPublicProfile devuelve el perfil público de un usuario por ID, sin datos de contacto.
+func (s *AuthService) GetPublicProfile(ctx context.Context, req *auth.PublicProfileRequest) (*auth.PublicProfileResponse, error) {
+	if req.GetUserId() <= 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "user_id debe ser un número positivo")
+	}
+	p, err := s.getProfileByUserID(uint(req.GetUserId()))
+	if err != nil {
+		return nil, err
+	}
+	return &auth.PublicProfileResponse{
+		UserId:         p.GetUserId(),
+		FirstName:      p.GetFirstName(),
+		LastName:       p.GetLastName(),
+		BioExperiencia: p.GetBioExperiencia(),
+		Habilidades:    p.GetHabilidades(),
+		Ciudad:         p.GetCiudad(),
+		Region:         p.GetRegion(),
+		FotoPerfilUrl:  p.GetFotoPerfilUrl(),
+		PortadaUrl:     p.GetPortadaUrl(),
+		Rol:            p.GetRol(),
+	}, nil
+}
 const fallbackAvatarURL = "https://res.cloudinary.com/rstk3bky/image/upload/avatars/default-avatar.png"
 
 func defaultAvatarURL() string {

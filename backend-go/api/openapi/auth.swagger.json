@@ -162,6 +162,51 @@
         ]
       }
     },
+    "/v1/auth/profile/{userId}": {
+      "get": {
+        "summary": "Obtener perfil público",
+        "description": "Devuelve el perfil público de un usuario por ID (nombre, bio, habilidades, ubicacion, foto, portada y rol). No incluye correo ni telefono. No requiere autenticacion. Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto.",
+        "operationId": "AuthService_GetPublicProfile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/authPublicProfileResponse"
+            }
+          },
+          "400": {
+            "description": "El ID no es un numero positivo.",
+            "schema": {}
+          },
+          "404": {
+            "description": "El usuario no existe.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno al consultar la base de datos.",
+            "schema": {}
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Perfil"
+        ]
+      }
+    },
     "/v1/auth/register": {
       "post": {
         "summary": "Registrar usuario",
@@ -273,6 +318,42 @@
           "description": "Rol del usuario (por ejemplo CLIENTE o PROVEEDOR)."
         },
         "portadaUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "authPublicProfileResponse": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "bioExperiencia": {
+          "type": "string"
+        },
+        "habilidades": {
+          "type": "string"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "fotoPerfilUrl": {
+          "type": "string"
+        },
+        "portadaUrl": {
+          "type": "string"
+        },
+        "rol": {
           "type": "string"
         }
       }
