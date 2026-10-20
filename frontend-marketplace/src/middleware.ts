@@ -8,7 +8,13 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
 
-  if (protectedRoutes.some((route) => pathname.startsWith(route)) && !token) {
+  const isPublicProfile = /^\/perfil\/[^/]+\/?$/.test(pathname);
+
+  const isProtectedRoute = protectedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+
+  if (isProtectedRoute && !isPublicProfile && !token) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
