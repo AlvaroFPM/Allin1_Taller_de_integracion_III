@@ -97,7 +97,7 @@ function PublicationDetail({ id }: { id: string }) {
     }
 
     if (publication.type === 'DEMANDA') {
-      return 'La contratación de publicaciones de demanda requiere confirmar los roles de comprador y vendedor.';
+      return 'La contratación de DEMANDA aún no está habilitada: falta confirmar cómo el backend aplica los roles de comprador y vendedor.';
     }
 
     return null;
