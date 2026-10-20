@@ -178,10 +178,153 @@
         "tags": [
           "PublicationService"
         ]
+      },
+      "put": {
+        "operationId": "PublicationService_UpdatePublication",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationUpdatePublicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idPublicacion",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PublicationServiceUpdatePublicationBody"
+            }
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
+      },
+      "patch": {
+        "operationId": "PublicationService_UpdatePublication2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationUpdatePublicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idPublicacion",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PublicationServiceUpdatePublicationBody"
+            }
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
+      }
+    },
+    "/v1/publications/{idPublicacion}/detail": {
+      "get": {
+        "operationId": "PublicationService_GetPublicationDetail",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/publicationGetPublicationDetailResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "idPublicacion",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "PublicationService"
+        ]
       }
     }
   },
   "definitions": {
+    "PublicationServiceUpdatePublicationBody": {
+      "type": "object",
+      "properties": {
+        "categoriaId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "titulo": {
+          "type": "string"
+        },
+        "descripcion": {
+          "type": "string"
+        },
+        "tipoServicio": {
+          "$ref": "#/definitions/publicationTipoServicio"
+        },
+        "precioBase": {
+          "type": "string",
+          "format": "int64"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "estado": {
+          "$ref": "#/definitions/publicationEstadoPublicacion"
+        },
+        "imagenesUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Mensajes para RPC UpdatePublication (Edición)"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -282,11 +425,22 @@
         }
       }
     },
+    "publicationGetPublicationDetailResponse": {
+      "type": "object",
+      "properties": {
+        "detalle": {
+          "$ref": "#/definitions/publicationPublicationDetail"
+        }
+      }
+    },
     "publicationGetPublicationResponse": {
       "type": "object",
       "properties": {
         "publication": {
           "$ref": "#/definitions/publicationPublication"
+        },
+        "vendedor": {
+          "$ref": "#/definitions/publicationSellerSummary"
         }
       }
     },
@@ -384,6 +538,64 @@
       },
       "title": "Entidad Publicación completa"
     },
+    "publicationPublicationDetail": {
+      "type": "object",
+      "properties": {
+        "publication": {
+          "$ref": "#/definitions/publicationPublication"
+        },
+        "vendedor": {
+          "$ref": "#/definitions/publicationSellerSummary"
+        },
+        "imagenesUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Detalle extendido de Publicación"
+    },
+    "publicationSellerSummary": {
+      "type": "object",
+      "properties": {
+        "idUsuario": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "nombre": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "telefono": {
+          "type": "string"
+        },
+        "fotoPerfilUrl": {
+          "type": "string"
+        },
+        "calificacionPromedio": {
+          "type": "number",
+          "format": "double"
+        },
+        "totalResenas": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "trabajosCompletados": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        }
+      },
+      "title": "Resumen del vendedor asociado a la publicación para vista de detalle"
+    },
     "publicationTipoServicio": {
       "type": "string",
       "enum": [
@@ -392,6 +604,17 @@
         "DEMANDA"
       ],
       "default": "TIPO_SERVICIO_UNSPECIFIED"
+    },
+    "publicationUpdatePublicationResponse": {
+      "type": "object",
+      "properties": {
+        "publication": {
+          "$ref": "#/definitions/publicationPublication"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
     },
     "rpcStatus": {
       "type": "object",

@@ -84,3 +84,31 @@ export const DEFAULT_ACTIVITIES: ProfileActivityItem[] = [
     price: 18990,
   },
 ];
+
+/* -----------------------------------------------------------------------
+ * Contratos de datos — Perfil Público del Vendedor (/perfil/[id])
+ * --------------------------------------------------------------------- */
+
+export interface PublicSellerProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  bio: string;
+  isVerified: boolean;
+  avatarUrl?: string;
+  city: string;
+  memberSince: string;
+  score: number;
+  totalReviews: number;
+  responseTime: string;
+  completionRate: number;
+}
+
+export interface PublicProfilePublication {
+  id: string;
+  title: string;
+  category: string;
+  price: number;
+  currency?: string;
+  type: 'SERVICIO' | 'ARTICULO' | 'FLETE';
+}

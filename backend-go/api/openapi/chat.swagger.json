@@ -1,0 +1,497 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "chat.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ChatService",
+      "description": "==========================================\nServicio ChatService (gRPC + REST Gateway)\n=========================================="
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/chat/enviar": {
+      "post": {
+        "summary": "Enviar mensaje dentro de una sala",
+        "operationId": "ChatService_SendMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatSendMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/chatSendMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/messages": {
+      "post": {
+        "summary": "Enviar mensaje dentro de una sala",
+        "operationId": "ChatService_SendMessage2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatSendMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/chatSendMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/rooms": {
+      "get": {
+        "summary": "Listar todas las salas del usuario",
+        "operationId": "ChatService_ListRooms",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatListRoomsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ChatService"
+        ]
+      },
+      "post": {
+        "summary": "Iniciar o consultar sala asociada a un vendedor y/o publicación",
+        "operationId": "ChatService_GetOrCreateRoom",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatGetOrCreateRoomResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/chatGetOrCreateRoomRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{salaId}/messages": {
+      "get": {
+        "summary": "Obtener historial de mensajes de una sala",
+        "operationId": "ChatService_GetMessages2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatGetMessagesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "salaId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{salaId}/read": {
+      "patch": {
+        "summary": "Marcar mensajes de una sala como leídos",
+        "operationId": "ChatService_MarkAsRead",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatMarkAsReadResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "salaId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ChatServiceMarkAsReadBody"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/unread-count": {
+      "get": {
+        "summary": "Contador de mensajes no leídos para badge en header",
+        "operationId": "ChatService_GetUnreadCount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatGetUnreadCountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chat/{salaId}": {
+      "get": {
+        "summary": "Obtener historial de mensajes de una sala",
+        "operationId": "ChatService_GetMessages",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/chatGetMessagesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "salaId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ChatServiceMarkAsReadBody": {
+      "type": "object",
+      "title": "Marcar mensajes como leídos"
+    },
+    "chatChatMessage": {
+      "type": "object",
+      "properties": {
+        "idMensaje": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "salaId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "remitenteId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "destinatarioId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "contenido": {
+          "type": "string"
+        },
+        "leido": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "Mensaje individual dentro de una conversación"
+    },
+    "chatChatRoom": {
+      "type": "object",
+      "properties": {
+        "idSala": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "compradorId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "vendedorId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "publicacionId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ultimoMensaje": {
+          "$ref": "#/definitions/chatChatMessage"
+        },
+        "mensajesNoLeidos": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "title": "Sala o conversación de chat entre comprador y vendedor"
+    },
+    "chatGetMessagesResponse": {
+      "type": "object",
+      "properties": {
+        "mensajes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/chatChatMessage"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "chatGetOrCreateRoomRequest": {
+      "type": "object",
+      "properties": {
+        "vendedorId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "publicacionId": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "Iniciar o recuperar sala de chat"
+    },
+    "chatGetOrCreateRoomResponse": {
+      "type": "object",
+      "properties": {
+        "sala": {
+          "$ref": "#/definitions/chatChatRoom"
+        }
+      }
+    },
+    "chatGetUnreadCountResponse": {
+      "type": "object",
+      "properties": {
+        "unreadCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "chatListRoomsResponse": {
+      "type": "object",
+      "properties": {
+        "salas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/chatChatRoom"
+          }
+        }
+      }
+    },
+    "chatMarkAsReadResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "chatSendMessageRequest": {
+      "type": "object",
+      "properties": {
+        "salaId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "destinatarioId": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "contenido": {
+          "type": "string"
+        }
+      },
+      "title": "Enviar mensaje"
+    },
+    "chatSendMessageResponse": {
+      "type": "object",
+      "properties": {
+        "mensaje": {
+          "$ref": "#/definitions/chatChatMessage"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

@@ -28,6 +28,20 @@ message Category {
   optional string icono_url = 4;
 }
 
+// Resumen del vendedor asociado a la publicación para vista de detalle
+message SellerSummary {
+  uint32 id_usuario = 1;
+  string nombre = 2;
+  string email = 3;
+  string telefono = 4;
+  string foto_perfil_url = 5;
+  double calificacion_promedio = 6;
+  int32 total_resenas = 7;
+  int32 trabajos_completados = 8;
+  string ciudad = 9;
+  string region = 10;
+}
+
 // Entidad Publicación completa
 message Publication {
   uint32 id_publicacion = 1;
@@ -44,6 +58,13 @@ message Publication {
   optional Category categoria = 12;
   google.protobuf.Timestamp created_at = 13;
   google.protobuf.Timestamp updated_at = 14;
+}
+
+// Detalle extendido de Publicación
+message PublicationDetail {
+  Publication publication = 1;
+  optional SellerSummary vendedor = 2;
+  repeated string imagenes_urls = 3;
 }
 
 message PaginationMeta {
@@ -71,6 +92,25 @@ message CreatePublicationResponse {
   string message = 2;
 }
 
+// Mensajes para RPC UpdatePublication (Edición)
+message UpdatePublicationRequest {
+  uint32 id_publicacion = 1;
+  optional uint32 categoria_id = 2;
+  optional string titulo = 3;
+  optional string descripcion = 4;
+  optional TipoServicio tipo_servicio = 5;
+  optional int64 precio_base = 6;
+  optional string ciudad = 7;
+  optional string region = 8;
+  optional EstadoPublicacion estado = 9;
+  repeated string imagenes_urls = 10;
+}
+
+message UpdatePublicationResponse {
+  Publication publication = 1;
+  string message = 2;
+}
+
 // Mensajes para RPC GetPublication
 message GetPublicationRequest {
   uint32 id_publicacion = 1;
@@ -78,6 +118,16 @@ message GetPublicationRequest {
 
 message GetPublicationResponse {
   Publication publication = 1;
+  optional SellerSummary vendedor = 2;
+}
+
+// Mensajes para RPC GetPublicationDetail
+message GetPublicationDetailRequest {
+  uint32 id_publicacion = 1;
+}
+
+message GetPublicationDetailResponse {
+  PublicationDetail detalle = 1;
 }
 
 // Mensajes para RPC ListPublications
@@ -101,12 +151,24 @@ message GetCategoriesRequest {}
 message GetCategoriesResponse {
   repeated Category categories = 1;
 }
+
 // Servicio gRPC con endpoints REST vía grpc-gateway
 service PublicationService {
   rpc CreatePublication(CreatePublicationRequest) returns (CreatePublicationResponse) {
     option (google.api.http) = {
       post: "/v1/publications"
       body: "*"
+    };
+  }
+
+  rpc UpdatePublication(UpdatePublicationRequest) returns (UpdatePublicationResponse) {
+    option (google.api.http) = {
+      put: "/v1/publications/{id_publicacion}"
+      body: "*"
+      additional_bindings {
+        patch: "/v1/publications/{id_publicacion}"
+        body: "*"
+      }
     };
   }
 
@@ -119,6 +181,12 @@ service PublicationService {
   rpc GetPublication(GetPublicationRequest) returns (GetPublicationResponse) {
     option (google.api.http) = {
       get: "/v1/publications/{id_publicacion}"
+    };
+  }
+
+  rpc GetPublicationDetail(GetPublicationDetailRequest) returns (GetPublicationDetailResponse) {
+    option (google.api.http) = {
+      get: "/v1/publications/{id_publicacion}/detail"
     };
   }
 

@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package chat;
+
+option go_package = "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/chat;chatpb";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+// Mensaje individual dentro de una conversación
+message ChatMessage {
+  uint32 id_mensaje = 1;
+  uint32 sala_id = 2;
+  uint32 remitente_id = 3;
+  uint32 destinatario_id = 4;
+  string contenido = 5;
+  bool leido = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// Sala o conversación de chat entre comprador y vendedor
+message ChatRoom {
+  uint32 id_sala = 1;
+  uint32 comprador_id = 2;
+  uint32 vendedor_id = 3;
+  optional uint32 publicacion_id = 4;
+  optional ChatMessage ultimo_mensaje = 5;
+  uint32 mensajes_no_leidos = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// ==========================================
+// Mensajes de Request y Response
+// ==========================================
+
+// Enviar mensaje
+message SendMessageRequest {
+  uint32 sala_id = 1;
+  uint32 destinatario_id = 2;
+  string contenido = 3;
+}
+
+message SendMessageResponse {
+  ChatMessage mensaje = 1;
+  string message = 2;
+}
+
+// Obtener historial de mensajes de una sala
+message GetMessagesRequest {
+  uint32 sala_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetMessagesResponse {
+  repeated ChatMessage mensajes = 1;
+  int32 total = 2;
+}
+
+// Iniciar o recuperar sala de chat
+message GetOrCreateRoomRequest {
+  uint32 vendedor_id = 1;
+  optional uint32 publicacion_id = 2;
+}
+
+message GetOrCreateRoomResponse {
+  ChatRoom sala = 1;
+}
+
+// Listar todas las salas del usuario autenticado
+message ListRoomsRequest {}
+
+message ListRoomsResponse {
+  repeated ChatRoom salas = 1;
+}
+
+// Marcar mensajes como leídos
+message MarkAsReadRequest {
+  uint32 sala_id = 1;
+}
+
+message MarkAsReadResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Total de mensajes no leídos para badges y notificaciones
+message GetUnreadCountRequest {}
+
+message GetUnreadCountResponse {
+  uint32 unread_count = 1;
+}
+
+// ==========================================
+// Servicio ChatService (gRPC + REST Gateway)
+// ==========================================
+service ChatService {
+  // Enviar mensaje dentro de una sala
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/chat/enviar"
+      body: "*"
+      additional_bindings {
+        post: "/v1/chat/messages"
+        body: "*"
+      }
+    };
+  }
+
+  // Obtener historial de mensajes de una sala
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse) {
+    option (google.api.http) = {
+      get: "/v1/chat/{sala_id}"
+      additional_bindings {
+        get: "/v1/chat/rooms/{sala_id}/messages"
+      }
+    };
+  }
+
+  // Iniciar o consultar sala asociada a un vendedor y/o publicación
+  rpc GetOrCreateRoom(GetOrCreateRoomRequest) returns (GetOrCreateRoomResponse) {
+    option (google.api.http) = {
+      post: "/v1/chat/rooms"
+      body: "*"
+    };
+  }
+
+  // Listar todas las salas del usuario
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse) {
+    option (google.api.http) = {
+      get: "/v1/chat/rooms"
+    };
+  }
+
+  // Marcar mensajes de una sala como leídos
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse) {
+    option (google.api.http) = {
+      patch: "/v1/chat/rooms/{sala_id}/read"
+      body: "*"
+    };
+  }
+
+  // Contador de mensajes no leídos para badge en header
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse) {
+    option (google.api.http) = {
+      get: "/v1/chat/unread-count"
+    };
+  }
+}
