@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
 	"google.golang.org/grpc/codes"
@@ -170,4 +171,108 @@ func validateOrderPermissions(orden *models.Orden, usuarioID uint, nuevoEstado s
 	}
 
 	return nil
+}
+
+// ============================================================================
+// FUNCIONES Y MÉTODOS PARA GET ÓRDENES (ALL-78)
+// ============================================================================
+
+// Columnas de BD para consultas de listado
+const (
+	columnaComprador = "id_usuario_comprador"
+	columnaVendedor  = "id_usuario_vendedor"
+)
+
+// ListMyPurchases retorna las compras realizadas por el usuario paginadas y filtradas opcionalmente por estado.
+func (s *OrderService) ListMyPurchases(ctx context.Context, compradorID uint, page, limit int32, estado *string) ([]models.Orden, int64, error) {
+	return s.listOrdersByUser(ctx, columnaComprador, compradorID, page, limit, estado)
+}
+
+// ListMySales retorna las ventas del usuario paginadas y filtradas opcionalmente por estado.
+func (s *OrderService) ListMySales(ctx context.Context, vendedorID uint, page, limit int32, estado *string) ([]models.Orden, int64, error) {
+	return s.listOrdersByUser(ctx, columnaVendedor, vendedorID, page, limit, estado)
+}
+
+// listOrdersByUser encapsula la lógica compartida de consulta para compras y ventas.
+func (s *OrderService) listOrdersByUser(ctx context.Context, columna string, usuarioID uint, page, limit int32, estado *string) ([]models.Orden, int64, error) {
+	// 1. Si el ID de usuario es 0, devolver codes.Unauthenticated
+	if usuarioID == 0 {
+		return nil, 0, status.Error(codes.Unauthenticated, "usuario no autenticado o ID inválido")
+	}
+
+	if columna != columnaComprador && columna != columnaVendedor {
+		return nil, 0, status.Errorf(codes.Internal, "columna de consulta no permitida: %s", columna)
+	}
+
+	// 2. Normalizar paginación
+	_, limitNorm, offset := normalizePagination(page, limit)
+
+	// 3. Validar estado: recortar una sola vez al inicio y evaluar
+	var estadoLimpio string
+	if estado != nil {
+		estadoLimpio = strings.TrimSpace(*estado)
+	}
+	if err := validateOrderFilterState(estadoLimpio); err != nil {
+		return nil, 0, err
+	}
+
+	// 4. Consulta base con filtros: columna de usuario y estado (si aplica)
+	baseQuery := s.db.WithContext(ctx).
+		Model(&models.Orden{}).
+		Where(columna+" = ?", usuarioID)
+
+	if estadoLimpio != "" {
+		baseQuery = baseQuery.Where("estado = ?", estadoLimpio)
+	}
+
+	// 5. Contar total antes de paginar. Se usa Session(&gorm.Session{}) sobre la consulta
+	// ya filtrada para aislar la mutación del Count de la posterior consulta de registros.
+	var totalRecords int64
+	if err := baseQuery.Session(&gorm.Session{}).Count(&totalRecords).Error; err != nil {
+		return nil, 0, status.Errorf(codes.Internal, "error al contar órdenes: %v", err)
+	}
+
+	// 6. Traer página con orden descendente por fecha y fallback por id_orden
+	ordenes := make([]models.Orden, 0)
+	if totalRecords > 0 {
+		err := baseQuery.
+			Order("fecha_creacion DESC, id_orden DESC").
+			Offset(offset).
+			Limit(int(limitNorm)).
+			Find(&ordenes).Error
+		if err != nil {
+			return nil, 0, status.Errorf(codes.Internal, "error al listar órdenes: %v", err)
+		}
+	}
+
+	// 7. Retornar resultados (slice no nil y total de registros)
+	return ordenes, totalRecords, nil
+}
+
+// normalizePagination ajusta page y limit dentro de rangos válidos y calcula el offset.
+func normalizePagination(page, limit int32) (int32, int32, int) {
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	} else if limit > 100 {
+		limit = 100
+	}
+	// Conversión a int antes de multiplicar para evitar desbordamiento en int32 con páginas muy altas
+	offset := (int(page) - 1) * int(limit)
+	return page, limit, offset
+}
+
+// validateOrderFilterState valida que el estado filtrado pertenezca al dominio de órdenes.
+func validateOrderFilterState(estado string) error {
+	if estado == "" {
+		return nil
+	}
+	switch estado {
+	case models.EstadoOrdenPendiente, models.EstadoOrdenAceptada, models.EstadoOrdenCompletada, models.EstadoOrdenCancelada:
+		return nil
+	default:
+		return status.Errorf(codes.InvalidArgument, "estado de orden inválido: %s", estado)
+	}
 }
