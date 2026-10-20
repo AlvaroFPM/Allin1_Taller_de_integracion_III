@@ -23,6 +23,12 @@ var mediaFolders = map[string]string{
 	models.TipoMediaPortada: "media/portada",
 }
 
+// mediaMaxDimension define el lado más largo permitido, en píxeles, según el tipo.
+var mediaMaxDimension = map[string]int{
+	models.TipoMediaPerfil:  512,
+	models.TipoMediaPortada: 1600,
+}
+
 // MediaRepository guarda las referencias de imágenes.
 type MediaRepository interface {
 	Create(ctx context.Context, m *models.Media) error
@@ -60,7 +66,7 @@ func (s *MediaService) Upload(ctx context.Context, idUsuario uint, tipo string, 
 		return nil, ErrInvalidMediaType
 	}
 
-	res, err := s.upload.WithFolder(folder).ProcessFiles(ctx, []*multipart.FileHeader{fh})
+	res, err := s.upload.WithFolder(folder).WithMaxDimension(mediaMaxDimension[tipo]).ProcessFiles(ctx, []*multipart.FileHeader{fh})
 	if err != nil {
 		return nil, err
 	}
