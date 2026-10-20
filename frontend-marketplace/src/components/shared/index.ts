@@ -31,3 +31,5 @@ export * from './publication-detail-hero';
 export * from './publication-detail-gallery';
 export * from './publication-detail-contact';
 export * from './publication-detail-sidebar';
+export * from './order-card';
+export * from './orders-dashboard-panel';
