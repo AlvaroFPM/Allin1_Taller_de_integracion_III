@@ -244,6 +244,7 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 		Region:         perfil.Region,
 		FotoPerfilUrl:  fotoURL,
 		Rol:            usuario.Rol,
+		PortadaUrl:     strings.TrimSpace(perfil.PortadaURL),
 	}, nil
 }
 
@@ -268,6 +269,34 @@ func validateUpdateProfileRequest(req *auth.UpdateProfileRequest) error {
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(req.GetRegion())) > 100 {
 		return status.Errorf(codes.InvalidArgument, "la región no puede superar los 100 caracteres")
+	}
+	if err := validateImageURL("foto_perfil_url", req.GetFotoPerfilUrl()); err != nil {
+		return err
+	}
+	if err := validateImageURL("portada_url", req.GetPortadaUrl()); err != nil {
+		return err
+	}
+	return nil
+}
+
+// cloudinaryURLPrefix devuelve el prefijo que deben tener las URLs de imágenes
+// aceptadas. El cloud name no es un secreto.
+func cloudinaryURLPrefix() string {
+	cloud := strings.TrimSpace(os.Getenv("CLOUDINARY_CLOUD_NAME"))
+	if cloud == "" {
+		cloud = "rstk3bky"
+	}
+	return "https://res.cloudinary.com/" + cloud + "/"
+}
+
+// validateImageURL acepta vacío (no cambiar) o una URL de nuestro Cloudinary.
+func validateImageURL(campo, raw string) error {
+	u := strings.TrimSpace(raw)
+	if u == "" {
+		return nil
+	}
+	if utf8.RuneCountInString(u) > 500 || !strings.HasPrefix(u, cloudinaryURLPrefix()) {
+		return status.Errorf(codes.InvalidArgument, "%s debe ser una URL de imagen subida a Cloudinary (máximo 500 caracteres)", campo)
 	}
 	return nil
 }
@@ -304,6 +333,8 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 	hab := strings.TrimSpace(req.GetHabilidades())
 	ciudad := strings.TrimSpace(req.GetCiudad())
 	region := strings.TrimSpace(req.GetRegion())
+	foto := strings.TrimSpace(req.GetFotoPerfilUrl())
+	portada := strings.TrimSpace(req.GetPortadaUrl())
 
 	// 2. Actualizar el perfil o crearlo si el usuario aún no lo tiene
 	var perfil models.Perfil
@@ -317,6 +348,8 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 			Habilidades:    hab,
 			Ciudad:         ciudad,
 			Region:         region,
+			FotoPerfilURL: foto,
+			PortadaURL: portada,
 		}
 		if err := s.db.Omit("Usuario").Create(&perfil).Error; err != nil {
 			return nil, status.Errorf(codes.Internal, "error al crear el perfil: %v", err)
@@ -329,6 +362,9 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 		perfil.Habilidades = hab
 		perfil.Ciudad = ciudad
 		perfil.Region = region
+		
+		if foto != "" {perfil.FotoPerfilURL = foto}
+		if portada != "" {perfil.PortadaURL = portada}
 		if err := s.db.Omit("Usuario").Save(&perfil).Error; err != nil {
 			return nil, status.Errorf(codes.Internal, "error al actualizar el perfil: %v", err)
 		}
