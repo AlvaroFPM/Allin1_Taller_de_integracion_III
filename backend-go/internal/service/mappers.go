@@ -120,3 +120,28 @@ func mapCategoriaToProto(c *models.Categoria) *pb.Category {
 
 	return category
 }
+
+// buildSellerSummary construye la tarjeta del vendedor (SellerSummary) para la vista de detalle
+// utilizando únicamente los datos que Catalog ya posee en el modelo Publicacion.
+//
+// Reglas y decisiones de diseño:
+// - id_usuario, ciudad y region provienen de la propia publicación.
+// - NO se consultan tablas de IAM (Usuario/Perfil) para respetar el principio Database-per-Service.
+// - NO se pueblan email ni teléfono por ser un endpoint público (privacidad RN-31 y RN-58).
+// - Los campos nombre, foto_perfil_url, calificacion_promedio, total_resenas y trabajos_completados
+//   quedan en sus valores cero.
+// TODO: Integrar nombre y foto_perfil_url mediante llamada RPC a IAM (ej. GetPublicProfile).
+// TODO: Integrar calificacion_promedio, total_resenas y trabajos_completados mediante servicio de reputación/reseñas.
+func buildSellerSummary(pub *models.Publicacion) *pb.SellerSummary {
+	if pub == nil {
+		return nil
+	}
+
+	return &pb.SellerSummary{
+		IdUsuario: uint32(pub.IDUsuarioVendedor),
+		Ciudad:    pub.Ciudad,
+		Region:    pub.Region,
+		// email y telefono se omiten intencionalmente (RN-31 y RN-58)
+		// nombre, foto_perfil_url y métricas quedan en cero por defecto
+	}
+}

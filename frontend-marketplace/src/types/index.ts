@@ -4,4 +4,4 @@ export * from './auth';
 export * from './publication';
 export * from './catalog';
 export * from './profile';
-export * from './orders-dashboard';
+export * from './order';
