@@ -37,11 +37,30 @@ func baseValidRequest() *pb.CreatePublicationRequest {
 // terminar, para no dejar basura en tu base de datos local entre corridas.
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	pass := os.Getenv("POSTGRES_PASSWORD_CATALOG")
+	pass := os.Getenv("DB_PASSWORD")
 	if pass == "" {
-		pass = "postgres"
+		pass = os.Getenv("POSTGRES_PASSWORD_CATALOG")
+		if pass == "" {
+			pass = "postgres"
+		}
 	}
-	dsn := fmt.Sprintf("host=localhost port=5434 user=postgres password=%s dbname=catalog_db sslmode=disable", pass)
+	user := os.Getenv("DB_USER")
+	if user == "" {
+		user = "postgres"
+	}
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "5434"
+	}
+	dbname := os.Getenv("DB_NAME")
+	if dbname == "" {
+		dbname = "catalog_db"
+	}
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, pass, dbname)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err == nil {
@@ -632,5 +651,155 @@ func TestListPublications(t *testing.T) {
 		assert.EqualValues(t, 1, resp.Publications[0].IdUsuarioVendedor)
 		assert.Equal(t, pb.TipoServicio_DEMANDA, resp.Publications[0].TipoServicio)
 		assert.EqualValues(t, 1, resp.Meta.TotalRecords)
+	})
+}
+
+// =====================================================================
+// TestBuildSellerSummary_Pure — Test unitario puro (sin base de datos)
+// =====================================================================
+
+func TestBuildSellerSummary_Pure(t *testing.T) {
+	t.Run("pub nil retorna nil", func(t *testing.T) {
+		assert.Nil(t, buildSellerSummary(nil))
+	})
+
+	t.Run("mapea id_usuario, ciudad y region de la publicacion manteniendo privacidad", func(t *testing.T) {
+		pub := &models.Publicacion{
+			IDUsuarioVendedor: 99,
+			Ciudad:            "Osorno",
+			Region:            "Los Lagos",
+		}
+
+		seller := buildSellerSummary(pub)
+		require.NotNil(t, seller)
+		assert.EqualValues(t, 99, seller.IdUsuario)
+		assert.Equal(t, "Osorno", seller.Ciudad)
+		assert.Equal(t, "Los Lagos", seller.Region)
+
+		// Privacidad en endpoint público (RN-31 / RN-58): email y teléfono deben estar vacíos
+		assert.Empty(t, seller.Email, "email debe estar vacío")
+		assert.Empty(t, seller.Telefono, "teléfono debe estar vacío")
+
+		// Campos dependientes de otros microservicios (IAM / Reseñas) deben quedar en valor cero
+		assert.Empty(t, seller.Nombre, "nombre debe estar vacío (pendiente gRPC a IAM)")
+		assert.Empty(t, seller.FotoPerfilUrl, "foto de perfil debe estar vacía")
+		assert.EqualValues(t, 0, seller.CalificacionPromedio, "calificación promedio debe ser 0")
+		assert.EqualValues(t, 0, seller.TotalResenas, "total reseñas debe ser 0")
+		assert.EqualValues(t, 0, seller.TrabajosCompletados, "trabajos completados debe ser 0")
+	})
+}
+
+// =====================================================================
+// TestGetPublication — Tests de integración con PostgreSQL real
+// =====================================================================
+
+func TestGetPublication(t *testing.T) {
+	t.Run("id 0 retorna InvalidArgument", func(t *testing.T) {
+		db := setupTestDB(t)
+		srv := NewPublicationServiceServer(db)
+
+		resp, err := srv.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: 0})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok, "el error debe ser de tipo gRPC status")
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "id de publicación inválido")
+	})
+
+	t.Run("id inexistente retorna NotFound", func(t *testing.T) {
+		db := setupTestDB(t)
+		srv := NewPublicationServiceServer(db)
+
+		resp, err := srv.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: 999999})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok, "el error debe ser de tipo gRPC status")
+		assert.Equal(t, codes.NotFound, st.Code())
+		assert.Contains(t, st.Message(), "publicación no encontrada")
+	})
+
+	t.Run("publicacion borrada con soft delete retorna NotFound", func(t *testing.T) {
+		db := setupTestDB(t)
+		cat := seedCategoria(t, db)
+		pub := seedPublicacion(t, db, cat.IDCategoria, 15, models.EstadoActivo)
+
+		// Borrado lógico con GORM
+		require.NoError(t, db.Delete(&pub).Error)
+
+		srv := NewPublicationServiceServer(db)
+		resp, err := srv.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: uint32(pub.IDPublicacion)})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok, "el error debe ser de tipo gRPC status")
+		assert.Equal(t, codes.NotFound, st.Code())
+		assert.Contains(t, st.Message(), "publicación no encontrada")
+	})
+
+	t.Run("publicacion existente retorna vendedor con datos propios de catalog y campos privados en cero", func(t *testing.T) {
+		db := setupTestDB(t)
+		cat := seedCategoria(t, db)
+		pub := models.Publicacion{
+			IDUsuarioVendedor: 42,
+			CategoriaID:       cat.IDCategoria,
+			Titulo:            "Clases de Piano Clásico",
+			Descripcion:       "Profesor titulado del conservatorio ofrece clases particulares de piano a domicilio.",
+			TipoServicio:      models.TipoOferta,
+			PrecioBase:        25000,
+			Ciudad:            "Valdivia",
+			Region:            "Los Ríos",
+			Estado:            models.EstadoActivo,
+		}
+		require.NoError(t, db.Create(&pub).Error)
+
+		srv := NewPublicationServiceServer(db)
+		resp, err := srv.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: uint32(pub.IDPublicacion)})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Validación del objeto Vendedor (SellerSummary)
+		require.NotNil(t, resp.Vendedor, "el campo Vendedor no debe ser nil")
+		assert.EqualValues(t, 42, resp.Vendedor.IdUsuario)
+		assert.Equal(t, "Valdivia", resp.Vendedor.Ciudad)
+		assert.Equal(t, "Los Ríos", resp.Vendedor.Region)
+
+		// Reglas de privacidad en endpoint público (RN-31 y RN-58)
+		assert.Empty(t, resp.Vendedor.Email, "email no debe poblarse en endpoint público (RN-31)")
+		assert.Empty(t, resp.Vendedor.Telefono, "teléfono no debe poblarse en endpoint público (RN-58)")
+
+		// Valores cero para campos dependientes de IAM y reputación
+		assert.Empty(t, resp.Vendedor.Nombre, "nombre debe ser vacío a la espera de RPC con IAM")
+		assert.Empty(t, resp.Vendedor.FotoPerfilUrl, "foto de perfil debe ser vacía")
+		assert.EqualValues(t, 0, resp.Vendedor.CalificacionPromedio, "calificación promedio debe ser 0")
+		assert.EqualValues(t, 0, resp.Vendedor.TotalResenas, "total reseñas debe ser 0")
+		assert.EqualValues(t, 0, resp.Vendedor.TrabajosCompletados, "trabajos completados debe ser 0")
+	})
+
+	t.Run("publicacion y categoria se mantienen intactas en la respuesta", func(t *testing.T) {
+		db := setupTestDB(t)
+		cat := seedCategoria(t, db)
+		pub := seedPublicacionCon(t, db, cat.IDCategoria, 7, models.TipoDemanda, 18500)
+
+		srv := NewPublicationServiceServer(db)
+		resp, err := srv.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: uint32(pub.IDPublicacion)})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Validación de la entidad Publicacion y Categoria precargada
+		require.NotNil(t, resp.Publication)
+		assert.EqualValues(t, pub.IDPublicacion, resp.Publication.IdPublicacion)
+		assert.Equal(t, pub.Titulo, resp.Publication.Titulo)
+		assert.EqualValues(t, 18500, resp.Publication.PrecioBase)
+		assert.Equal(t, pb.TipoServicio_DEMANDA, resp.Publication.TipoServicio)
+
+		require.NotNil(t, resp.Publication.Categoria)
+		assert.EqualValues(t, cat.IDCategoria, resp.Publication.Categoria.IdCategoria)
+		assert.Equal(t, cat.Nombre, resp.Publication.Categoria.Nombre)
+		assert.Equal(t, cat.Slug, resp.Publication.Categoria.Slug)
 	})
 }
