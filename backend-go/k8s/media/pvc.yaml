@@ -1,0 +1,40 @@
+# ==============================================================================
+# PersistentVolumeClaim para PostgreSQL del Microservicio Media (postgres-media)
+# ==============================================================================
+# PVC para el almacenamiento de PostgreSQL de Media (media_db, metadatos de
+# archivos de la tabla media).
+#
+# NOTA SOBRE PERSISTENCIA:
+# El microservicio Media procesa las imágenes en memoria y las sube a
+# Cloudinary; NO se guardan imágenes ni archivos binarios en disco. Por lo
+# tanto, este PVC cubre exclusivamente la persistencia de la base de datos
+# PostgreSQL (media_db).
+#
+# NOTAS OPERATIVAS:
+# 1. El StorageClass por defecto (cinder-ceph) usa VolumeBindingMode
+#    WaitForFirstConsumer, por lo que este PVC permanece en estado "Pending"
+#    hasta que un Pod (StatefulSet de postgres-media) lo monte y consuma.
+# 2. reclaimPolicy Delete: borrar el PVC elimina el volumen físico y los datos.
+# 3. El namespace student-aalarcon tiene una cuota de 3 PVCs (ResourceQuota)
+#    y este es el tercero (3/3), agotando los cupos disponibles de PVC.
+#
+# ADVERTENCIA:
+# NO aplicar con kubectl apply hasta que exista el StatefulSet de postgres-media
+# que lo consuma, para no dejar el PVC en estado Pending ni agotar la cuota
+# innecesariamente.
+# ==============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-media-pvc
+  namespace: student-aalarcon
+  labels:
+    app: postgres-media
+    project: allin1
+    tier: backend
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

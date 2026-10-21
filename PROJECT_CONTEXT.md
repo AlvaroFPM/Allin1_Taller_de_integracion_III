@@ -293,6 +293,25 @@ kubectl apply -f ../gateway/configmap.yaml
 kubectl rollout restart deployment/api-gateway
 ```
 
+### Manifiestos de Media (`backend-go/k8s/media/`)
+
+| Archivo | Recurso | Descripción |
+|---------|---------|-------------|
+| `pvc.yaml` | PersistentVolumeClaim `postgres-media-pvc` | Almacenamiento persistente para PostgreSQL de Media (`media_db`) — 1Gi, ReadWriteOnce (RWO), StorageClass `cinder-ceph` (default) |
+
+> **ADVERTENCIA — NO APLICAR AÚN AL CLÚSTER**:
+> En este directorio únicamente existe `pvc.yaml`. NO debe aplicarse al clúster con `kubectl apply` hasta que exista el StatefulSet de `postgres-media` que lo consuma, ya que el StorageClass por defecto (`cinder-ceph`) opera con `WaitForFirstConsumer` (permaneciendo en estado `Pending`) y el namespace `student-aalarcon` cuenta con un límite de 3 PVCs (quedando en 3/3 tras este reclamo).
+>
+> **Nota sobre persistencia**: El microservicio Media procesa las imágenes en memoria y las sube a Cloudinary; no guarda archivos ni imágenes en disco local. El PVC está destinado exclusivamente a la base de datos PostgreSQL (`media_db`, metadatos de la tabla `media`).
+>
+> Faltan las siguientes dependencias y manifiestos para completar el despliegue de Media en Kubernetes:
+> 1. Base de datos PostgreSQL dedicada `postgres-media` (StatefulSet y Service headless).
+> 2. Deployment `media` (microservicio Media Go, puerto HTTP 8083).
+> 3. Service `media` (ClusterIP, port 8083).
+> 4. ConfigMap `media-db-config` (variables no sensibles: `DB_HOST=postgres-media`, `DB_PORT=5432` y `MEDIA_PORT=8083`).
+> 5. Secret `media-db-secret` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`) y las credenciales de Cloudinary (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`), en este Secret o en uno aparte a definir por el equipo. `JWT_SECRET` se toma de `iam-db-secret`, como en los demás servicios.
+> 6. Enrutamiento en el API Gateway Nginx (`backend-go/k8s/gateway/configmap.yaml`) hacia el Service `media:8083`.
+
 ### Manifiestos del gateway (`backend-go/k8s/gateway/`)
 
 | Archivo | Recurso | Descripción |
@@ -454,7 +473,7 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | TLS autofirmado | `backend-go/k8s/gateway/ingress.yaml`, `frontend-marketplace/k8s/ingress.yaml` | Agregar sección `tls` cuando el cluster tenga cert-manager. Mientras tanto, los navegadores mostrarán advertencia de certificado |
 | Fallback JWT inseguro | `internal/service/auth_service.go`, `internal/middleware/jwt_interceptor.go` | Evaluar hacer panic en vez de usar clave de desarrollo si `JWT_SECRET` está vacía |
 | Login y GetProfile devuelven datos mock | `internal/service/auth_service.go` | Confirmar si ya usan JWT real + GORM o siguen siendo stubs; bloquea validar HDU #238 de punta a punta |
-| Media microservice | — | No implementado aún |
+| Media microservice | `backend-go/cmd/media/` | Implementado; faltan manifiestos K8s |
 | CORS del Go sigue con localhost | `backend-go/cmd/iam/main.go` | `AllowedOrigins` solo tiene `localhost:3000` y `localhost:3001`. CORS de producción se maneja en Nginx, pero si se elimina el gateway habría que actualizar Go |
 | ~~Tag `latest` en iam~~ | ~~`backend-go/k8s/iam/deployment.yaml`~~ | ✅ Resuelto — Migrado a tag único `20261006-5cdbdee` con `imagePullPolicy: IfNotPresent` |
 | `catalog.exe` commiteado en repo | `backend-go/catalog.exe` | Eliminar ejecutable de Windows del control de versiones y verificar regla en `.gitignore` |
@@ -471,6 +490,9 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | wait-ports.js no verifica puertos de nuevos servicios | `scripts/wait-ports.js` | El script solo espera 5433, 5434, 8081, 8082 y 3000; no incluye 5435 (Media), 5436 (Chat DB), 5437 (Orders DB), 8083 (Media), 8084 (Orders) ni 8085 (Chat) porque los servicios son opcionales por perfil |
 | Inconsistencia de scopes en GitFlow | `README.md` | `README.md` no lista `orders` ni `media` dentro de los scopes de GitFlow (`iam`, `catalog`, `chat`, etc.), pero la rama de #281 utilizó el scope `orders` por decisión del equipo |
 | Alineación de puertos de base de datos del host | `docker-compose.yml`, `PROJECT_STRUCTURE.md` | Puerto host de `postgres_orders` se reasignó a `5437` para resolver colisión con `postgres_media` (`5435`); mantener `PROJECT_STRUCTURE.md` sincronizado |
+| Media sin manifiestos K8s completos | `backend-go/k8s/media/` | Solo existe `pvc.yaml` (`postgres-media-pvc`); faltan `postgres-media` (StatefulSet y Service), `deployment.yaml`, `service.yaml`, `configmap.yaml` y `secret.yaml` |
+| Cuota del namespace al límite (estado al 2026-10-19) | Clúster K8s (`student-provisioner-quota`) | `persistentvolumeclaims` alcanza 3/3 tras este PVC (Orders y Chat necesitarán PVC propio para su PostgreSQL), y `requests.memory` / `limits.memory` están al 100% (1088Mi/1088Mi y 2624Mi/2624Mi), por lo que los pods nuevos no se programarán hasta ampliar la cuota con el administrador del clúster |
+| Discrepancia alcance ALL-120 (persistencia de imágenes) | `backend-go/k8s/media/pvc.yaml`, `cmd/media/` | El ticket ALL-120 menciona "persistencia de imágenes", pero las imágenes van a Cloudinary; el PVC cubre exclusivamente la base de datos de Media (`media_db`) |
 
 ## 13. GitFlow y Branching
 
