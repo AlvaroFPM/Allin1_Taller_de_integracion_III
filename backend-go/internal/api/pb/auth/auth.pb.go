@@ -525,6 +525,167 @@ func (x *UpdateProfileRequest) GetPortadaUrl() string {
 	return ""
 }
 
+// Mensajes para el perfil público (sin email ni teléfono)
+type PublicProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublicProfileRequest) Reset() {
+	*x = PublicProfileRequest{}
+	mi := &file_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicProfileRequest) ProtoMessage() {}
+
+func (x *PublicProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicProfileRequest.ProtoReflect.Descriptor instead.
+func (*PublicProfileRequest) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PublicProfileRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type PublicProfileResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FirstName      string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName       string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	BioExperiencia string                 `protobuf:"bytes,4,opt,name=bio_experiencia,json=bioExperiencia,proto3" json:"bio_experiencia,omitempty"`
+	Habilidades    string                 `protobuf:"bytes,5,opt,name=habilidades,proto3" json:"habilidades,omitempty"`
+	Ciudad         string                 `protobuf:"bytes,6,opt,name=ciudad,proto3" json:"ciudad,omitempty"`
+	Region         string                 `protobuf:"bytes,7,opt,name=region,proto3" json:"region,omitempty"`
+	FotoPerfilUrl  string                 `protobuf:"bytes,8,opt,name=foto_perfil_url,json=fotoPerfilUrl,proto3" json:"foto_perfil_url,omitempty"`
+	PortadaUrl     string                 `protobuf:"bytes,9,opt,name=portada_url,json=portadaUrl,proto3" json:"portada_url,omitempty"`
+	Rol            string                 `protobuf:"bytes,10,opt,name=rol,proto3" json:"rol,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PublicProfileResponse) Reset() {
+	*x = PublicProfileResponse{}
+	mi := &file_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicProfileResponse) ProtoMessage() {}
+
+func (x *PublicProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicProfileResponse.ProtoReflect.Descriptor instead.
+func (*PublicProfileResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PublicProfileResponse) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *PublicProfileResponse) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetBioExperiencia() string {
+	if x != nil {
+		return x.BioExperiencia
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetHabilidades() string {
+	if x != nil {
+		return x.Habilidades
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetCiudad() string {
+	if x != nil {
+		return x.Ciudad
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetFotoPerfilUrl() string {
+	if x != nil {
+		return x.FotoPerfilUrl
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetPortadaUrl() string {
+	if x != nil {
+		return x.PortadaUrl
+	}
+	return ""
+}
+
+func (x *PublicProfileResponse) GetRol() string {
+	if x != nil {
+		return x.Rol
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -573,13 +734,30 @@ const file_auth_proto_rawDesc = "" +
 	"\x06region\x18\x05 \x01(\tR\x06region\x12&\n" +
 	"\x0ffoto_perfil_url\x18\x06 \x01(\tR\rfotoPerfilUrl\x12\x1f\n" +
 	"\vportada_url\x18\a \x01(\tR\n" +
-	"portadaUrl2\xe9\x02\n" +
+	"portadaUrl\"/\n" +
+	"\x14PublicProfileRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\xc2\x02\n" +
+	"\x15PublicProfileResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x03 \x01(\tR\blastName\x12'\n" +
+	"\x0fbio_experiencia\x18\x04 \x01(\tR\x0ebioExperiencia\x12 \n" +
+	"\vhabilidades\x18\x05 \x01(\tR\vhabilidades\x12\x16\n" +
+	"\x06ciudad\x18\x06 \x01(\tR\x06ciudad\x12\x16\n" +
+	"\x06region\x18\a \x01(\tR\x06region\x12&\n" +
+	"\x0ffoto_perfil_url\x18\b \x01(\tR\rfotoPerfilUrl\x12\x1f\n" +
+	"\vportada_url\x18\t \x01(\tR\n" +
+	"portadaUrl\x12\x10\n" +
+	"\x03rol\x18\n" +
+	" \x01(\tR\x03rol2\xda\x03\n" +
 	"\vAuthService\x12W\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x16.auth.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12K\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/login\x12S\n" +
 	"\n" +
 	"GetProfile\x12\x14.auth.ProfileRequest\x1a\x15.auth.ProfileResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profile\x12_\n" +
-	"\rUpdateProfile\x12\x1a.auth.UpdateProfileRequest\x1a\x15.auth.ProfileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\x1a\x10/v1/auth/profileBWZUgithub.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/authb\x06proto3"
+	"\rUpdateProfile\x12\x1a.auth.UpdateProfileRequest\x1a\x15.auth.ProfileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\x1a\x10/v1/auth/profile\x12o\n" +
+	"\x10GetPublicProfile\x12\x1a.auth.PublicProfileRequest\x1a\x1b.auth.PublicProfileResponse\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/profile/{user_id}BWZUgithub.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/authb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -593,27 +771,31 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_proto_goTypes = []any{
-	(*RegisterRequest)(nil),      // 0: auth.RegisterRequest
-	(*RegisterResponse)(nil),     // 1: auth.RegisterResponse
-	(*LoginRequest)(nil),         // 2: auth.LoginRequest
-	(*LoginResponse)(nil),        // 3: auth.LoginResponse
-	(*ProfileRequest)(nil),       // 4: auth.ProfileRequest
-	(*ProfileResponse)(nil),      // 5: auth.ProfileResponse
-	(*UpdateProfileRequest)(nil), // 6: auth.UpdateProfileRequest
+	(*RegisterRequest)(nil),       // 0: auth.RegisterRequest
+	(*RegisterResponse)(nil),      // 1: auth.RegisterResponse
+	(*LoginRequest)(nil),          // 2: auth.LoginRequest
+	(*LoginResponse)(nil),         // 3: auth.LoginResponse
+	(*ProfileRequest)(nil),        // 4: auth.ProfileRequest
+	(*ProfileResponse)(nil),       // 5: auth.ProfileResponse
+	(*UpdateProfileRequest)(nil),  // 6: auth.UpdateProfileRequest
+	(*PublicProfileRequest)(nil),  // 7: auth.PublicProfileRequest
+	(*PublicProfileResponse)(nil), // 8: auth.PublicProfileResponse
 }
 var file_auth_proto_depIdxs = []int32{
 	0, // 0: auth.AuthService.Register:input_type -> auth.RegisterRequest
 	2, // 1: auth.AuthService.Login:input_type -> auth.LoginRequest
 	4, // 2: auth.AuthService.GetProfile:input_type -> auth.ProfileRequest
 	6, // 3: auth.AuthService.UpdateProfile:input_type -> auth.UpdateProfileRequest
-	1, // 4: auth.AuthService.Register:output_type -> auth.RegisterResponse
-	3, // 5: auth.AuthService.Login:output_type -> auth.LoginResponse
-	5, // 6: auth.AuthService.GetProfile:output_type -> auth.ProfileResponse
-	5, // 7: auth.AuthService.UpdateProfile:output_type -> auth.ProfileResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	7, // 4: auth.AuthService.GetPublicProfile:input_type -> auth.PublicProfileRequest
+	1, // 5: auth.AuthService.Register:output_type -> auth.RegisterResponse
+	3, // 6: auth.AuthService.Login:output_type -> auth.LoginResponse
+	5, // 7: auth.AuthService.GetProfile:output_type -> auth.ProfileResponse
+	5, // 8: auth.AuthService.UpdateProfile:output_type -> auth.ProfileResponse
+	8, // 9: auth.AuthService.GetPublicProfile:output_type -> auth.PublicProfileResponse
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -630,7 +812,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

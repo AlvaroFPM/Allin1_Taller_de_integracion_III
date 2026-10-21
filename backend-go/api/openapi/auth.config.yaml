@@ -81,6 +81,19 @@ openapiOptions:
             description: "El usuario del token no existe."
           "500":
             description: "Error interno al guardar o consultar en la base de datos."
+    - method: auth.AuthService.GetPublicProfile
+      option:
+        summary: "Obtener perfil público"
+        description: "Devuelve el perfil público de un usuario por ID (nombre, bio, habilidades, ubicacion, foto, portada y rol). No incluye correo ni telefono. No requiere autenticacion. Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto."
+        tags:
+          - Perfil
+        responses:
+          "400":
+            description: "El ID no es un numero positivo."
+          "404":
+            description: "El usuario no existe."
+          "500":
+            description: "Error interno al consultar la base de datos."
   field:
     - field: auth.ProfileResponse.foto_perfil_url
       option:
@@ -88,3 +101,4 @@ openapiOptions:
     - field: auth.ProfileResponse.rol
       option:
         description: "Rol del usuario (por ejemplo CLIENTE o PROVEEDOR)."
+
