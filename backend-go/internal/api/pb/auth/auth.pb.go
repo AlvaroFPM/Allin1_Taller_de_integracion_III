@@ -314,6 +314,7 @@ type ProfileResponse struct {
 	Region         string                 `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
 	FotoPerfilUrl  string                 `protobuf:"bytes,10,opt,name=foto_perfil_url,json=fotoPerfilUrl,proto3" json:"foto_perfil_url,omitempty"`
 	Rol            string                 `protobuf:"bytes,11,opt,name=rol,proto3" json:"rol,omitempty"`
+	PortadaUrl     string                 `protobuf:"bytes,12,opt,name=portada_url,json=portadaUrl,proto3" json:"portada_url,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -425,7 +426,13 @@ func (x *ProfileResponse) GetRol() string {
 	return ""
 }
 
-// Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)
+func (x *ProfileResponse) GetPortadaUrl() string {
+	if x != nil {
+		return x.PortadaUrl
+	}
+	return ""
+}
+
 type UpdateProfileRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	BioExperiencia string                 `protobuf:"bytes,1,opt,name=bio_experiencia,json=bioExperiencia,proto3" json:"bio_experiencia,omitempty"`
@@ -433,6 +440,8 @@ type UpdateProfileRequest struct {
 	Habilidades    string                 `protobuf:"bytes,3,opt,name=habilidades,proto3" json:"habilidades,omitempty"`
 	Ciudad         string                 `protobuf:"bytes,4,opt,name=ciudad,proto3" json:"ciudad,omitempty"`
 	Region         string                 `protobuf:"bytes,5,opt,name=region,proto3" json:"region,omitempty"`
+	FotoPerfilUrl  string                 `protobuf:"bytes,6,opt,name=foto_perfil_url,json=fotoPerfilUrl,proto3" json:"foto_perfil_url,omitempty"`
+	PortadaUrl     string                 `protobuf:"bytes,7,opt,name=portada_url,json=portadaUrl,proto3" json:"portada_url,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -502,6 +511,20 @@ func (x *UpdateProfileRequest) GetRegion() string {
 	return ""
 }
 
+func (x *UpdateProfileRequest) GetFotoPerfilUrl() string {
+	if x != nil {
+		return x.FotoPerfilUrl
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetPortadaUrl() string {
+	if x != nil {
+		return x.PortadaUrl
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -525,7 +548,7 @@ const file_auth_proto_rawDesc = "" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x10\n" +
-	"\x0eProfileRequest\"\xcd\x02\n" +
+	"\x0eProfileRequest\"\xee\x02\n" +
 	"\x0fProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
@@ -539,13 +562,18 @@ const file_auth_proto_rawDesc = "" +
 	"\x06region\x18\t \x01(\tR\x06region\x12&\n" +
 	"\x0ffoto_perfil_url\x18\n" +
 	" \x01(\tR\rfotoPerfilUrl\x12\x10\n" +
-	"\x03rol\x18\v \x01(\tR\x03rol\"\xad\x01\n" +
+	"\x03rol\x18\v \x01(\tR\x03rol\x12\x1f\n" +
+	"\vportada_url\x18\f \x01(\tR\n" +
+	"portadaUrl\"\xf6\x01\n" +
 	"\x14UpdateProfileRequest\x12'\n" +
 	"\x0fbio_experiencia\x18\x01 \x01(\tR\x0ebioExperiencia\x12\x1a\n" +
 	"\btelefono\x18\x02 \x01(\tR\btelefono\x12 \n" +
 	"\vhabilidades\x18\x03 \x01(\tR\vhabilidades\x12\x16\n" +
 	"\x06ciudad\x18\x04 \x01(\tR\x06ciudad\x12\x16\n" +
-	"\x06region\x18\x05 \x01(\tR\x06region2\xe9\x02\n" +
+	"\x06region\x18\x05 \x01(\tR\x06region\x12&\n" +
+	"\x0ffoto_perfil_url\x18\x06 \x01(\tR\rfotoPerfilUrl\x12\x1f\n" +
+	"\vportada_url\x18\a \x01(\tR\n" +
+	"portadaUrl2\xe9\x02\n" +
 	"\vAuthService\x12W\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x16.auth.RegisterResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/register\x12K\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x13.auth.LoginResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/login\x12S\n" +
