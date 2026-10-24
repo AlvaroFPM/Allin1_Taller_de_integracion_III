@@ -16,6 +16,13 @@ const TYPE_CONFIG: Record<
     priceLabel: string;
   }
 > = {
+  PUBLICACION: {
+    badgeVariant: 'neutral',
+    label: 'Publicación',
+    modalTitle: 'Confirmar contratación',
+    actionLabel: 'Confirmar contratación',
+    priceLabel: 'Precio publicado',
+  },
   ARTICULO: {
     badgeVariant: 'warning',
     label: 'Artículo',
@@ -52,8 +59,8 @@ export function PurchaseConfirmationModal({
   onConfirm,
   item,
   isLoading = false,
+  errorMessage,
 }: PurchaseConfirmationModalProps) {
-  const [notes, setNotes] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Cierre accesible con tecla Escape
@@ -71,8 +78,7 @@ export function PurchaseConfirmationModal({
   if (!isOpen) return null;
 
   const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.SERVICIO;
-  const serviceFee = item.serviceFee ?? 0;
-  const totalPrice = item.price + serviceFee;
+  const totalPrice = item.price;
   const currency = item.currency ?? 'CLP';
 
   const sellerInitials =
@@ -88,7 +94,7 @@ export function PurchaseConfirmationModal({
     if (isLoading || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onConfirm?.(notes.trim() || undefined);
+      await onConfirm?.();
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +103,9 @@ export function PurchaseConfirmationModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={() => {
+        if (!isLoading && !isSubmitting) onClose();
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirmation-modal-title"
@@ -113,7 +121,7 @@ export function PurchaseConfirmationModal({
               {config.modalTitle}
             </h3>
             <p className="text-xs text-content-muted mt-1 leading-relaxed">
-              Revisa los detalles antes de comprometer los fondos bajo custodia protegida.
+              Revisa los detalles antes de confirmar la contratación.
             </p>
           </div>
           <button
@@ -168,27 +176,6 @@ export function PurchaseConfirmationModal({
           </div>
         </div>
 
-        {/* Banner de Garantía Escrow */}
-        <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 flex gap-3 items-start text-xs">
-          <div className="p-1.5 rounded-xl bg-emerald-100 text-emerald-800 shrink-0 mt-0.5">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
-          </div>
-          <div className="space-y-0.5 text-emerald-950">
-            <p className="font-bold">Pago Seguro con Protección Escrow</p>
-            <p className="text-[11px] text-emerald-900 leading-relaxed">
-              Tus fondos se resguardan de forma segura y solo se liberarán al proveedor una vez que
-              confirmes la recepción o finalización conforme del servicio.
-            </p>
-          </div>
-        </div>
-
         {/* Desglose de Precios */}
         <div className="bg-surface-base/40 rounded-2xl border border-border-base/70 p-4 space-y-2.5 text-xs">
           <div className="flex justify-between text-content-muted">
@@ -198,22 +185,8 @@ export function PurchaseConfirmationModal({
             </span>
           </div>
 
-          <div className="flex justify-between text-content-muted">
-            <span className="flex items-center gap-1">
-              Custodia y Garantía Escrow:
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-sm">
-                100% Protegido
-              </span>
-            </span>
-            <span className="font-semibold text-emerald-800">
-              {serviceFee === 0
-                ? '$0 CLP (Incluida)'
-                : `$${serviceFee.toLocaleString('es-CL')} CLP`}
-            </span>
-          </div>
-
           <div className="pt-2 border-t border-border-base flex justify-between items-baseline">
-            <span className="text-sm font-bold text-content-main">Total a Comprometer:</span>
+            <span className="text-sm font-bold text-content-main">Total de la orden:</span>
             <span className="text-xl font-black text-brand">
               ${totalPrice.toLocaleString('es-CL')}{' '}
               <span className="text-xs font-semibold text-content-muted">{currency}</span>
@@ -224,13 +197,18 @@ export function PurchaseConfirmationModal({
         {/* Instrucciones o Notas Opcionales */}
         <Textarea
           id="purchase-notes"
-          label="Instrucciones o notas adicionales (opcional):"
+          label="Notas no disponibles: el contrato de órdenes no admite este campo."
           rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Ej: Horario de entrega preferido, referencias de acceso o requerimientos específicos..."
-          disabled={isLoading || isSubmitting}
+          value=""
+          placeholder="No disponible"
+          disabled
         />
+
+        {errorMessage && (
+          <p role="alert" className="text-sm text-content-main">
+            {errorMessage}
+          </p>
+        )}
 
         {/* Botones de Acción (Footer) */}
         <div className="flex items-center justify-end gap-3 pt-2">

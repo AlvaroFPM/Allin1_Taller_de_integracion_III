@@ -1,4 +1,4 @@
-export type PurchaseItemType = 'SERVICIO' | 'ARTICULO' | 'FLETE' | 'TRABAJO';
+export type PurchaseItemType = 'SERVICIO' | 'ARTICULO' | 'FLETE' | 'TRABAJO' | 'PUBLICACION';
 
 export interface PurchaseSellerSummary {
   id: string | number;
@@ -29,4 +29,5 @@ export interface PurchaseConfirmationModalProps {
   onConfirm?: (notes?: string) => void | Promise<void>;
   item: PurchaseConfirmationItem;
   isLoading?: boolean;
+  errorMessage?: string | null;
 }

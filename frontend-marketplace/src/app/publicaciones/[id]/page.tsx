@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
+import { PurchaseConfirmationModal } from '@/components/shared/purchase-confirmation-modal';
+import { orderService } from '@/services/orderService';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getAccessToken } from '@/lib/authCookies';
 import {
   PublicationDetailHero,
   PublicationDetailContact,
@@ -26,6 +30,11 @@ export default function PublicationDetailPage() {
 function PublicationDetail({ id }: { id: string }) {
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [retryCount, setRetryCount] = useState(0);
+  const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
+  const purchaseLock = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -59,6 +68,100 @@ function PublicationDetail({ id }: { id: string }) {
   function retry() {
     setState({ status: 'loading' });
     setRetryCount((previous) => previous + 1);
+  }
+
+  function validatePurchase(): string | null {
+    if (state.status !== 'success') return 'La publicación no está disponible.';
+
+    const { user, isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated || !user || !getAccessToken()) {
+      return 'Inicia sesión para contratar.';
+    }
+
+    const { publication } = state;
+    if (
+      !Number.isInteger(publication.id) ||
+      publication.id <= 0 ||
+      !Number.isInteger(publication.sellerId) ||
+      publication.sellerId <= 0
+    ) {
+      return 'La publicación no contiene identificadores válidos.';
+    }
+
+    if (user.id === publication.sellerId) {
+      return 'No puedes contratar tu propia publicación.';
+    }
+
+    if (!Number.isSafeInteger(publication.price) || publication.price <= 0) {
+      return 'El precio no permite crear una orden sin perder precisión.';
+    }
+
+    if (publication.type === 'DEMANDA') {
+      return 'La contratación de DEMANDA aún no está habilitada: falta confirmar cómo el backend aplica los roles de comprador y vendedor.';
+    }
+
+    return null;
+  }
+
+  function openPurchase() {
+    if (purchaseLock.current || createdOrderId !== null) return;
+    const error = validatePurchase();
+    setPurchaseError(error);
+    if (!error) setIsPurchaseOpen(true);
+  }
+
+  function closePurchase() {
+    if (!purchaseLock.current) setIsPurchaseOpen(false);
+  }
+
+  async function confirmPurchase() {
+    if (purchaseLock.current || createdOrderId !== null) return;
+    const error = validatePurchase();
+    if (error || state.status !== 'success') {
+      setPurchaseError(error);
+      return;
+    }
+
+    purchaseLock.current = true;
+    setIsPurchasing(true);
+    setPurchaseError(null);
+
+    try {
+      const result = await orderService.createOrder({
+        idUsuarioVendedor: state.publication.sellerId,
+        idPublicacion: state.publication.id,
+        precio: String(state.publication.price),
+      });
+
+      const orderId = result.order?.idOrden;
+      if (!Number.isInteger(orderId) || (orderId ?? 0) <= 0) {
+        throw new Error('La API no devolvió un identificador de orden válido.');
+      }
+
+      setCreatedOrderId(orderId!);
+      setIsPurchaseOpen(false);
+    } catch (error: unknown) {
+      let message =
+        'No pudimos confirmar la creación. Comprueba tus órdenes antes de reintentar para evitar duplicados.';
+
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          message = 'Tu sesión expiró. Inicia sesión nuevamente.';
+        } else if (error.response?.status === 403) {
+          message = 'No tienes permiso para realizar esta contratación.';
+        } else if (error.response?.status === 409) {
+          message =
+            'La solicitud presenta un conflicto. Comprueba si ya tienes una orden para esta publicación.';
+        } else if (error.response?.status === 400) {
+          message = 'El servidor rechazó los datos de la contratación.';
+        }
+      }
+
+      setPurchaseError(message);
+    } finally {
+      purchaseLock.current = false;
+      setIsPurchasing(false);
+    }
   }
 
   if (state.status !== 'success') {
@@ -132,8 +235,21 @@ function PublicationDetail({ id }: { id: string }) {
               price={publication.price}
               currency={publication.currency}
               priceLabel="Precio publicado"
-              actionText="Acción no disponible"
+              actionText={createdOrderId !== null ? 'Orden creada' : 'Contratar'}
+              onAction={createdOrderId === null && !isPurchasing ? openPurchase : undefined}
             />
+
+            {purchaseError && !isPurchaseOpen && (
+              <p role="alert" className="text-sm text-content-main">
+                {purchaseError}
+              </p>
+            )}
+
+            {createdOrderId !== null && (
+              <p role="status" className="text-sm text-content-main">
+                Orden {createdOrderId} creada correctamente.
+              </p>
+            )}
 
             <PublicationDetailContact
               sellerId={publication.sellerId}
@@ -142,6 +258,26 @@ function PublicationDetail({ id }: { id: string }) {
           </aside>
         </div>
       </div>
+      {isPurchaseOpen && (
+        <PurchaseConfirmationModal
+          isOpen={isPurchaseOpen}
+          onClose={closePurchase}
+          onConfirm={confirmPurchase}
+          isLoading={isPurchasing}
+          errorMessage={purchaseError}
+          item={{
+            id: publication.id,
+            title: publication.title,
+            type: 'PUBLICACION',
+            price: publication.price,
+            currency: publication.currency,
+            seller: {
+              id: publication.sellerId,
+              name: publication.sellerName?.trim() || 'Nombre no disponible',
+            },
+          }}
+        />
+      )}
     </main>
   );
 }
