@@ -4,5 +4,7 @@ export * from './auth';
 export * from './publication';
 export * from './catalog';
 export * from './profile';
+export * from './order';
+export * from './review';
 export * from './dto';
 export * from './orders-dashboard';
