@@ -7,6 +7,10 @@ import type { DashboardOrder, OrderStatus, OrderItemType } from '@/types/orders-
 
 export interface OrderCardProps {
   order: DashboardOrder;
+  onAccept?: (order: DashboardOrder) => void;
+  onComplete?: (order: DashboardOrder) => void;
+  actionPending?: boolean;
+  actionError?: string | null;
   onConfirmReceipt?: (order: DashboardOrder) => void;
   onMarkCompleted?: (order: DashboardOrder) => void;
   onContact?: (order: DashboardOrder) => void;
@@ -48,8 +52,10 @@ const TYPE_BADGE_VARIANT: Record<OrderItemType, 'brand' | 'warning' | 'neutral'>
 
 export function OrderCard({
   order,
-  onConfirmReceipt,
-  onMarkCompleted,
+  onAccept,
+  onComplete,
+  actionPending = false,
+  actionError,
   onContact,
   onRate,
   onViewDetail,
@@ -201,21 +207,31 @@ export function OrderCard({
             Contactar
           </Button>
 
-          {/* Acciones de Comprador */}
-          {order.role === 'COMPRA' &&
-            (order.status === 'PAGO_CUSTODIADO' || order.status === 'EN_PROCESO') && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={!onConfirmReceipt}
-                onClick={() => onConfirmReceipt?.(order)}
-                className="text-xs font-bold"
-              >
-                Confirmar Recepción / Liberar Pago
-              </Button>
-            )}
+          {order.role === 'VENTA' && order.status === 'PENDIENTE' && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={actionPending || !onAccept}
+              onClick={() => onAccept?.(order)}
+              className="text-xs font-bold"
+            >
+              {actionPending ? 'Procesando...' : 'Aceptar'}
+            </Button>
+          )}
 
+          {order.status === 'ACEPTADA' && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={actionPending || !onComplete}
+              onClick={() => onComplete?.(order)}
+              className="text-xs font-bold"
+            >
+              {actionPending ? 'Procesando...' : 'Completar'}
+            </Button>
+          )}
           {order.role === 'COMPRA' && order.status === 'COMPLETADA' && (
             <Button
               type="button"
@@ -229,20 +245,8 @@ export function OrderCard({
             </Button>
           )}
 
-          {/* Acciones de Vendedor */}
-          {order.role === 'VENTA' &&
-            (order.status === 'EN_PROCESO' || order.status === 'PAGO_CUSTODIADO') && (
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={!onMarkCompleted}
-                onClick={() => onMarkCompleted?.(order)}
-                className="text-xs font-bold"
-              >
-                Marcar como Terminado
-              </Button>
-            )}
+          {actionPending && <span role="status">Actualizando orden...</span>}
+          {actionError && <p role="alert">{actionError}</p>}
         </div>
       </div>
     </div>
