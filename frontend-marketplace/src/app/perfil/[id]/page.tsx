@@ -7,8 +7,10 @@ import {
   PublicProfileHeader,
   PublicProfileReputation,
   PublicProfilePublications,
+  PublicProfileReviews,
 } from '@/components/shared';
 import type { PublicSellerProfile } from '@/types/profile';
+import { MOCK_SELLER_REVIEWS } from '@/types/review';
 
 /* -----------------------------------------------------------------------
  * Datos mock — Perfiles públicos de vendedores
@@ -74,6 +76,11 @@ export default function PublicProfilePage() {
     [id],
   );
 
+  const sellerReviews = React.useMemo(() => {
+    const matched = MOCK_SELLER_REVIEWS.filter((r) => r.sellerId === seller.id);
+    return matched.length > 0 ? matched : MOCK_SELLER_REVIEWS;
+  }, [seller.id]);
+
   return (
     <div className="min-h-screen bg-surface-base py-8 sm:py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,9 +120,14 @@ export default function PublicProfilePage() {
             />
           </div>
 
-          {/* Columna derecha — Publicaciones activas */}
-          <div className="flex-1 min-w-0 w-full">
+          {/* Columna derecha — Publicaciones activas y Reseñas de Clientes */}
+          <div className="flex-1 min-w-0 w-full space-y-6">
             <PublicProfilePublications sellerName={seller.firstName} />
+            <PublicProfileReviews
+              sellerName={seller.firstName}
+              averageScore={seller.score}
+              reviews={sellerReviews}
+            />
           </div>
         </div>
       </div>

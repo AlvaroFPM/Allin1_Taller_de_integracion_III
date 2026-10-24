@@ -8,9 +8,9 @@ const ORDERS_API_URL = process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localho
 export const orderService = {
   createOrder: async (data: CreateOrderRequestDto): Promise<CreateOrderResponseDto> => {
     if (
-      !Number.isInteger(data.idUsuarioVendedor) ||
+      !Number.isSafeInteger(data.idUsuarioVendedor) ||
       (data.idUsuarioVendedor ?? 0) <= 0 ||
-      !Number.isInteger(data.idPublicacion) ||
+      !Number.isSafeInteger(data.idPublicacion) ||
       (data.idPublicacion ?? 0) <= 0
     ) {
       throw new Error('La publicación y el vendedor deben tener identificadores válidos.');
@@ -22,7 +22,8 @@ export const orderService = {
 
     const response = await api.post<CreateOrderResponseDto>(`${ORDERS_API_URL}/v1/orders`, data);
 
-    if (!response.data.order?.idOrden) {
+    const orderId = response.data?.order?.idOrden;
+    if (!Number.isSafeInteger(orderId) || (orderId ?? 0) <= 0) {
       throw new Error('La API no confirmó la creación de la orden.');
     }
 

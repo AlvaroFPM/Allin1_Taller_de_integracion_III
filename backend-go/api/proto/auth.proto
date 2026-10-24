@@ -38,6 +38,13 @@ service AuthService {
       body: "*"
     };
   }
+
+    // GetPublicProfile obtiene el perfil público de un vendedor por ID. No requiere autenticación.
+  rpc GetPublicProfile(PublicProfileRequest) returns (PublicProfileResponse) {
+    option (google.api.http) = {
+      get: "/v1/auth/profile/{user_id}"
+    };
+  }
 }
 
 // Mensajes para el Registro
@@ -83,13 +90,36 @@ message ProfileResponse {
   string region = 9;
   string foto_perfil_url = 10;
   string rol = 11;
+  string portada_url = 12;
 }
 
-// Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)
+// Mensajes para actualizar el perfil (los campos de texto vacíos reemplazan el valor guardado; 
+//foto_perfil_url y portada_url vacíos significan "no cambiar")
+
 message UpdateProfileRequest {
   string bio_experiencia = 1;
   string telefono = 2;
   string habilidades = 3;
   string ciudad = 4;
   string region = 5;
+  string foto_perfil_url = 6;
+  string portada_url = 7;
+}
+
+// Mensajes para el perfil público (sin email ni teléfono)
+message PublicProfileRequest {
+  int64 user_id = 1;
+}
+
+message PublicProfileResponse {
+  int64 user_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string bio_experiencia = 4;
+  string habilidades = 5;
+  string ciudad = 6;
+  string region = 7;
+  string foto_perfil_url = 8;
+  string portada_url = 9;
+  string rol = 10;
 }

@@ -246,3 +246,12 @@ test('respuesta sin orden válida: no anuncia éxito', async () => {
     undefined,
   );
 });
+
+test('DEMANDA: bloqueo explicito sin modal ni POST', async () => {
+  const app = await setup({ publication: { type: 'DEMANDA' } });
+  byType(app.render(), 'Sidebar').props.onAction();
+
+  assert.match(alert(app.render()).props.children, /DEMANDA/);
+  assert.equal(byType(app.render(), 'PurchaseModal'), undefined);
+  assert.equal(app.calls(), 0);
+});

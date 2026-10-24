@@ -71,7 +71,7 @@
     "/v1/auth/profile": {
       "get": {
         "summary": "Obtener perfil",
-        "description": "Devuelve el perfil del usuario dueno del token. Si el usuario aun no tiene perfil, los campos de perfil vienen vacios (no es un error). Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto alojado en Cloudinary.",
+        "description": "Devuelve el perfil del usuario dueno del token. Si el usuario aun no tiene perfil, los campos de perfil vienen vacios (no es un error). Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto alojado en Cloudinary. Incluye portadaUrl (vacía si el usuario no tiene portada).",
         "operationId": "AuthService_GetProfile",
         "responses": {
           "200": {
@@ -110,7 +110,7 @@
       },
       "put": {
         "summary": "Actualizar perfil",
-        "description": "Reemplaza los datos editables del perfil (reemplazo total: los campos vacios borran el valor guardado). Crea el perfil si no existia. Devuelve el perfil actualizado.",
+        "description": "Reemplaza los datos editables del perfil (reemplazo total: los campos de texto vacíos borran el valor guardado). Excepción: fotoPerfilUrl y portadaUrl vacíos significan 'no cambiar'. Si vienen con valor, deben ser URLs de imágenes del Cloudinary del proyecto. Crea el perfil si no existía.",
         "operationId": "AuthService_UpdateProfile",
         "responses": {
           "200": {
@@ -120,7 +120,7 @@
             }
           },
           "400": {
-            "description": "Telefono invalido (7 a 20 caracteres: digitos, espacios, +, - o parentesis) o ciudad/region de mas de 100 caracteres.",
+            "description": "Telefono invalido (7 a 20 caracteres: digitos, espacios, +, - o parentesis) o ciudad/region de mas de 100 caracteres o fotoPerfilUrl/portadaUrl que no son URLs de Cloudinary.",
             "schema": {}
           },
           "401": {
@@ -159,6 +159,51 @@
           {
             "BearerAuth": []
           }
+        ]
+      }
+    },
+    "/v1/auth/profile/{userId}": {
+      "get": {
+        "summary": "Obtener perfil público",
+        "description": "Devuelve el perfil público de un usuario por ID (nombre, bio, habilidades, ubicacion, foto, portada y rol). No incluye correo ni telefono. No requiere autenticacion. Si no tiene foto propia, fotoPerfilUrl trae el avatar por defecto.",
+        "operationId": "AuthService_GetPublicProfile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/authPublicProfileResponse"
+            }
+          },
+          "400": {
+            "description": "El ID no es un numero positivo.",
+            "schema": {}
+          },
+          "404": {
+            "description": "El usuario no existe.",
+            "schema": {}
+          },
+          "500": {
+            "description": "Error interno al consultar la base de datos.",
+            "schema": {}
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Perfil"
         ]
       }
     },
@@ -271,6 +316,45 @@
         "rol": {
           "type": "string",
           "description": "Rol del usuario (por ejemplo CLIENTE o PROVEEDOR)."
+        },
+        "portadaUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "authPublicProfileResponse": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "bioExperiencia": {
+          "type": "string"
+        },
+        "habilidades": {
+          "type": "string"
+        },
+        "ciudad": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "fotoPerfilUrl": {
+          "type": "string"
+        },
+        "portadaUrl": {
+          "type": "string"
+        },
+        "rol": {
+          "type": "string"
         }
       }
     },
@@ -327,9 +411,14 @@
         },
         "region": {
           "type": "string"
+        },
+        "fotoPerfilUrl": {
+          "type": "string"
+        },
+        "portadaUrl": {
+          "type": "string"
         }
-      },
-      "title": "Mensajes para actualizar el perfil (los campos vacíos reemplazan el valor guardado)"
+      }
     },
     "protobufAny": {
       "type": "object",

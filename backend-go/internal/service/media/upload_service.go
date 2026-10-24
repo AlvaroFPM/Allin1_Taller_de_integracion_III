@@ -64,6 +64,16 @@ func (s *UploadService) WithFolder(folder string) *UploadService {
 	return &clone
 }
 
+// WithMaxDimension devuelve una copia del servicio cuyo procesador limita el
+// lado más largo a maxDimension píxeles, sin modificar el servicio original.
+func (s *UploadService) WithMaxDimension(maxDimension int) *UploadService {
+	clone := *s
+	p := *s.processor
+	p.maxDimension = maxDimension
+	clone.processor = &p
+	return &clone
+}
+
 // ProcessFiles ejecuta el pipeline completo sobre los archivos ya parseados
 // del multipart
 func (s *UploadService) ProcessFiles(ctx context.Context, fileHeaders []*multipart.FileHeader) (*models.UploadResult, error) {
