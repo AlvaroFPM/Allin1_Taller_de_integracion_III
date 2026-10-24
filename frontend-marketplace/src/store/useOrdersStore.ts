@@ -19,6 +19,8 @@ interface OrdersListState {
 interface OrdersState {
   purchases: OrdersListState;
   sales: OrdersListState;
+  purchasesParams: ListMyPurchasesRequestDto;
+  salesParams: ListMySalesRequestDto;
   loadPurchases: (params?: ListMyPurchasesRequestDto, signal?: AbortSignal) => Promise<void>;
   loadSales: (params?: ListMySalesRequestDto, signal?: AbortSignal) => Promise<void>;
   reset: () => void;
@@ -90,12 +92,20 @@ export const useOrdersStore = create<OrdersState>()((set) => {
   return {
     purchases: initialList(),
     sales: initialList(),
+    purchasesParams: {},
+    salesParams: {},
 
-    loadPurchases: (params = {}, signal) =>
-      load('purchases', () => ordersQueryService.getPurchases(params, signal), signal),
+    loadPurchases: (params = {}, signal) => {
+      const snapshot = { ...params };
+      set({ purchasesParams: snapshot });
+      return load('purchases', () => ordersQueryService.getPurchases(snapshot, signal), signal);
+    },
 
-    loadSales: (params = {}, signal) =>
-      load('sales', () => ordersQueryService.getSales(params, signal), signal),
+    loadSales: (params = {}, signal) => {
+      const snapshot = { ...params };
+      set({ salesParams: snapshot });
+      return load('sales', () => ordersQueryService.getSales(snapshot, signal), signal);
+    },
 
     reset: () => {
       requestIds.purchases++;
@@ -103,6 +113,8 @@ export const useOrdersStore = create<OrdersState>()((set) => {
       set({
         purchases: initialList(),
         sales: initialList(),
+        purchasesParams: {},
+        salesParams: {},
       });
     },
   };

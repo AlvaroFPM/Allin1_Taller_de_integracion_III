@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { OrderCard } from './order-card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useOrdersStore } from '@/store/useOrdersStore';
+import { useOrderActionsStore } from '@/store/useOrderActionsStore';
 import { toDashboardOrder } from '@/lib/mappers/orders';
 import type { OrderDto } from '@/types/dto/orders';
 import type { DashboardOrder, OrderRole } from '@/types/orders-dashboard';
@@ -46,6 +47,8 @@ export function OrdersDashboardPanel() {
   const sales = useOrdersStore((state) => state.sales);
   const loadPurchases = useOrdersStore((state) => state.loadPurchases);
   const loadSales = useOrdersStore((state) => state.loadSales);
+  const actions = useOrderActionsStore((state) => state.actions);
+  const changeStatus = useOrderActionsStore((state) => state.changeStatus);
   const [activeTab, setActiveTab] = React.useState<OrderRole>('COMPRA');
   const [statusFilter, setStatusFilter] = React.useState('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -276,6 +279,14 @@ export function OrdersDashboardPanel() {
         </div>
       )}
 
+      {Object.entries(actions).map(([id, action]) =>
+        action.error ? (
+          <p key={id} role="alert" className="text-sm text-content-main">
+            Orden #{id}: {action.error}
+          </p>
+        ) : null,
+      )}
+
       {/* No convertir carga o error en éxito vacío. */}
       {activeList.status === 'loading' || activeList.status === 'idle' ? (
         <p role="status">Cargando órdenes...</p>
@@ -288,9 +299,31 @@ export function OrdersDashboardPanel() {
         </div>
       ) : filteredOrders.length > 0 ? (
         <div className="space-y-4">
-          {filteredOrders.map((order) => (
-            <OrderCard key={order.id} order={order} />
-          ))}
+          {filteredOrders.map((order) => {
+            const id = Number(order.id);
+            const dto = activeList.orders.find((item) => item.idOrden === id);
+            const isSeller = dto?.idUsuarioVendedor === userId;
+            const isBuyer = dto?.idUsuarioComprador === userId;
+            const action = actions[id];
+
+            return (
+              <OrderCard
+                key={order.id}
+                order={order}
+                actionPending={action?.pending}
+                onAccept={
+                  sessionReady && isSeller && dto?.estado === 'PENDIENTE'
+                    ? () => void changeStatus(id, 'ACEPTADA')
+                    : undefined
+                }
+                onComplete={
+                  sessionReady && (isBuyer || isSeller) && dto?.estado === 'ACEPTADA'
+                    ? () => void changeStatus(id, 'COMPLETADA')
+                    : undefined
+                }
+              />
+            );
+          })}
         </div>
       ) : (
         /* Estado Vacío */

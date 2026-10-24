@@ -29,7 +29,11 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['src/store/useOrdersStore.test.cjs'],
+    files: [
+      'src/store/useOrdersStore.test.cjs',
+      'src/store/useOrderActionsStore.test.cjs',
+      'src/services/ordersMutationService.test.cjs',
+    ],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
