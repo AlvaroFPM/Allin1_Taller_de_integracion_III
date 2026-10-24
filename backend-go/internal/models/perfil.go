@@ -12,9 +12,10 @@ type Perfil struct {
 	Habilidades      string    `gorm:"column:habilidades;type:text"`
 	Ciudad           string    `gorm:"column:ciudad;type:varchar(100)"`
 	Region           string    `gorm:"column:region;type:varchar(100)"`
-	FotoPerfilURL    string    `gorm:"column:foto_perfil_url;type:varchar(255)"`
 	FechaCreacion    time.Time `gorm:"column:fecha_creacion;autoCreateTime"`
 	FechaActualizado time.Time `gorm:"column:fecha_actualizado;autoUpdateTime"`
+	FotoPerfilURL    string    `gorm:"column:foto_perfil_url;type:varchar(500)"`
+	PortadaURL       string    `gorm:"column:portada_url;type:varchar(500)"`
 }
 
 func (Perfil) TableName() string {

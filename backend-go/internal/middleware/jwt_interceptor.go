@@ -29,6 +29,7 @@ func UnaryAuthInterceptor() grpc.UnaryServerInterceptor {
 		publicRoutes := map[string]bool{
 			"/auth.AuthService/Login":                          true,
 			"/auth.AuthService/Register":                       true,
+			"/auth.AuthService/GetPublicProfile":               true,
 			"/publication.PublicationService/GetCategories":    true,
 			"/publication.PublicationService/GetPublication":   true,
 			"/publication.PublicationService/ListPublications": true,

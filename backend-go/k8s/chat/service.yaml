@@ -1,0 +1,25 @@
+# ==============================================================================
+# Service: chat
+# ==============================================================================
+# Service de tipo ClusterIP que expone el microservicio Chat internamente
+# dentro del clúster de Kubernetes. Será consumido por el API Gateway Nginx.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat
+  namespace: student-aalarcon
+  labels:
+    app: chat
+    project: allin1
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: chat
+    project: allin1
+  ports:
+    - name: http-gateway
+      protocol: TCP
+      port: 8085
+      targetPort: 8085

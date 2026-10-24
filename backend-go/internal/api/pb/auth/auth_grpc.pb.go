@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_Register_FullMethodName      = "/auth.AuthService/Register"
-	AuthService_Login_FullMethodName         = "/auth.AuthService/Login"
-	AuthService_GetProfile_FullMethodName    = "/auth.AuthService/GetProfile"
-	AuthService_UpdateProfile_FullMethodName = "/auth.AuthService/UpdateProfile"
+	AuthService_Register_FullMethodName         = "/auth.AuthService/Register"
+	AuthService_Login_FullMethodName            = "/auth.AuthService/Login"
+	AuthService_GetProfile_FullMethodName       = "/auth.AuthService/GetProfile"
+	AuthService_UpdateProfile_FullMethodName    = "/auth.AuthService/UpdateProfile"
+	AuthService_GetPublicProfile_FullMethodName = "/auth.AuthService/GetPublicProfile"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -39,6 +40,8 @@ type AuthServiceClient interface {
 	GetProfile(ctx context.Context, in *ProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error)
 	// UpdateProfile actualiza los datos editables del perfil del usuario autenticado.
 	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error)
+	// GetPublicProfile obtiene el perfil público de un vendedor por ID. No requiere autenticación.
+	GetPublicProfile(ctx context.Context, in *PublicProfileRequest, opts ...grpc.CallOption) (*PublicProfileResponse, error)
 }
 
 type authServiceClient struct {
@@ -89,6 +92,16 @@ func (c *authServiceClient) UpdateProfile(ctx context.Context, in *UpdateProfile
 	return out, nil
 }
 
+func (c *authServiceClient) GetPublicProfile(ctx context.Context, in *PublicProfileRequest, opts ...grpc.CallOption) (*PublicProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PublicProfileResponse)
+	err := c.cc.Invoke(ctx, AuthService_GetPublicProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -103,6 +116,8 @@ type AuthServiceServer interface {
 	GetProfile(context.Context, *ProfileRequest) (*ProfileResponse, error)
 	// UpdateProfile actualiza los datos editables del perfil del usuario autenticado.
 	UpdateProfile(context.Context, *UpdateProfileRequest) (*ProfileResponse, error)
+	// GetPublicProfile obtiene el perfil público de un vendedor por ID. No requiere autenticación.
+	GetPublicProfile(context.Context, *PublicProfileRequest) (*PublicProfileResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -124,6 +139,9 @@ func (UnimplementedAuthServiceServer) GetProfile(context.Context, *ProfileReques
 }
 func (UnimplementedAuthServiceServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*ProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateProfile not implemented")
+}
+func (UnimplementedAuthServiceServer) GetPublicProfile(context.Context, *PublicProfileRequest) (*PublicProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPublicProfile not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -218,6 +236,24 @@ func _AuthService_UpdateProfile_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_GetPublicProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublicProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).GetPublicProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_GetPublicProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).GetPublicProfile(ctx, req.(*PublicProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +276,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateProfile",
 			Handler:    _AuthService_UpdateProfile_Handler,
+		},
+		{
+			MethodName: "GetPublicProfile",
+			Handler:    _AuthService_GetPublicProfile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
