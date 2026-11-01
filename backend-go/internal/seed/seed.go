@@ -12,7 +12,10 @@ import (
 // - Sin imágenes: la tabla publicaciones no tiene columna para ellas.
 // - IDUsuarioVendedor es un entero sin FK (catalog_db no tiene tabla usuarios).
 
-const seedVendedores = 3 // IDs de vendedor 1..3 repartidos entre las publicaciones
+const (
+	seedVendedores      = 3   // Repartir publicaciones entre 3 vendedores de demo
+	seedVendedorOffset  = 990 // IDs 991, 992, 993 para evitar colisiones con IDs de usuarios reales (1, 2, 3...)
+)
 
 type seedCategoria struct {
 	Nombre string
@@ -121,7 +124,9 @@ func SeedIfEmpty(db *gorm.DB) error {
 		return err
 	}
 	if nCats > 0 || nPubs > 0 {
-		log.Println("Seed: la base ya tiene datos, se omite")
+		// Asegurar que las publicaciones demo existentes usen IDs 991..993 y no 1..3
+		_ = FixSeedVendorIDs(db)
+		log.Println("Seed: la base ya tiene datos, se verificaron IDs de demo")
 		return nil
 	}
 
@@ -146,7 +151,7 @@ func SeedIfEmpty(db *gorm.DB) error {
 		for i, s := range seedPublicaciones {
 			p := s.Pub
 			p.CategoriaID = idPorSlug[s.Slug]
-			p.IDUsuarioVendedor = uint(i%seedVendedores + 1)
+			p.IDUsuarioVendedor = uint(i%seedVendedores + 1 + seedVendedorOffset)
 			pubs = append(pubs, p)
 		}
 		if err := tx.CreateInBatches(&pubs, 25).Error; err != nil {
@@ -156,4 +161,18 @@ func SeedIfEmpty(db *gorm.DB) error {
 		log.Printf("Seed: %d categorías y %d publicaciones insertadas", len(cats), len(pubs))
 		return nil
 	})
+}
+
+// FixSeedVendorIDs actualiza las publicaciones predefinidas del seed que hayan quedado
+// registradas con id_usuario_vendedor <= 3 para asignarlas a IDs de vendedores demo (991..993).
+// Esto garantiza que los usuarios reales (con IDs 1, 2, 3...) no hereden publicaciones del seed.
+func FixSeedVendorIDs(db *gorm.DB) error {
+	for i, s := range seedPublicaciones {
+		demoID := uint(i%seedVendedores + 1 + seedVendedorOffset)
+		// Solo actualiza si el título coincide con el título oficial de la publicación de demo
+		db.Model(&models.Publicacion{}).
+			Where("titulo = ? AND id_usuario_vendedor <= 3", s.Pub.Titulo).
+			Update("id_usuario_vendedor", demoID)
+	}
+	return nil
 }

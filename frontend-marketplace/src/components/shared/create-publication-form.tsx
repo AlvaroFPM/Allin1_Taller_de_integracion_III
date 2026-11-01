@@ -34,9 +34,14 @@ export function CreatePublicationForm({
       <div className="space-y-4">
         {/* Campo: Título */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-content-main">
-            Título <span className="text-red-500">*</span>
-          </label>
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-bold text-content-main">
+              Título <span className="text-red-500">*</span>
+            </label>
+            <span className="text-[11px] text-content-muted">
+              {titulo.trim().length}/5 car. mín.
+            </span>
+          </div>
           <input
             type="text"
             value={titulo}
@@ -67,14 +72,27 @@ export function CreatePublicationForm({
 
         {/* Campo: Descripción */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-content-main">
-            Descripción <span className="text-red-500">*</span>
-          </label>
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-bold text-content-main">
+              Descripción <span className="text-red-500">*</span>
+            </label>
+            <span
+              className={`text-[11px] ${
+                descripcion.trim().length >= 50
+                  ? 'text-emerald-600 font-medium'
+                  : 'text-amber-600 font-medium'
+              }`}
+            >
+              {descripcion.trim().length < 50
+                ? `${descripcion.trim().length}/50 mín.`
+                : `${descripcion.trim().length}/1000`}
+            </span>
+          </div>
           <textarea
             rows={4}
             value={descripcion}
             onChange={(e) => onChange({ descripcion: e.target.value })}
-            placeholder="Describe tu requerimiento o producto con detalle (horarios, materiales, condiciones)..."
+            placeholder="Describe tu requerimiento o producto con detalle (horarios, materiales, condiciones)... Mínimo 50 caracteres."
             className="w-full p-3.5 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl transition-all focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 resize-y"
           />
         </div>

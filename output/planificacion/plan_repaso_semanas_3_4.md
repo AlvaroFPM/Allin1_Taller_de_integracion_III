@@ -1,0 +1,495 @@
+# Plan de repaso: semanas 3 y 4
+
+Actualizado y verificado en Linear el 23/10/2026. Revisión docente del 21/10/2026.
+
+Se actualizaron las 25 tareas existentes conservando responsables, estados y etiquetas de semana y duración. Las horas figuran en etiquetas y descripciones; los puntos existentes no se interpretan como horas. El alcance anterior se conserva en cada descripción como referencia diferida.
+
+## Carga verificada
+
+| Integrante | Semana 3 | Semana 4 | Total |
+|---|---:|---:|---:|
+| Álvaro Pinilla | 5 h | 5 h | 10 h |
+| Nicolás Fuentes | 5 h | 5 h | 10 h |
+| Gustavo | 5 h | 5 h | 10 h |
+| Francisco Barriga | 5 h | 5 h | 10 h |
+| Matías Briones | 5 h | 5 h | 10 h |
+| Amaro | 5 h | 5 h | 10 h |
+| **Equipo** | **30 h** | **30 h** | **60 h** |
+
+## Criterios aplicados
+
+- Priorizar comprensión del trabajo existente, con preguntas sobre commits propios y el proyecto completo, verificando autoría de diffs y sin atribuir automáticamente los cambios al autor de un merge.
+- Entregables verificables: fichas de commits, preguntas respondidas, diagramas, matrices de pruebas e informe individual de repaso.
+- Cierre de Orders/Chat solo para ajustes pequeños que caben en el tiempo asignado; brechas mayores documentadas y diferidas.
+- Evaluar separación de microservicios; cualquier refactor debe ser pequeño, preservar comportamiento y verificarse antes del congelamiento.
+- Laboratorio de carga en pruebas, distinguiendo aumentar réplicas de aumentar recursos del pod. Confirmar con el profesor qué espera con «duplicar tamaño». Registrar limitaciones y no inventar mediciones.
+- Preparar congelamiento de main al menos 48 horas antes de la prueba y despliegue desde el mismo SHA de main. Falta fecha/hora de la prueba para concretar el calendario. Esta replanificación no ejecutó despliegues ni congeló ramas.
+
+## Semana 3
+
+### Álvaro Pinilla: 5 horas
+
+- [ALL-71: [Repaso] Diagnosticar cierre mínimo de Orders y Chat](https://linear.app/allin1/issue/ALL-71/repaso-diagnosticar-cierre-minimo-de-orders-y-chat) — 1 h.
+- [ALL-70: [Estudio] Revisar autenticación y autorización de Chat](https://linear.app/allin1/issue/ALL-70/estudio-revisar-autenticacion-y-autorizacion-de-chat) — 2 h.
+- [ALL-72: [Estudio] Explicar commits propios de contratos y gateways](https://linear.app/allin1/issue/ALL-72/estudio-explicar-commits-propios-de-contratos-y-gateways) — 2 h.
+
+### Nicolás Fuentes: 5 horas
+
+- [ALL-81: [Estudio] Explicar commits propios de datos y órdenes](https://linear.app/allin1/issue/ALL-81/estudio-explicar-commits-propios-de-datos-y-ordenes) — 2,5 h.
+- [ALL-82: [Estudio] Modelar estados y reglas del flujo de contratación](https://linear.app/allin1/issue/ALL-82/estudio-modelar-estados-y-reglas-del-flujo-de-contratacion) — 2,5 h.
+
+### Gustavo: 5 horas
+
+- [ALL-91: [Estudio] Explicar commits propios de Media y perfiles](https://linear.app/allin1/issue/ALL-91/estudio-explicar-commits-propios-de-media-y-perfiles) — 2,5 h.
+- [ALL-92: [Estudio] Evaluar límites de IAM y Media](https://linear.app/allin1/issue/ALL-92/estudio-evaluar-limites-de-iam-y-media) — 2,5 h.
+
+### Francisco Barriga: 5 horas
+
+- [ALL-101: [Estudio] Explicar commits propios de interfaz](https://linear.app/allin1/issue/ALL-101/estudio-explicar-commits-propios-de-interfaz) — 2,5 h.
+- [ALL-102: [Estudio] Analizar el recorrido y los estados de la interfaz](https://linear.app/allin1/issue/ALL-102/estudio-analizar-el-recorrido-y-los-estados-de-la-interfaz) — 2,5 h.
+
+### Matías Briones: 5 horas
+
+- [ALL-111: [Estudio] Explicar commits propios de integración frontend](https://linear.app/allin1/issue/ALL-111/estudio-explicar-commits-propios-de-integracion-frontend) — 2,5 h.
+- [ALL-112: [Estudio] Trazar contratos y llamadas del frontend](https://linear.app/allin1/issue/ALL-112/estudio-trazar-contratos-y-llamadas-del-frontend) — 2,5 h.
+
+### Amaro: 5 horas
+
+- [ALL-121: [Estudio] Explicar commits propios de infraestructura y CI](https://linear.app/allin1/issue/ALL-121/estudio-explicar-commits-propios-de-infraestructura-y-ci) — 2,5 h.
+- [ALL-122: [Laboratorio] Medir carga y estudiar escalado de pods](https://linear.app/allin1/issue/ALL-122/laboratorio-medir-carga-y-estudiar-escalado-de-pods) — 2,5 h.
+
+## Semana 4
+
+### Álvaro Pinilla: 5 horas
+
+- [ALL-73: [Estudio] Evaluar separación de microservicios y refactor acotado](https://linear.app/allin1/issue/ALL-73/estudio-evaluar-separacion-de-microservicios-y-refactor-acotado) — 2,5 h.
+- [ALL-74: [Repaso] Simulacro individual de arquitectura y proyecto](https://linear.app/allin1/issue/ALL-74/repaso-simulacro-individual-de-arquitectura-y-proyecto) — 2,5 h.
+
+### Nicolás Fuentes: 5 horas
+
+- [ALL-83: [Laboratorio] Explorar regresiones de órdenes existentes](https://linear.app/allin1/issue/ALL-83/laboratorio-explorar-regresiones-de-ordenes-existentes) — 2,5 h.
+- [ALL-84: [Repaso] Simulacro individual de datos y proyecto](https://linear.app/allin1/issue/ALL-84/repaso-simulacro-individual-de-datos-y-proyecto) — 2,5 h.
+
+### Gustavo: 5 horas
+
+- [ALL-93: [Laboratorio] Revisar validación y fallos de Media](https://linear.app/allin1/issue/ALL-93/laboratorio-revisar-validacion-y-fallos-de-media) — 2,5 h.
+- [ALL-94: [Repaso] Simulacro individual de Media y proyecto](https://linear.app/allin1/issue/ALL-94/repaso-simulacro-individual-de-media-y-proyecto) — 2,5 h.
+
+### Francisco Barriga: 5 horas
+
+- [ALL-103: [Laboratorio] Evaluar interfaz existente en móvil y escritorio](https://linear.app/allin1/issue/ALL-103/laboratorio-evaluar-interfaz-existente-en-movil-y-escritorio) — 2,5 h.
+- [ALL-104: [Repaso] Simulacro individual de interfaz y proyecto](https://linear.app/allin1/issue/ALL-104/repaso-simulacro-individual-de-interfaz-y-proyecto) — 2,5 h.
+
+### Matías Briones: 5 horas
+
+- [ALL-113: [Laboratorio] Explorar integración frontend ya existente](https://linear.app/allin1/issue/ALL-113/laboratorio-explorar-integracion-frontend-ya-existente) — 2,5 h.
+- [ALL-114: [Repaso] Simulacro individual de integración y proyecto](https://linear.app/allin1/issue/ALL-114/repaso-simulacro-individual-de-integracion-y-proyecto) — 2,5 h.
+
+### Amaro: 5 horas
+
+- [ALL-123: [Repaso] Defender infraestructura, carga y visión del proyecto](https://linear.app/allin1/issue/ALL-123/repaso-defender-infraestructura-carga-y-vision-del-proyecto) — 2,5 h.
+- [ALL-124: [Preparación] Planificar congelamiento de main y despliegue trazable](https://linear.app/allin1/issue/ALL-124/preparacion-planificar-congelamiento-de-main-y-despliegue-trazable) — 2,5 h.
+
+## Detalle de las tareas
+
+### ALL-71: [Repaso] Diagnosticar cierre mínimo de Orders y Chat
+
+## Objetivo y duración
+Semana 3 · 1 hora. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar el estado real de Orders y Chat y distinguir código existente, integración pendiente y funcionalidades nuevas. No asumir que tener Dockerfiles equivale a estar desplegado.
+Actividades (60 min): contrastar servicio, router, entrypoint, frontend y entorno efectivamente desplegado (20); listar brechas y dependencias con evidencia (20); cerrar únicamente un ajuste menor del flujo ya existente que quepa en los 20 minutos restantes, incluyendo su comprobación, o documentar por qué se difiere (20).
+Entregable: matriz de avance con archivos/commit o evidencia del despliegue, ajuste elegido y verificación, o decisión razonada de postergación.
+Criterio de cierre: diagnóstico reproducible y decisión explícita. No se exige completar ambos microservicios. No incorpora reseñas, pagos ni funcionalidades nuevas; todo cambio usa PR y debe quedar antes del congelamiento de main.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Arquitectura] Router gRPC Órdenes». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Crear estructura y router gRPC base para el microservicio de Órdenes.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-70: [Estudio] Revisar autenticación y autorización de Chat
+
+## Objetivo y duración
+Semana 3 · 2 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar el JWT e interceptor ya existentes de Chat, diferenciando identidad autenticada de autorización para acceder a una sala.
+Actividades (120 min): identificar commits propios y leer interceptor/servidor (25); trazar token, contexto de usuario y acceso a mensajes (40); generar y responder con GPT 6 preguntas en niveles básico, código e integración y contrastar 3 escenarios: token ausente, inválido y usuario ajeno a la sala (40); registrar conclusiones (15).
+Entregable: diagrama breve del flujo, enlaces a commits/archivos, preguntas respondidas y matriz de escenarios con resultado observado o limitación.
+Criterio de cierre: explicar dónde se valida cada permiso y qué sigue pendiente, sin implementar un sistema de seguridad nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Seguridad] JWT en Chat». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Configurar Interceptor gRPC de JWT (seguridad) en el microservicio de Chat.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-72: [Estudio] Explicar commits propios de contratos y gateways
+
+## Objetivo y duración
+Semana 3 · 2 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios a chat.proto, orders.proto, publication.proto y gateway/router de Chat (ALL-65 a ALL-69).
+Actividades (120 min): seleccionar 3 commits propios y verificar autoría (20); leer diffs y trazar .proto → código generado → servidor gRPC → REST → consumidor web (45); generar con GPT y responder 8 preguntas desde conceptos hasta compatibilidad y manejo de fallos, verificándolas contra el código (40); registrar brechas de Orders (15).
+Entregable: ficha por commit con SHA/enlace y propósito, diagrama del recorrido y preguntas respondidas.
+Criterio de cierre: distinguir contrato generado de funcionalidad efectivamente conectada y explicar qué falta para ejecutar Orders. No exige implementar router/entrypoint pendientes.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Seguridad] JWT en Órdenes». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Configurar servidor grpc-gateway y seguridad JWT para el microservicio de Órdenes.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-73: [Estudio] Evaluar separación de microservicios y refactor acotado
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Evaluar en el código actual las fronteras de IAM, Catalog, Media, Orders y Chat, separándolas del backend NestJS heredado.
+Actividades (150 min): inventariar responsabilidades, datos y dependencias compartidas (35); identificar 3 acoplamientos y proponer una separación justificada (45); estudiar o realizar como máximo un refactor pequeño que preserve el comportamiento y pueda verificarse dentro del bloque, mediante PR antes del congelamiento (50); documentar conclusión (20).
+Entregable: diagrama de dependencias y breve decisión técnica con problema, alternativa, costo y evidencia; si hay refactor, enlace al diff y comprobación de regresión.
+Criterio de cierre: explicar límites y riesgos. Si el refactor necesita nuevos contratos, migraciones o excede el tiempo, entregar propuesta y diferir implementación.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Seguridad] Verificación de Roles en gRPC». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Orquestar la comunicación interna (gRPC) entre IAM y Órdenes para verificar credenciales.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-74: [Repaso] Simulacro individual de arquitectura y proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre contratos Protobuf, gRPC/REST, autenticación y separación de microservicios y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Testing] Tests Unitarios Auth/Órdenes». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Escribir tests unitarios de interceptores y arquitectura base para Chat y Órdenes.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-81: [Estudio] Explicar commits propios de datos y órdenes
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios ya existentes en modelos GORM, creación/cambio de estado y consultas de órdenes. Usar ALL-75 a ALL-80 y backend-go/internal/service/order_service.go como punto de partida, sin atribuir automáticamente al autor de un merge los cambios de otro integrante.
+Actividades (150 min): identificar autor/alias y seleccionar 3 commits sustantivos (30); leer sus diffs y trazar entradas, salidas, dependencias y decisiones (60); usar GPT con esos diffs para preparar y responder 8 preguntas de dificultad creciente, verificando las respuestas contra el código (45); registrar dudas y conclusiones (15).
+Entregable: ficha con SHA/enlace, autor, archivos, propósito, explicación de cambios y preguntas respondidas. Si hay menos de 3 commits sustantivos, documentarlo y revisar todos los disponibles.
+Criterio de cierre: explicar los cambios sin depender de GPT y enlazar la ficha en esta tarea. No exige código nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[BD] Endpoint POST /resenas». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Implementar endpoint POST /v1/resenas (Validar que la orden esté Completada antes de reseñar).
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-82: [Estudio] Modelar estados y reglas del flujo de contratación
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar cómo el modelo actual de órdenes representa contratación de servicios, trabajos y compra de artículos. Comparar las transiciones implementadas con requisitos y reglas documentadas, sin asumir que el flujo completo ya existe.
+Actividades (150 min): leer modelos, validaciones y requisitos aplicables (30); dibujar estados, actores autorizados y transiciones actuales (50); analizar 5 casos: autopostulación, orden duplicada, cambio sin permiso, transición inválida y actualización concurrente (50); registrar diferencias y conclusiones (20).
+Entregable: diagrama de estados y matriz requisito → regla/función → evidencia → brecha.
+Criterio de cierre: distinguir comportamiento actual, propuesta y documentación ambigua; explicar las diferencias por tipo de publicación. No exige desarrollar reseñas ni pagos.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[BD] Endpoint GET /resenas/{id}». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Implementar endpoint GET /v1/resenas/{id_usuario} para listar el historial del perfil.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-83: [Laboratorio] Explorar regresiones de órdenes existentes
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Usar las pruebas y funciones existentes de órdenes para comprobar creación, consultas paginadas, permisos y transiciones.
+Actividades (150 min): preparar datos mínimos de prueba aislados o fixtures existentes (30); ejecutar pruebas disponibles y contrastar 5 escenarios nominales y de error (60); analizar resultados, incluyendo duplicados y concurrencia (40); documentar reproducción y límites (20).
+Entregable: matriz entrada/esperado/observado y evidencia del comando o llamada utilizada, con defectos y limitaciones.
+Criterio de cierre: poder explicar qué demuestra cada prueba y qué no cubre. Si falta el servidor de Orders, evaluar la capa de servicio y declarar ese límite; no construir el servicio como requisito de este laboratorio.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[BD] Seed Script Órdenes y Reseñas». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Crear Script de Seed de Órdenes y Reseñas falsas para facilitar pruebas.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-84: [Repaso] Simulacro individual de datos y proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre persistencia, modelos, consultas, reglas de órdenes y concurrencia y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Testing] Testify en Órdenes». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Escribir tests unitarios (Testify) para la lógica de base de datos de Órdenes y Reseñas.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-91: [Estudio] Explicar commits propios de Media y perfiles
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios ya existentes en carga/procesamiento de imágenes y cambios de perfil realmente implementados. Usar commits de Media, backend-go/internal/service/media y cambios propios de IAM/perfiles como punto de partida, sin atribuir automáticamente al autor de un merge los cambios de otro integrante.
+Actividades (150 min): identificar autor/alias y seleccionar 3 commits sustantivos (30); leer sus diffs y trazar entradas, salidas, dependencias y decisiones (60); usar GPT con esos diffs para preparar y responder 8 preguntas de dificultad creciente, verificando las respuestas contra el código (45); registrar dudas y conclusiones (15).
+Entregable: ficha con SHA/enlace, autor, archivos, propósito, explicación de cambios y preguntas respondidas. Si hay menos de 3 commits sustantivos, documentarlo y revisar todos los disponibles.
+Criterio de cierre: explicar los cambios sin depender de GPT y enlazar la ficha en esta tarea. No exige código nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Perfil] Promedio de Reseñas IAM». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Conectar microservicio de IAM con el sistema de Reseñas para calcular promedio de estrellas.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-92: [Estudio] Evaluar límites de IAM y Media
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar la separación actual entre IAM, Media y Catalog: quién conserva datos personales, referencias de imágenes y archivos, y cómo se comunican. Diferenciar la implementación Go del código NestJS histórico.
+Actividades (150 min): trazar un flujo de imagen ya existente (35); inventariar modelos, endpoints, configuración y dependencias cruzadas (45); comparar dos alternativas para corregir un acoplamiento sin ampliar funcionalidad (45); documentar recomendación y preguntas abiertas (25).
+Entregable: diagrama del flujo y breve decisión técnica con evidencia del código y una propuesta de refactor acotada.
+Criterio de cierre: explicar propiedad de datos y límites; no requiere agregar galería, reputación ni nuevos endpoints.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Media] POST Fotos en Publicaciones». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Implementar endpoint para subir galería de fotos a las publicaciones.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-93: [Laboratorio] Revisar validación y fallos de Media
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Explorar el comportamiento ya implementado de Media: tipos admitidos, tamaño, redimensionamiento y fallos del almacenamiento externo.
+Actividades (150 min): leer validadores y pruebas existentes (30); ejecutar 5 casos con archivos locales de prueba y dependencias simuladas cuando corresponda (60); contrastar resultados con contrato y consumidor frontend (40); registrar conclusiones (20).
+Entregable: matriz de casos con entrada, esperado, observado y evidencia; explicar dependencias y qué escenarios no pudieron probarse.
+Criterio de cierre: reproducir al menos un caso válido y uno rechazado en entorno de pruebas o mediante tests existentes. No exige nuevas cargas en producción ni implementar funcionalidades pendientes.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Doc] Swagger API Perfil y Media». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Documentar nuevos endpoints de Perfil y Media en Swagger/OpenAPI para el Frontend.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-94: [Repaso] Simulacro individual de Media y proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre Media, perfiles, validaciones de archivos y fronteras entre servicios y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Testing] Tests de Integración Media». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Escribir tests de integración para subida de fotos (Testify) en Media.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-101: [Estudio] Explicar commits propios de interfaz
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios ya existentes en detalle de publicación, perfil, modal y dashboard de órdenes. Usar ALL-95 a ALL-100 y componentes propios de frontend-marketplace/src/components/shared como punto de partida, sin atribuir automáticamente al autor de un merge los cambios de otro integrante.
+Actividades (150 min): identificar autor/alias y seleccionar 3 commits sustantivos (30); leer sus diffs y trazar entradas, salidas, dependencias y decisiones (60); usar GPT con esos diffs para preparar y responder 8 preguntas de dificultad creciente, verificando las respuestas contra el código (45); registrar dudas y conclusiones (15).
+Entregable: ficha con SHA/enlace, autor, archivos, propósito, explicación de cambios y preguntas respondidas. Si hay menos de 3 commits sustantivos, documentarlo y revisar todos los disponibles.
+Criterio de cierre: explicar los cambios sin depender de GPT y enlazar la ficha en esta tarea. No exige código nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[UI] Layout de Mensajería (Chat)». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Maquetar UI Base de Mensajería / Chat Interno (Lista de chats y burbujas de mensaje).
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-102: [Estudio] Analizar el recorrido y los estados de la interfaz
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar el recorrido ya maquetado: publicación → confirmación → compras/ventas, e identificar datos simulados y acciones que todavía no contactan el backend.
+Actividades (150 min): recorrer vistas y leer componentes (30); diagramar estados de carga, vacío, error y confirmación actuales (45); contrastar etiquetas/acciones de UI con los estados reales de Orders y el alcance de Chat (50); registrar conclusiones (25).
+Entregable: mapa de navegación y tabla de componente → dato/acción → real o simulado → limitación.
+Criterio de cierre: explicar el recorrido sin presentar mocks, pagos simulados o mensajes visuales como operaciones reales. No requiere maquetar un chat nuevo ni añadir skeletons.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[UI] Loading Skeletons». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Crear Skeletons de carga fluídos para el Detalle de Publicación, Perfil y Dashboard.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-103: [Laboratorio] Evaluar interfaz existente en móvil y escritorio
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Evaluar las vistas existentes de publicación, perfil, confirmación y dashboard, usando resoluciones de móvil y escritorio.
+Actividades (150 min): definir 6 casos observables (25); recorrerlos revisando legibilidad, navegación por teclado, foco de modal y presentación de errores/estados (65); priorizar hallazgos por impacto y relacionarlos con componentes (40); documentar conclusiones (20).
+Entregable: matriz de 6 casos con resoluciones, resultado y capturas/evidencia, y lista priorizada de mejoras.
+Criterio de cierre: diferenciar fallos visuales de falta de integración. No exige implementar la vista de Chat ni una remodelación de la interfaz.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[UI] Responsive Chat y Dashboard». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Hacer responsive móvil (Mobile First) la vista de Chat y Dashboard usando Tailwind.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-104: [Repaso] Simulacro individual de interfaz y proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre componentes React, estado de interfaz, accesibilidad y relación entre UI y backend y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[UI] Refinar Botones de Estado». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Auditoría de contraste y refinamiento UI de botones de estado en Órdenes (Aceptar, Rechazar).
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-111: [Estudio] Explicar commits propios de integración frontend
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios ya existentes en DTOs, consulta de publicaciones y perfil público. Usar ALL-105 a ALL-107, src/types/dto y servicios/consumidores modificados por el integrante como punto de partida, sin atribuir automáticamente al autor de un merge los cambios de otro integrante.
+Actividades (150 min): identificar autor/alias y seleccionar 3 commits sustantivos (30); leer sus diffs y trazar entradas, salidas, dependencias y decisiones (60); usar GPT con esos diffs para preparar y responder 8 preguntas de dificultad creciente, verificando las respuestas contra el código (45); registrar dudas y conclusiones (15).
+Entregable: ficha con SHA/enlace, autor, archivos, propósito, explicación de cambios y preguntas respondidas. Si hay menos de 3 commits sustantivos, documentarlo y revisar todos los disponibles.
+Criterio de cierre: explicar los cambios sin depender de GPT y enlazar la ficha en esta tarea. No exige código nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[FE] POST Crear Reseña». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Conectar formulario y componente de Estrellas para hacer POST y dejar Reseñas reales.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-112: [Estudio] Trazar contratos y llamadas del frontend
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar cómo las llamadas ya implementadas viajan desde la vista hasta la API y regresan al estado de interfaz; comparar DTOs de Orders/Chat con sus contratos disponibles.
+Actividades (150 min): seleccionar un GET real de publicación o perfil y leer sus capas (30); diagramar solicitud, respuesta, autenticación y errores (50); comparar campos/estados de DTOs de Orders/Chat con Protobuf/OpenAPI e identificar brechas (50); registrar conclusiones (20).
+Entregable: diagrama extremo a extremo, tabla de campos y 6 preguntas técnicas respondidas con apoyo de GPT y verificadas en el código.
+Criterio de cierre: distinguir contrato disponible de integración funcional. No exige conectar reseñas, multipart ni nuevas operaciones de contratación.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[FE] Subir Imágenes (Multipart Axios)». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Implementar carga de imágenes multipart/form-data en edición de Perfil conectando a Media.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-113: [Laboratorio] Explorar integración frontend ya existente
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Evaluar una integración ya implementada de publicación o perfil, manteniendo el foco en comprensión y evidencia.
+Actividades (150 min): preparar 5 escenarios: respuesta válida, recurso inexistente, red caída, sesión inválida cuando aplique y respuesta incompleta (30); reproducir con herramientas del navegador o entorno de pruebas (60); analizar manejo de errores y representación de estado (40); documentar resultados (20).
+Entregable: matriz esperado/observado con llamada, componente, evidencia y limitaciones del entorno.
+Criterio de cierre: explicar desde dónde sale cada dato y cómo se refleja un fallo. Si una función es pública, documentar que la sesión no aplica. No requiere implementar polling, WebSockets ni estado global de Chat.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[FE] Lógica Polling/WebSockets Chat». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Integrar lógica del Chat: Implementar auto-refresco (Polling) o WebSockets conectando la API.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-114: [Repaso] Simulacro individual de integración y proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre DTOs, cliente HTTP, autenticación, manejo de errores y flujo entre frontend y servicios y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[FE] Estado Zustand Chat». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Centralizar estado global de Chat en Zustand (Mensajes no leídos y notificaciones navbar).
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-121: [Estudio] Explicar commits propios de infraestructura y CI
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Revisar los aportes propios ya existentes en Dockerfiles, Compose, Kubernetes, gateway y automatización existente. Usar ALL-115 a ALL-120 y .github/workflows; distinguir despliegues comprobados de manifiestos preparados como punto de partida, sin atribuir automáticamente al autor de un merge los cambios de otro integrante.
+Actividades (150 min): identificar autor/alias y seleccionar 3 commits sustantivos (30); leer sus diffs y trazar entradas, salidas, dependencias y decisiones (60); usar GPT con esos diffs para preparar y responder 8 preguntas de dificultad creciente, verificando las respuestas contra el código (45); registrar dudas y conclusiones (15).
+Entregable: ficha con SHA/enlace, autor, archivos, propósito, explicación de cambios y preguntas respondidas. Si hay menos de 3 commits sustantivos, documentarlo y revisar todos los disponibles.
+Criterio de cierre: explicar los cambios sin depender de GPT y enlazar la ficha en esta tarea. No exige código nuevo.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[CI] Configurar Actions Tests Nuevos». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Actualizar GitHub Actions de CI para correr tests unitarios Go de los nuevos microservicios.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-122: [Laboratorio] Medir carga y estudiar escalado de pods
+
+## Objetivo y duración
+Semana 3 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Estudiar el efecto de carga controlada sobre un servicio ya operativo, tomando load_test.js como punto de partida en un entorno de pruebas.
+Actividades (150 min): comprobar acceso, endpoint, métricas y límites del entorno (30); medir una línea base y aplicar carga progresiva acotada (45); comparar una segunda medición con escalado permitido en pruebas o analizar su configuración si no es posible ejecutarlo (45); documentar resultados (30).
+Entregable: versión/configuración ensayada, carga, latencia, errores, CPU/memoria, réplicas antes/después cuando estén disponibles y conclusión.
+Criterio de cierre: explicar la diferencia entre duplicar réplicas y duplicar CPU/memoria del pod. El HPA escala réplicas y necesita métricas/requests; la carga por sí sola no duplica los recursos del pod. Registrar qué interpretación de «duplicar tamaño» se ensayó y confirmar con el profesor la esperada. Si falta clúster o métricas, entregar plan reproducible y límite observado; no inventar mediciones ni exigir infraestructura nueva.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[CD] Auto-Deploy Órdenes y Chat». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Modificar GitHub Actions de CD para hacer push a Docker Hub y redesplegar Órdenes y Chat.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-123: [Repaso] Defender infraestructura, carga y visión del proyecto
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar un repaso individual sobre contenedores, aislamiento de microservicios, CI, Kubernetes, resultados del laboratorio y escalado horizontal/vertical y sobre el funcionamiento general de Allin1: problema que resuelve, tipos de publicación, recorrido del usuario, arquitectura, contratos, datos, seguridad, pruebas y despliegue.
+Actividades (150 min): preparar un esquema del proyecto y relacionarlo con los aportes propios (30); generar con GPT y verificar 12 preguntas, 3 de cada nivel: conceptos, lectura de código, integración y decisiones/fallos (45); responderlas en un simulacro oral individual (45); corregir respuestas y registrar brechas y próximos pasos (30).
+Entregable: esquema, 12 preguntas con respuestas fundamentadas en archivos/commits y registro del simulacro con aciertos y dudas.
+Criterio de cierre: adjuntar el informe personal de repaso solicitado por el profesor, incluyendo al menos un recorrido completo por varias capas del proyecto. GPT sirve para preguntar y contrastar, no reemplaza la explicación del integrante.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Seguridad] K8s Secrets Prod». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Estandarizar variables de entorno de Cloudinary y JWT en Kubernetes Secrets (Ocultos).
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+### ALL-124: [Preparación] Planificar congelamiento de main y despliegue trazable
+
+## Objetivo y duración
+Semana 4 · 2,5 horas. Replanificación por revisión docente del 21/10/2026: comprender y defender lo ya realizado.
+
+Preparar la versión de evaluación del proyecto y explicar cómo verificar que el despliegue procede de main.
+Actividades (150 min): inventariar diferencias entre main, develop y versión desplegada sin fusionar automáticamente (35); preparar checklist de pruebas, dependencias y cierre solo de ajustes menores (40); documentar o ensayar en pruebas cómo vincular SHA de main → imagen/tag o digest → deployment, incluyendo verificación y reversión (50); registrar calendario relativo y responsables (25).
+Entregable: checklist de release con referencia candidata, evidencia disponible, pasos de verificación, rollback y horario relativo T-48 h o anterior.
+Criterio de cierre: queda definida la congelación de main al menos 48 horas antes de la prueba y que el despliegue de evaluación use ese mismo SHA; registrar fecha/hora real cuando se conozca la evaluación. No declarar cumplido el congelamiento ni el despliegue sin evidencia. La tarea prepara o ensaya el procedimiento; no exige crear CD nuevo ni ampliar funcionalidades. Los repasos pueden continuar después del congelamiento.
+
+## Trazabilidad de la replanificación
+Esta tarea reemplaza el alcance pendiente de «[Ops] Healthchecks Probes K8s». El alcance anterior se conserva aquí como referencia diferida, fuera del compromiso de estas dos semanas:
+> Implementar Healthchecks (Liveness/Readiness probes) robustos en K8s para todos los pods nuevos.
+
+El cierre corresponde al entregable de estudio/preparación descrito arriba; no acredita que la funcionalidad anterior esté implementada.
+
+

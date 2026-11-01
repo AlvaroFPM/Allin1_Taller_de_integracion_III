@@ -112,6 +112,14 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "userId",
+            "description": "Filtrar por ID de usuario vendedor",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [

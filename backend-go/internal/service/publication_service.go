@@ -143,17 +143,22 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 		}
 	}
 
-	// RN-12: Excluir publicaciones del usuario en sesión.
-	// Prioridad: ID del token JWT (si el interceptor lo inyectó en el contexto).
-	// Respaldo: parámetro opcional exclude_user_id (visitantes sin sesión o clientes que lo envían).
-	var excludeUserID uint
-	if id, ok := ctx.Value(middleware.UserIDKey).(uint); ok && id > 0 {
-		excludeUserID = id
-	} else if req.ExcludeUserId != nil && *req.ExcludeUserId > 0 {
-		excludeUserID = uint(*req.ExcludeUserId)
-	}
-	if excludeUserID > 0 {
-		query = query.Where("id_usuario_vendedor <> ?", excludeUserID)
+	// Filtro por usuario vendedor (para vista de perfil / mis publicaciones)
+	if req.UserId != nil && *req.UserId > 0 {
+		query = query.Where("id_usuario_vendedor = ?", *req.UserId)
+	} else {
+		// RN-12: Excluir publicaciones del usuario en sesión del feed general (cuando no se filtra por usuario específico).
+		// Prioridad: ID del token JWT (si el interceptor lo inyectó en el contexto).
+		// Respaldo: parámetro opcional exclude_user_id (visitantes sin sesión o clientes que lo envían).
+		var excludeUserID uint
+		if id, ok := ctx.Value(middleware.UserIDKey).(uint); ok && id > 0 {
+			excludeUserID = id
+		} else if req.ExcludeUserId != nil && *req.ExcludeUserId > 0 {
+			excludeUserID = uint(*req.ExcludeUserId)
+		}
+		if excludeUserID > 0 {
+			query = query.Where("id_usuario_vendedor <> ?", excludeUserID)
+		}
 	}
 
 	// Rango de precio (límites inclusivos). Como el precio base siempre es > 0 (RN-23),

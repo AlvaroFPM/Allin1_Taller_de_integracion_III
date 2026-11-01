@@ -59,8 +59,8 @@ export default function PublicarPage() {
     }
 
     if (
-      !formState.titulo ||
-      !formState.descripcion ||
+      !formState.titulo.trim() ||
+      !formState.descripcion.trim() ||
       !formState.categoriaId ||
       !formState.precioBase
     ) {
@@ -68,17 +68,42 @@ export default function PublicarPage() {
       return;
     }
 
+    if (formState.titulo.trim().length < 5) {
+      setErrorMessage('El título debe tener al menos 5 caracteres (RN-18)');
+      return;
+    }
+
+    const descLength = formState.descripcion.trim().length;
+    if (descLength < 50) {
+      setErrorMessage(
+        `La descripción debe tener al menos 50 caracteres (actualmente tiene ${descLength} caracteres). Agrega más detalles sobre el servicio o requerimiento (RN-19).`,
+      );
+      return;
+    }
+
+    if (descLength > 1000) {
+      setErrorMessage('La descripción no puede superar los 1000 caracteres (RN-19)');
+      return;
+    }
+
+    const priceNum = Number(formState.precioBase);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setErrorMessage('El precio base debe ser mayor a 0 (RN-23)');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
       await publicationService.createPublication({
-        title: formState.titulo,
-        description: formState.descripcion,
+        title: formState.titulo.trim(),
+        description: formState.descripcion.trim(),
         categoryId: Number(formState.categoriaId),
-        price: Number(formState.precioBase) || 0,
+        price: priceNum,
         currency: formState.moneda,
         type: formState.tipo,
         sellerId: user.id,
+        location: formState.ubicacion,
       });
       alert('¡Publicación creada con éxito! Redirigiendo...');
       router.push('/');

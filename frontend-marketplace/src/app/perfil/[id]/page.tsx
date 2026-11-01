@@ -9,12 +9,13 @@ import {
   PublicProfilePublications,
   PublicProfileReviews,
 } from '@/components/shared';
-import type { PublicSellerProfile } from '@/types/profile';
+import type { PublicProfilePublication, PublicSellerProfile } from '@/types/profile';
 import { MOCK_SELLER_REVIEWS } from '@/types/review';
+import { getPublicProfile } from '@/services/authService';
+import { publicationService } from '@/services/publicationService';
 
 /* -----------------------------------------------------------------------
- * Datos mock — Perfiles públicos de vendedores
- * Se reemplazará por GET /v1/users/{id} cuando el backend esté disponible
+ * Datos mock de respaldo si el perfil no existe en IAM
  * --------------------------------------------------------------------- */
 
 const MOCK_SELLERS: PublicSellerProfile[] = [
@@ -63,18 +64,101 @@ const DEFAULT_SELLER: PublicSellerProfile = MOCK_SELLERS[0];
 
 /* -----------------------------------------------------------------------
  * Página pública del vendedor — /perfil/[id]
- * Muestra: Foto, Bio, Botón Contactar, Reputación y publicaciones activas
+ * Muestra: Foto, Bio, Botón Contactar, Reputación y publicaciones reales
  * --------------------------------------------------------------------- */
 export default function PublicProfilePage() {
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : '';
 
-  const seller = React.useMemo(
-    () =>
+  const numericId = React.useMemo(() => {
+    const digits = id.replace(/\D/g, '');
+    return digits ? parseInt(digits, 10) : null;
+  }, [id]);
+
+  const [seller, setSeller] = React.useState<PublicSellerProfile>(() => {
+    return (
       MOCK_SELLERS.find((s) => s.id === id || s.id === `user-${id}` || `user-${s.id}` === id) ??
-      DEFAULT_SELLER,
-    [id],
+      DEFAULT_SELLER
+    );
+  });
+
+  const [sellerPublications, setSellerPublications] = React.useState<PublicProfilePublication[]>(
+    [],
   );
+  const [isLoadingPubs, setIsLoadingPubs] = React.useState(Boolean(numericId));
+
+  // Cargar datos de perfil público del vendedor desde IAM
+  React.useEffect(() => {
+    if (!numericId) return;
+
+    let isMounted = true;
+    getPublicProfile(numericId).then((profile) => {
+      if (!isMounted || !profile) return;
+      setSeller((prev) => ({
+        ...prev,
+        id: String(profile.userId),
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        bio: profile.bioExperiencia || prev.bio,
+        city: profile.ciudad ? `${profile.ciudad}, ${profile.region || 'Chile'}` : prev.city,
+        avatarUrl: profile.fotoPerfilUrl || prev.avatarUrl,
+      }));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [numericId]);
+
+  // Cargar publicaciones reales del vendedor desde el microservicio Catalog
+  React.useEffect(() => {
+    if (!numericId) return;
+
+    let isMounted = true;
+
+    publicationService
+      .getPublications({ userId: numericId, limit: 50 })
+      .then((res) => {
+        if (!isMounted) return;
+        if (res && res.publications) {
+          const mapped: PublicProfilePublication[] = res.publications.map((p) => {
+            const cat = (p.categorySlug || '').toLowerCase();
+            let pubType: 'SERVICIO' | 'ARTICULO' | 'FLETE' = 'SERVICIO';
+            if (cat.includes('flete') || cat.includes('transporte')) {
+              pubType = 'FLETE';
+            } else if (
+              cat.includes('ropa') ||
+              cat.includes('tec') ||
+              cat.includes('mueble') ||
+              cat.includes('mascota') ||
+              cat.includes('articulo')
+            ) {
+              pubType = 'ARTICULO';
+            }
+
+            return {
+              id: String(p.id),
+              title: p.title,
+              category: p.categoryName || 'General',
+              price: p.price,
+              currency: 'CLP',
+              type: pubType,
+            };
+          });
+          setSellerPublications(mapped);
+        }
+      })
+      .catch((err) => {
+        console.error('Error al cargar publicaciones del vendedor:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingPubs(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [numericId]);
 
   const sellerReviews = React.useMemo(() => {
     const matched = MOCK_SELLER_REVIEWS.filter((r) => r.sellerId === seller.id);
@@ -90,7 +174,11 @@ export default function PublicProfilePage() {
             Inicio
           </Link>
           <span>/</span>
-          <span>Perfil público</span>
+          <Link href="/explorar" className="hover:text-brand transition-colors">
+            Explorar
+          </Link>
+          <span>/</span>
+          <span>Perfil de vendedor</span>
           <span>/</span>
           <span className="text-content-main font-semibold">
             {seller.firstName} {seller.lastName}
@@ -120,9 +208,13 @@ export default function PublicProfilePage() {
             />
           </div>
 
-          {/* Columna derecha — Publicaciones activas y Reseñas de Clientes */}
+          {/* Columna derecha — Publicaciones reales de la base de datos y Reseñas */}
           <div className="flex-1 min-w-0 w-full space-y-6">
-            <PublicProfilePublications sellerName={seller.firstName} />
+            <PublicProfilePublications
+              sellerName={seller.firstName}
+              publications={sellerPublications}
+              isLoading={isLoadingPubs}
+            />
             <PublicProfileReviews
               sellerName={seller.firstName}
               averageScore={seller.score}

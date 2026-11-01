@@ -139,6 +139,7 @@ message ListPublicationsRequest {
   optional uint32 exclude_user_id = 5;
   optional int64 min_price = 6;   // Precio mínimo inclusivo (CLP)
   optional int64 max_price = 7;   // Precio máximo inclusivo (CLP)
+  optional uint32 user_id = 8;     // Filtrar por ID de usuario vendedor
 }
 
 message ListPublicationsResponse {

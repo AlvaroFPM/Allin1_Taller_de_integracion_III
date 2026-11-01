@@ -16,7 +16,8 @@ const KNOWN_SERVICES = {
   5434: 'PostgreSQL Catalog',
   8081: 'IAM REST API',
   8082: 'Catalog REST API',
-  3000: 'Frontend Marketplace'
+  3000: 'Frontend Marketplace',
+  3001: 'Frontend Marketplace'
 };
 
 const rawArgs = process.argv.slice(2);

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { CatalogSearchHeader, CatalogSidebarFilters, CatalogGrid } from '@/components/shared';
 import { toast } from '@/components/ui';
 import {
@@ -8,80 +9,150 @@ import {
   filterCatalogPublications,
   type CatalogFilterState,
   type CatalogPublication,
-  MOCK_CATALOG_PUBLICATIONS,
 } from '@/types/catalog';
+import {
+  publicationService,
+  type CatalogPublication as ServicePub,
+} from '@/services/publicationService';
+import { useAuthStore } from '@/store/useAuthStore';
+
+function mapToCatalogSlug(
+  slug?: string,
+): 'mantenimiento' | 'transporte' | 'logistica' | 'articulos' {
+  if (!slug) return 'mantenimiento';
+  const s = slug.toLowerCase();
+  if (s.includes('transporte') || s.includes('flete')) return 'transporte';
+  if (s.includes('delivery') || s.includes('logistica')) return 'logistica';
+  if (
+    s.includes('ropa') ||
+    s.includes('tec') ||
+    s.includes('mueble') ||
+    s.includes('mascota') ||
+    s.includes('articulo')
+  ) {
+    return 'articulos';
+  }
+  return 'mantenimiento';
+}
 
 export default function ExplorarPage() {
+  const router = useRouter();
+  const storeUser = useAuthStore((state) => state.user);
+  const currentUserId = storeUser?.id;
+
   const [filters, setFilters] = React.useState<CatalogFilterState>(INITIAL_CATALOG_FILTERS);
   const [showMobileFilters, setShowMobileFilters] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [dbPublications, setDbPublications] = React.useState<CatalogPublication[]>([]);
 
-  // Simulación de carga inicial al montar para mostrar skeletons
   React.useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+    let isMounted = true;
+
+    const fetchDbPublications = async () => {
+      try {
+        setIsLoading(true);
+        // RN-12: Excluir las publicaciones del usuario en sesión en la vista de explorar
+        const data = await publicationService.getPublications({
+          limit: 100,
+          excludeUserId: currentUserId,
+        });
+        if (!isMounted) return;
+        if (data && data.publications) {
+          const mapped: CatalogPublication[] = data.publications.map((item: ServicePub) => {
+            const isDemand = item.type === 'DEMANDA';
+            const catSlug = mapToCatalogSlug(item.categorySlug);
+            const pubType: 'TRABAJO' | 'SERVICIO' | 'ARTICULO' = isDemand
+              ? 'TRABAJO'
+              : catSlug === 'articulos'
+                ? 'ARTICULO'
+                : 'SERVICIO';
+
+            return {
+              id: String(item.id),
+              type: pubType,
+              title: item.title,
+              description: item.description,
+              price: item.price,
+              currency: 'CLP',
+              priceTypeLabel: isDemand ? 'PRESUPUESTO ESCROW' : 'PRECIO UNITARIO',
+              actionButtonText: isDemand ? 'Aceptar Trabajo' : 'Comprar Artículo',
+              createdAtRelative: item.createdAtRelative || 'Reciente',
+              categorySlug: catSlug,
+              categoryName: item.categoryName || 'General',
+              location: item.location || 'Chile',
+              details: {
+                label1: 'Categoría',
+                value1: item.categoryName || 'General',
+                label2: 'Ubicación',
+                value2: item.location || 'Chile',
+              },
+              escrowProtected: true,
+              verifiedUser: true,
+            };
+          });
+          setDbPublications(mapped);
+        }
+      } catch (error) {
+        console.error('Error al cargar publicaciones de la base de datos:', error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchDbPublications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUserId]);
 
   const handleTabChange = (tab: 'all' | 'TRABAJO' | 'SERVICIO' | 'ARTICULO') => {
-    setIsLoading(true);
     setFilters((prev) => ({ ...prev, activeTab: tab }));
-    setTimeout(() => setIsLoading(false), 700);
   };
 
   const handleSidebarFilterChange = (fields: Partial<CatalogFilterState>) => {
-    setIsLoading(true);
     setFilters((prev) => ({ ...prev, ...fields }));
-    setTimeout(() => setIsLoading(false), 500);
   };
 
   const handleSortChange = (sort: 'recent' | 'price_asc' | 'price_desc') => {
-    setIsLoading(true);
     setFilters((prev) => ({ ...prev, sortBy: sort }));
-    setTimeout(() => setIsLoading(false), 400);
   };
 
   const handleResetFilters = (closeMobile = false) => {
-    setIsLoading(true);
     setFilters(INITIAL_CATALOG_FILTERS);
     if (closeMobile) setShowMobileFilters(false);
     toast.info('Filtros restablecidos');
-    setTimeout(() => setIsLoading(false), 500);
   };
 
-  // Filtrado reactivo en memoria
+  // Filtrado reactivo sobre las publicaciones reales de la base de datos
   const filteredPublications = React.useMemo(
-    () => filterCatalogPublications(MOCK_CATALOG_PUBLICATIONS, filters),
-    [filters],
+    () => filterCatalogPublications(dbPublications, filters),
+    [dbPublications, filters],
   );
 
-  // Conteos dinámicos
+  // Conteos dinámicos en base a los datos reales
   const counts = React.useMemo(
     () => ({
-      all: MOCK_CATALOG_PUBLICATIONS.length,
-      trabajo: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.type === 'TRABAJO').length,
-      servicio: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.type === 'SERVICIO').length,
-      articulo: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.type === 'ARTICULO').length,
+      all: dbPublications.length,
+      trabajo: dbPublications.filter((p) => p.type === 'TRABAJO').length,
+      servicio: dbPublications.filter((p) => p.type === 'SERVICIO').length,
+      articulo: dbPublications.filter((p) => p.type === 'ARTICULO').length,
     }),
-    [],
+    [dbPublications],
   );
 
   const categoryCounts = React.useMemo(
     () => ({
-      mantenimiento: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.categorySlug === 'mantenimiento')
-        .length,
-      transporte: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.categorySlug === 'transporte').length,
-      logistica: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.categorySlug === 'logistica').length,
-      articulos: MOCK_CATALOG_PUBLICATIONS.filter((p) => p.categorySlug === 'articulos').length,
+      mantenimiento: dbPublications.filter((p) => p.categorySlug === 'mantenimiento').length,
+      transporte: dbPublications.filter((p) => p.categorySlug === 'transporte').length,
+      logistica: dbPublications.filter((p) => p.categorySlug === 'logistica').length,
+      articulos: dbPublications.filter((p) => p.categorySlug === 'articulos').length,
     }),
-    [],
+    [dbPublications],
   );
 
   const handlePublicationAction = (pub: CatalogPublication) => {
-    if (pub.type === 'TRABAJO') {
-      toast.success(`Has postulado al trabajo: "${pub.title}"`, { title: 'Postulación enviada' });
-    } else {
-      toast.info(`Redirigiendo a checkout para: "${pub.title}"`, { title: 'Comprar Artículo' });
-    }
+    router.push(`/catalogo/${pub.id}`);
   };
 
   return (

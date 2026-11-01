@@ -18,7 +18,8 @@ const REQUIRED_VARS = [
   'POSTGRES_PASSWORD_IAM',
   'POSTGRES_PASSWORD_CATALOG',
   'POSTGRES_PASSWORD_ORDERS',
-  'POSTGRES_PASSWORD_CHAT'
+  'POSTGRES_PASSWORD_CHAT',
+  'POSTGRES_PASSWORD_MEDIA'
 ];
 
 // Valores reconocidos como placeholders que deben reemplazarse

@@ -17,6 +17,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -74,7 +75,7 @@ func main() {
 
 	// 2. Iniciar Servidor REST (gRPC-Gateway)
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 	err = publicationpb.RegisterPublicationServiceHandlerFromEndpoint(context.Background(), mux, "localhost:"+grpcPort, opts)
 	if err != nil {

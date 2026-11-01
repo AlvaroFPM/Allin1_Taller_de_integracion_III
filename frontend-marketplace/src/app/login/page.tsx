@@ -2,14 +2,22 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LoginCard } from '@/components/shared';
 
 function LoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get('expired') === 'true';
+  const from = searchParams.get('from');
 
-  return <LoginCard sessionExpired={sessionExpired} />;
+  const handleSuccess = () => {
+    setTimeout(() => {
+      router.push(from || '/');
+    }, 1200);
+  };
+
+  return <LoginCard sessionExpired={sessionExpired} onSuccess={handleSuccess} />;
 }
 
 export default function LoginPage() {

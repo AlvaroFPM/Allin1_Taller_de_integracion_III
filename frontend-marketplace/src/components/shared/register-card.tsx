@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
@@ -17,9 +17,9 @@ export function RegisterCard({ onSuccess }: RegisterCardProps) {
     if (onSuccess) {
       onSuccess(data);
     } else {
-      // Flujo visual: Tras confirmación exitosa de registro, redirige al login tras 1.5s
+      // Flujo visual: Tras confirmación exitosa de registro y sesión iniciada, redirige al inicio
       setTimeout(() => {
-        router.push('/login');
+        router.push('/');
       }, 1500);
     }
   };

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui';
+import { Spinner } from '@/components/ui/spinner';
 import type { PublicProfilePublication } from '@/types/profile';
 
 export type { PublicProfilePublication };
@@ -10,31 +11,8 @@ export type { PublicProfilePublication };
 export interface PublicProfilePublicationsProps {
   publications?: PublicProfilePublication[];
   sellerName?: string;
+  isLoading?: boolean;
 }
-
-const MOCK_PUBLICATIONS: PublicProfilePublication[] = [
-  {
-    id: 'pub-2',
-    title: 'Flete: Traslado de Sillón y 4 Cajas',
-    category: 'Transporte & Fletes',
-    price: 28000,
-    type: 'FLETE',
-  },
-  {
-    id: 'pub-3',
-    title: 'Reparación de Cañería Filtrada en Cocina',
-    category: 'Mantenimiento del Hogar',
-    price: 35000,
-    type: 'SERVICIO',
-  },
-  {
-    id: 'pub-4',
-    title: 'Set de Herramientas Multiuso 48 Piezas',
-    category: 'Herramientas',
-    price: 18990,
-    type: 'ARTICULO',
-  },
-];
 
 const TYPE_VARIANT: Record<PublicProfilePublication['type'], 'brand' | 'warning' | 'neutral'> = {
   SERVICIO: 'brand',
@@ -43,13 +21,26 @@ const TYPE_VARIANT: Record<PublicProfilePublication['type'], 'brand' | 'warning'
 };
 
 export function PublicProfilePublications({
-  publications = MOCK_PUBLICATIONS,
+  publications,
   sellerName = 'este vendedor',
+  isLoading = false,
 }: PublicProfilePublicationsProps) {
-  if (publications.length === 0) {
+  if (isLoading) {
     return (
-      <div className="bg-surface-main rounded-3xl border border-border-base p-8 shadow-xs text-center text-content-muted text-sm">
-        {sellerName} aún no tiene publicaciones activas.
+      <div className="bg-surface-main rounded-3xl border border-border-base p-8 shadow-xs flex flex-col items-center justify-center gap-3">
+        <Spinner size="sm" variant="brand" />
+        <p className="text-xs text-content-muted">Cargando publicaciones activas del vendedor...</p>
+      </div>
+    );
+  }
+
+  const items = publications ?? [];
+
+  if (items.length === 0) {
+    return (
+      <div className="bg-surface-main rounded-3xl border border-border-base p-8 shadow-xs text-center text-content-muted text-sm space-y-2">
+        <div className="text-2xl">📦</div>
+        <p>{sellerName} aún no tiene publicaciones activas en la base de datos.</p>
       </div>
     );
   }
@@ -58,17 +49,17 @@ export function PublicProfilePublications({
     <div className="bg-surface-main rounded-3xl border border-border-base p-6 sm:p-8 shadow-xs space-y-5">
       <h3 className="text-xs font-bold uppercase tracking-wider text-content-main">
         Publicaciones Activas
-        <span className="ml-2 text-brand font-black">({publications.length})</span>
+        <span className="ml-2 text-brand font-black">({items.length})</span>
       </h3>
 
       <ul className="space-y-3">
-        {publications.map((pub) => (
+        {items.map((pub) => (
           <li
             key={pub.id}
             className="p-4 rounded-2xl border border-border-base/80 hover:border-brand/30 hover:shadow-xs transition-all bg-surface-base/30"
           >
             <Link
-              href={`/publicaciones/${pub.id}`}
+              href={`/catalogo/${pub.id}`}
               className="flex items-center justify-between gap-4 group"
             >
               <div className="flex-1 min-w-0 space-y-1.5">

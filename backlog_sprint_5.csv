@@ -1,0 +1,61 @@
+Title,Description,Priority,Status,Labels,Estimate
+"[BE] Endpoint GET /publicaciones/{id}","Crear endpoint gRPC y REST para devolver una publicación específica con sus detalles.",High,Todo,"Semana 1, Backend",2
+"[BE] Protobuf Detalle Publicación","Actualizar publication.proto para incluir el mensaje de Detalle de Publicación.",High,Todo,"Semana 1, Backend",2
+"[FE] Layout /publicaciones/[id]","Maquetar la página estática con el diseño de detalle (título, precio, botón).",High,Todo,"Semana 1, Frontend",2
+"[FE] Fetch a API Catálogo en Detalle","Conectar la vista /publicaciones/[id] para que consuma datos reales desde el backend.",High,Todo,"Semana 1, Frontend",2
+"[BE] Endpoint GET /perfiles/{id}","Crear endpoint público en IAM para obtener los datos de perfil de un vendedor.",High,Todo,"Semana 1, Backend",2
+"[FE] Layout Perfil Público","Maquetar vista estática de /perfil/[id] mostrando nombre, foto y contacto.",High,Todo,"Semana 1, Frontend",2
+"[FE] Fetch Perfil Público a IAM","Conectar la vista del perfil público con el endpoint real de IAM.",High,Todo,"Semana 1, Frontend",2
+"[BE] DB Modelo Reseñas","Crear el esquema GORM (tabla) para almacenar reseñas de 1 a 5 estrellas.",Medium,Todo,"Semana 1, Backend",2
+"[BE] Endpoint POST /reseñas","Crear lógica para recibir una reseña, verificar que exista contrato y guardarla.",Medium,Todo,"Semana 1, Backend",2
+"[FE] UI Componente Estrellas","Crear el componente interactivo React de calificación (Rating 1-5 estrellas).",Medium,Todo,"Semana 1, Frontend",2
+"[BE] Endpoint GET /reseñas/{id}","Endpoint para devolver todas las reseñas asociadas al perfil de un usuario.",Medium,Todo,"Semana 1, Backend",2
+"[FE] Mostrar reseñas en Perfil","Integrar el listado de reseñas (texto + estrellas) en el perfil público del vendedor.",Medium,Todo,"Semana 1, Frontend",2
+"[Ops] Esqueleto Microservicio Media","Inicializar carpeta cmd/media y configurar router básico HTTP en Go.",High,Todo,"Semana 1, DevOps",2
+"[Ops] Dockerfile Media","Crear el Dockerfile y agregarlo al docker-compose local para desarrollo.",High,Todo,"Semana 1, DevOps",2
+"[QA] Pruebas Integración Sem 1","Revisar funcionamiento de Vistas de Detalle y Perfiles en local y arreglar bugs menores.",High,Todo,"Semana 1, QA",2
+"[BE] DB Modelo Órdenes","Crear el esquema GORM de Órdenes (Contratar/Comprar) con estados PENDIENTE, COMPLETADO.",High,Todo,"Semana 2, Backend",2
+"[BE] Endpoint POST /ordenes","Endpoint protegido con JWT para que un usuario genere una orden de compra hacia otro.",High,Todo,"Semana 2, Backend",2
+"[BE] Endpoint GET /ordenes/mis-compras","Endpoint protegido para traer el listado de contrataciones que yo he hecho.",High,Todo,"Semana 2, Backend",2
+"[BE] Endpoint GET /ordenes/mis-ventas","Endpoint protegido para traer los servicios/artículos que me han comprado.",High,Todo,"Semana 2, Backend",2
+"[FE] Botón Contratar Modal","Agregar botón en el detalle de publicación que levante un Modal de confirmación.",High,Todo,"Semana 2, Frontend",2
+"[FE] POST Acción Contratar","Conectar el Modal para disparar axios.post y crear la orden en el backend.",High,Todo,"Semana 2, Frontend",2
+"[FE] Layout Mis Compras","Maquetar tabla o grid en el panel de usuario mostrando historial de compras.",Medium,Todo,"Semana 2, Frontend",2
+"[FE] Fetch Mis Compras","Llenar la tabla de Mis Compras con los datos del endpoint protegido.",Medium,Todo,"Semana 2, Frontend",2
+"[FE] Layout Mis Ventas","Maquetar dashboard interno del vendedor mostrando solicitudes recibidas.",Medium,Todo,"Semana 2, Frontend",2
+"[FE] Fetch Mis Ventas","Llenar panel de Mis Ventas conectándolo al endpoint protegido.",Medium,Todo,"Semana 2, Frontend",2
+"[BE] Endpoint PATCH /ordenes/{id}","Endpoint para que el vendedor cambie el estado de la orden (Aceptada, Completada).",High,Todo,"Semana 2, Backend",2
+"[FE] UI Cambiar Estado Orden","Botones en el panel 'Mis Ventas' para aceptar o rechazar solicitudes.",High,Todo,"Semana 2, Frontend",2
+"[Ops] Interceptor en Media","Configurar el middleware de JWT en el nuevo microservicio Media para asegurar subidas.",High,Todo,"Semana 2, DevOps",2
+"[Ops] Testing Órdenes Postman","Crear colección de Postman/Bruno simulando el ciclo completo de creación de órdenes.",Medium,Todo,"Semana 2, DevOps",2
+"[QA] Pruebas Integración Sem 2","Verificar cruce de datos entre IAM y Órdenes. Fixes de dependencias.",High,Todo,"Semana 2, QA",2
+"[BE] Esqueleto Microservicio Chat","Inicializar carpeta cmd/chat. Evaluar si usar Polling, Server-Sent Events o WebSockets.",High,Todo,"Semana 3, Backend",2
+"[BE] DB Modelo Chat Mensajes","Crear esquema GORM para Sala de Chat (Vendedor/Comprador) y Mensajes.",High,Todo,"Semana 3, Backend",2
+"[BE] Endpoint POST /chat/enviar","Lógica para almacenar un mensaje en la BD (valida tokens).",High,Todo,"Semana 3, Backend",2
+"[BE] Endpoint GET /chat/{sala_id}","Endpoint para traer el historial completo de mensajes entre dos usuarios.",High,Todo,"Semana 3, Backend",2
+"[FE] Layout Drawer Chat","Maquetar una ventana lateral (Drawer) o Modal grande con diseño de mensajería (burbujas).",High,Todo,"Semana 3, Frontend",2
+"[FE] Fetch Historial Chat","Al abrir el drawer, traer los mensajes previos con Axios.",High,Todo,"Semana 3, Frontend",2
+"[FE] UI Input Enviar Mensaje","Input texto + botón enviar. Limpiar campo y añadir mensaje a la UI localmente.",High,Todo,"Semana 3, Frontend",2
+"[BE] Endpoint POST /media/upload","Lógica Go para recibir archivo multipart, validarlo (JPG/PNG) y guardar en disco/S3.",High,Todo,"Semana 3, Backend",2
+"[BE] Link Media to Perfil","Endpoint en IAM para asociar la URL de la imagen devuelta por Media al perfil del usuario.",Medium,Todo,"Semana 3, Backend",2
+"[FE] UI Subir Foto Perfil","Agregar input type=file en la edición de perfil con vista previa de la imagen.",High,Todo,"Semana 3, Frontend",2
+"[FE] Post FormData Foto","Implementar lógica axios con headers multipart/form-data al microservicio Media.",High,Todo,"Semana 3, Frontend",2
+"[Ops] K8s Deployment Media","Crear deployment.yaml y service.yaml para desplegar Media en Kubernetes.",High,Todo,"Semana 3, DevOps",2
+"[Ops] K8s Deployment Chat","Crear deployment.yaml y service.yaml para desplegar el microservicio Chat en Kube.",High,Todo,"Semana 3, DevOps",2
+"[Ops] Configurar Volúmenes (PVC)","Asignar PersistentVolumeClaim en Kubernetes para no perder las fotos al reiniciar pods.",High,Todo,"Semana 3, DevOps",2
+"[QA] Pruebas Integración Sem 3","Asegurar que subida de imágenes y chat básico funciona en localhost.",High,Todo,"Semana 3, QA",2
+"[FE] Polling Chat (Auto-refresh)","Implementar useEffect con setInterval para refrescar mensajes si no se usan WebSockets puros.",Medium,Todo,"Semana 4, Frontend",2
+"[FE] Responsive Detalle/Perfil","Ajustar estilos Tailwind de /publicaciones/[id] y Perfil Público para pantallas de móviles.",High,Todo,"Semana 4, Frontend",2
+"[FE] Responsive Dashboard","Asegurar que las tablas de Mis Compras/Ventas se vean bien o pasen a modo tarjeta en móviles.",High,Todo,"Semana 4, Frontend",2
+"[FE] Clean Code y Refactor","Mover constantes repetidas, limpiar logs y separar componentes gigantes en menores.",Medium,Todo,"Semana 4, Frontend",2
+"[BE] Logs Chat y Órdenes","Añadir trazabilidad (logrus o log) para auditar errores en transacciones de estado.",Medium,Todo,"Semana 4, Backend",2
+"[BE] Notificaciones (Endpoint)","Endpoint GET /notificaciones simple (revisa si hay mensajes no leídos u órdenes nuevas).",Low,Todo,"Semana 4, Backend",2
+"[FE] Campanita Nav Bar","Mostrar un punto rojo en el header del sitio si el endpoint GET /notificaciones da true.",Low,Todo,"Semana 4, Frontend",2
+"[Ops] Ingress Chat & Media","Actualizar el archivo Ingress Nginx en K8s para exponer las rutas /media y /chat al frontend.",High,Todo,"Semana 4, DevOps",2
+"[Ops] Pruebas de Carga K8s","Hacer pequeñas pruebas de carga local (ej: k6) a IAM y Catalog asegurando pods estables.",Medium,Todo,"Semana 4, DevOps",2
+"[Ops] Secretos Prod K8s","Asegurar que las variables de entorno de Prod (JWT_SECRET) estén en Kube Secrets, no plaintext.",High,Todo,"Semana 4, DevOps",2
+"[QA] Test End-to-End Flujo 1","Registrar usuario -> Publicar -> Otro compra -> Cambio Estado -> Reseña.",High,Todo,"Semana 4, QA",2
+"[QA] Test End-to-End Flujo 2","Subir Foto -> Hablar por Chat -> Revisar notificaciones.",High,Todo,"Semana 4, QA",2
+"[FE] Fixes Finales UI","Resolución de bugs visuales encontrados por QA (Colores, bordes, estados de loading).",High,Todo,"Semana 4, Frontend",2
+"[BE] Fixes Finales API","Resolución de errores de BD o CORS encontrados en la validación en K8s.",High,Todo,"Semana 4, Backend",2
+"[ALL] Cierre de Sprint 5","Revisión final de métricas, merged de PRs y preparación de presentación del miércoles.",High,Todo,"Semana 4, General",2

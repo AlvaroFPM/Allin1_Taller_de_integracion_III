@@ -1,0 +1,452 @@
+[
+  {
+    "id": "ALL-81",
+    "title": "[BD] Endpoint POST /resenas",
+    "description": "Implementar endpoint POST /v1/resenas (Validar que la orden esté Completada antes de reseñar).",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-81/bd-endpoint-post-resenas",
+    "status": "Todo",
+    "assignee": "Nicolás Fuentes",
+    "assigneeId": "e4e0e44b-2bb8-4b42-9e2e-e478735497e0",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-82",
+    "title": "[BD] Endpoint GET /resenas/{id}",
+    "description": "Implementar endpoint GET /v1/resenas/{id_usuario} para listar el historial del perfil.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-82/bd-endpoint-get-resenasid",
+    "status": "Todo",
+    "assignee": "Nicolás Fuentes",
+    "assigneeId": "e4e0e44b-2bb8-4b42-9e2e-e478735497e0",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-91",
+    "title": "[Perfil] Promedio de Reseñas IAM",
+    "description": "Conectar microservicio de IAM con el sistema de Reseñas para calcular promedio de estrellas.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-91/perfil-promedio-de-resenas-iam",
+    "status": "Todo",
+    "assignee": "Gustavo",
+    "assigneeId": "14a12357-b3e7-4394-a8ca-0078c90d246e",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-102",
+    "title": "[UI] Loading Skeletons",
+    "description": "Crear Skeletons de carga fluídos para el Detalle de Publicación, Perfil y Dashboard.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-102/ui-loading-skeletons",
+    "status": "Todo",
+    "assignee": "francisco",
+    "assigneeId": "fbadde27-64f3-4106-935d-6ae86fbb317a",
+    "labels": [
+      "Semana 3",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-111",
+    "title": "[FE] POST Crear Reseña",
+    "description": "Conectar formulario y componente de Estrellas para hacer POST y dejar Reseñas reales.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-111/fe-post-crear-resena",
+    "status": "Todo",
+    "assignee": "mbriones2024@alu.uct.cl",
+    "assigneeId": "9f3a5e27-a130-4b39-b1b0-f8f9bf03a58d",
+    "labels": [
+      "Semana 3",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-92",
+    "title": "[Media] POST Fotos en Publicaciones",
+    "description": "Implementar endpoint para subir galería de fotos a las publicaciones.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-92/media-post-fotos-en-publicaciones",
+    "status": "Todo",
+    "assignee": "Gustavo",
+    "assigneeId": "14a12357-b3e7-4394-a8ca-0078c90d246e",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-101",
+    "title": "[UI] Layout de Mensajería (Chat)",
+    "description": "Maquetar UI Base de Mensajería / Chat Interno (Lista de chats y burbujas de mensaje).",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-101/ui-layout-de-mensajeria-chat",
+    "status": "Todo",
+    "assignee": "francisco",
+    "assigneeId": "fbadde27-64f3-4106-935d-6ae86fbb317a",
+    "labels": [
+      "Semana 3",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-112",
+    "title": "[FE] Subir Imágenes (Multipart Axios)",
+    "description": "Implementar carga de imágenes multipart/form-data en edición de Perfil conectando a Media.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-112/fe-subir-imagenes-multipart-axios",
+    "status": "Todo",
+    "assignee": "mbriones2024@alu.uct.cl",
+    "assigneeId": "9f3a5e27-a130-4b39-b1b0-f8f9bf03a58d",
+    "labels": [
+      "Semana 3",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-83",
+    "title": "[BD] Seed Script Órdenes y Reseñas",
+    "description": "Crear Script de Seed de Órdenes y Reseñas falsas para facilitar pruebas.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-83/bd-seed-script-ordenes-y-resenas",
+    "status": "Todo",
+    "assignee": "Nicolás Fuentes",
+    "assigneeId": "e4e0e44b-2bb8-4b42-9e2e-e478735497e0",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-93",
+    "title": "[Doc] Swagger API Perfil y Media",
+    "description": "Documentar nuevos endpoints de Perfil y Media en Swagger/OpenAPI para el Frontend.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-93/doc-swagger-api-perfil-y-media",
+    "status": "Todo",
+    "assignee": "Gustavo",
+    "assigneeId": "14a12357-b3e7-4394-a8ca-0078c90d246e",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-104",
+    "title": "[UI] Refinar Botones de Estado",
+    "description": "Auditoría de contraste y refinamiento UI de botones de estado en Órdenes (Aceptar, Rechazar).",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-104/ui-refinar-botones-de-estado",
+    "status": "Todo",
+    "assignee": "francisco",
+    "assigneeId": "fbadde27-64f3-4106-935d-6ae86fbb317a",
+    "labels": [
+      "Semana 4",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-114",
+    "title": "[FE] Estado Zustand Chat",
+    "description": "Centralizar estado global de Chat en Zustand (Mensajes no leídos y notificaciones navbar).",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-114/fe-estado-zustand-chat",
+    "status": "Todo",
+    "assignee": "mbriones2024@alu.uct.cl",
+    "assigneeId": "9f3a5e27-a130-4b39-b1b0-f8f9bf03a58d",
+    "labels": [
+      "Semana 4",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-84",
+    "title": "[Testing] Testify en Órdenes",
+    "description": "Escribir tests unitarios (Testify) para la lógica de base de datos de Órdenes y Reseñas.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-84/testing-testify-en-ordenes",
+    "status": "Todo",
+    "assignee": "Nicolás Fuentes",
+    "assigneeId": "e4e0e44b-2bb8-4b42-9e2e-e478735497e0",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-94",
+    "title": "[Testing] Tests de Integración Media",
+    "description": "Escribir tests de integración para subida de fotos (Testify) en Media.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-94/testing-tests-de-integracion-media",
+    "status": "Todo",
+    "assignee": "Gustavo",
+    "assigneeId": "14a12357-b3e7-4394-a8ca-0078c90d246e",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-103",
+    "title": "[UI] Responsive Chat y Dashboard",
+    "description": "Hacer responsive móvil (Mobile First) la vista de Chat y Dashboard usando Tailwind.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-103/ui-responsive-chat-y-dashboard",
+    "status": "Todo",
+    "assignee": "francisco",
+    "assigneeId": "fbadde27-64f3-4106-935d-6ae86fbb317a",
+    "labels": [
+      "Semana 4",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-113",
+    "title": "[FE] Lógica Polling/WebSockets Chat",
+    "description": "Integrar lógica del Chat: Implementar auto-refresco (Polling) o WebSockets conectando la API.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-113/fe-logica-pollingwebsockets-chat",
+    "status": "Todo",
+    "assignee": "mbriones2024@alu.uct.cl",
+    "assigneeId": "9f3a5e27-a130-4b39-b1b0-f8f9bf03a58d",
+    "labels": [
+      "Semana 4",
+      "Frontend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-124",
+    "title": "[Ops] Healthchecks Probes K8s",
+    "description": "Implementar Healthchecks (Liveness/Readiness probes) robustos en K8s para todos los pods nuevos.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-124/ops-healthchecks-probes-k8s",
+    "status": "Todo",
+    "assignee": "Amaro",
+    "assigneeId": "5ba25252-44ed-4fe3-abd8-d1ef61029674",
+    "labels": [
+      "Semana 4",
+      "DevOps",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-121",
+    "title": "[CI] Configurar Actions Tests Nuevos",
+    "description": "Actualizar GitHub Actions de CI para correr tests unitarios Go de los nuevos microservicios.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-121/ci-configurar-actions-tests-nuevos",
+    "status": "Todo",
+    "assignee": "Amaro",
+    "assigneeId": "5ba25252-44ed-4fe3-abd8-d1ef61029674",
+    "labels": [
+      "Semana 3",
+      "DevOps",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-122",
+    "title": "[CD] Auto-Deploy Órdenes y Chat",
+    "description": "Modificar GitHub Actions de CD para hacer push a Docker Hub y redesplegar Órdenes y Chat.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-122/cd-auto-deploy-ordenes-y-chat",
+    "status": "Todo",
+    "assignee": "Amaro",
+    "assigneeId": "5ba25252-44ed-4fe3-abd8-d1ef61029674",
+    "labels": [
+      "Semana 3",
+      "DevOps",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-123",
+    "title": "[Seguridad] K8s Secrets Prod",
+    "description": "Estandarizar variables de entorno de Cloudinary y JWT en Kubernetes Secrets (Ocultos).",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-123/seguridad-k8s-secrets-prod",
+    "status": "Todo",
+    "assignee": "Amaro",
+    "assigneeId": "5ba25252-44ed-4fe3-abd8-d1ef61029674",
+    "labels": [
+      "Semana 4",
+      "DevOps",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-71",
+    "title": "[Arquitectura] Router gRPC Órdenes",
+    "description": "Crear estructura y router gRPC base para el microservicio de Órdenes.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-71/arquitectura-router-grpc-ordenes",
+    "status": "Todo",
+    "assignee": "PINILLA MARTÍNEZ ÁLVARO FELIPE",
+    "assigneeId": "1f13bbb1-7257-4ce9-9a0b-f105fd12f95c",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "1 hr"
+    ]
+  },
+  {
+    "id": "ALL-70",
+    "title": "[Seguridad] JWT en Chat",
+    "description": "Configurar Interceptor gRPC de JWT (seguridad) en el microservicio de Chat.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-70/seguridad-jwt-en-chat",
+    "status": "Todo",
+    "assignee": "PINILLA MARTÍNEZ ÁLVARO FELIPE",
+    "assigneeId": "1f13bbb1-7257-4ce9-9a0b-f105fd12f95c",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2 hrs"
+    ]
+  },
+  {
+    "id": "ALL-72",
+    "title": "[Seguridad] JWT en Órdenes",
+    "description": "Configurar servidor grpc-gateway y seguridad JWT para el microservicio de Órdenes.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-72/seguridad-jwt-en-ordenes",
+    "status": "Todo",
+    "assignee": "PINILLA MARTÍNEZ ÁLVARO FELIPE",
+    "assigneeId": "1f13bbb1-7257-4ce9-9a0b-f105fd12f95c",
+    "labels": [
+      "Semana 3",
+      "Backend",
+      "2 hrs"
+    ]
+  },
+  {
+    "id": "ALL-73",
+    "title": "[Seguridad] Verificación de Roles en gRPC",
+    "description": "Orquestar la comunicación interna (gRPC) entre IAM y Órdenes para verificar credenciales.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-73/seguridad-verificacion-de-roles-en-grpc",
+    "status": "Todo",
+    "assignee": "PINILLA MARTÍNEZ ÁLVARO FELIPE",
+    "assigneeId": "1f13bbb1-7257-4ce9-9a0b-f105fd12f95c",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  },
+  {
+    "id": "ALL-74",
+    "title": "[Testing] Tests Unitarios Auth/Órdenes",
+    "description": "Escribir tests unitarios de interceptores y arquitectura base para Chat y Órdenes.",
+    "estimate": {
+      "value": 2,
+      "name": "2 Points"
+    },
+    "url": "https://linear.app/allin1/issue/ALL-74/testing-tests-unitarios-authordenes",
+    "status": "Todo",
+    "assignee": "PINILLA MARTÍNEZ ÁLVARO FELIPE",
+    "assigneeId": "1f13bbb1-7257-4ce9-9a0b-f105fd12f95c",
+    "labels": [
+      "Semana 4",
+      "Backend",
+      "2,5 hrs"
+    ]
+  }
+]

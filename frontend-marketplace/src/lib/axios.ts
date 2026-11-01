@@ -3,7 +3,7 @@ import { getAccessToken, removeAuthTokens } from '@/lib/authCookies';
 import { useAuthStore } from '@/store/useAuthStore';
 
 // URL base para el API Gateway o Microservicio principal
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,

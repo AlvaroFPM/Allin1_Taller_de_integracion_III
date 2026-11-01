@@ -1,0 +1,61 @@
+Title,Description,Priority,Status,Assignee,Labels,Estimate
+"[Arquitectura] Definir chat.proto","Escribir archivo chat.proto definiendo mensajes gRPC para mensajería.",High,Todo,"Alvaro Pinilla","Semana 1, Backend",2
+"[Arquitectura] Definir orders.proto","Escribir archivo orders.proto definiendo mensajes gRPC para flujo de contrataciones.",High,Todo,"Alvaro Pinilla","Semana 1, Backend",2
+"[Arquitectura] Actualizar publication.proto","Actualizar definition proto para endpoints de detalle individual y edición.",High,Todo,"Alvaro Pinilla","Semana 1, Backend",2
+"[Arquitectura] Router gRPC Chat","Crear estructura y router gRPC base para el nuevo microservicio de Chat.",High,Todo,"Alvaro Pinilla","Semana 2, Backend",2
+"[Arquitectura] Gateway REST Chat","Configurar y levantar servidor grpc-gateway para el microservicio de Chat.",High,Todo,"Alvaro Pinilla","Semana 2, Backend",2
+"[Seguridad] JWT en Chat","Configurar Interceptor gRPC de JWT (seguridad) en el microservicio de Chat.",High,Todo,"Alvaro Pinilla","Semana 3, Backend",2
+"[Arquitectura] Router gRPC Órdenes","Crear estructura y router gRPC base para el microservicio de Órdenes.",High,Todo,"Alvaro Pinilla","Semana 3, Backend",2
+"[Seguridad] JWT en Órdenes","Configurar servidor grpc-gateway y seguridad JWT para el microservicio de Órdenes.",High,Todo,"Alvaro Pinilla","Semana 3, Backend",2
+"[Seguridad] Verificación de Roles en gRPC","Orquestar la comunicación interna (gRPC) entre IAM y Órdenes para verificar credenciales.",High,Todo,"Alvaro Pinilla","Semana 4, Backend",2
+"[Testing] Tests Unitarios Auth/Órdenes","Escribir tests unitarios de interceptores y arquitectura base para Chat y Órdenes.",High,Todo,"Alvaro Pinilla","Semana 4, Backend",2
+"[BD] Esquema GORM Órdenes","Definir esquema GORM de Órdenes (Comprador, Vendedor, Publicación, Estado).",High,Todo,"Nicolas Fuentes","Semana 1, Backend",2
+"[BD] Endpoint POST /ordenes","Implementar endpoint POST /v1/ordenes (Crear orden/contratar).",High,Todo,"Nicolas Fuentes","Semana 1, Backend",2
+"[BD] Endpoint PATCH /ordenes","Implementar endpoint PATCH /v1/ordenes/{id} (Aceptar/Completar orden).",High,Todo,"Nicolas Fuentes","Semana 1, Backend",2
+"[BD] Endpoints GET Órdenes","Implementar endpoints GET para Mis Compras y Mis Ventas filtrando por ID_Usuario.",High,Todo,"Nicolas Fuentes","Semana 2, Backend",2
+"[BD] Refactor GET /publicaciones/{id}","Implementar endpoint GET /v1/publicaciones/{id} con datos completos para la vista de detalle.",High,Todo,"Nicolas Fuentes","Semana 2, Backend",2
+"[BD] Esquema GORM Reseñas","Definir esquema GORM y migración para Reseñas y Calificaciones (1-5 estrellas).",Medium,Todo,"Nicolas Fuentes","Semana 2, Backend",2
+"[BD] Endpoint POST /resenas","Implementar endpoint POST /v1/resenas (Validar que la orden esté Completada antes de reseñar).",Medium,Todo,"Nicolas Fuentes","Semana 3, Backend",2
+"[BD] Endpoint GET /resenas/{id}","Implementar endpoint GET /v1/resenas/{id_usuario} para listar el historial del perfil.",Medium,Todo,"Nicolas Fuentes","Semana 3, Backend",2
+"[BD] Seed Script Órdenes y Reseñas","Crear Script de Seed de Órdenes y Reseñas falsas para facilitar pruebas.",Low,Todo,"Nicolas Fuentes","Semana 4, Backend",2
+"[Testing] Testify en Órdenes","Escribir tests unitarios (Testify) para la lógica de base de datos de Órdenes y Reseñas.",High,Todo,"Nicolas Fuentes","Semana 4, Backend",2
+"[Media] Conectar Microservicio","Refactorizar y conectar microservicio Media para recibir imágenes.",High,Todo,"Gustavo Valenzuela","Semana 1, Backend",2
+"[Media] Esquema DB Media","Definir esquema de DB en Media para almacenar referencias de imágenes (URL/Cloudinary).",High,Todo,"Gustavo Valenzuela","Semana 1, Backend",2
+"[Media] Endpoint POST /media/upload","Implementar endpoint POST /v1/media/upload para fotos de perfil y portadas públicas.",High,Todo,"Gustavo Valenzuela","Semana 1, Backend",2
+"[Media] Procesamiento de Imágenes","Implementar redimensionamiento automático en Go para fotos antes de subir a Cloudinary.",Medium,Todo,"Gustavo Valenzuela","Semana 2, Backend",2
+"[Perfil] Refactor GET /auth/profile","Refactorizar endpoint para incluir datos públicos (Bio, Avatar, Portada).",High,Todo,"Gustavo Valenzuela","Semana 2, Backend",2
+"[Perfil] Endpoint GET /perfil/{id} público","Implementar endpoint público para que cualquiera vea el perfil del vendedor.",High,Todo,"Gustavo Valenzuela","Semana 2, Backend",2
+"[Perfil] Promedio de Reseñas IAM","Conectar microservicio de IAM con el sistema de Reseñas para calcular promedio de estrellas.",Medium,Todo,"Gustavo Valenzuela","Semana 3, Backend",2
+"[Media] POST Fotos en Publicaciones","Implementar endpoint para subir galería de fotos a las publicaciones.",High,Todo,"Gustavo Valenzuela","Semana 3, Backend",2
+"[Doc] Swagger API Perfil y Media","Documentar nuevos endpoints de Perfil y Media en Swagger/OpenAPI para el Frontend.",Low,Todo,"Gustavo Valenzuela","Semana 4, Backend",2
+"[Testing] Tests de Integración Media","Escribir tests de integración para subida de fotos (Testify) en Media.",High,Todo,"Gustavo Valenzuela","Semana 4, Backend",2
+"[UI] Maquetar /publicaciones/[id]","Maquetar Vista de Detalle de Publicación (Hero, Galería, Info de contacto).",High,Todo,"Francisco Barriga","Semana 1, Frontend",2
+"[UI] Maquetar /perfil/[id] público","Maquetar Vista Pública del Vendedor (Foto, Bio, Botón Contactar, Reputación).",High,Todo,"Francisco Barriga","Semana 1, Frontend",2
+"[UI] Componente Calificación (Estrellas)","Crear componente global de Calificación (Estrellas interactivo 1-5).",Medium,Todo,"Francisco Barriga","Semana 1, Frontend",2
+"[UI] Modal de Confirmación Compra","Maquetar Modal/Componente UI de Confirmación de Compra/Contratación.",High,Todo,"Francisco Barriga","Semana 2, Frontend",2
+"[UI] Maquetar Dashboard Órdenes","Maquetar Dashboard del usuario: Pestañas separadas de Mis Compras y Mis Ventas.",High,Todo,"Francisco Barriga","Semana 2, Frontend",2
+"[UI] Componente Lista de Reseñas","Maquetar Componente de Listado de Reseñas en el perfil público del vendedor.",Medium,Todo,"Francisco Barriga","Semana 2, Frontend",2
+"[UI] Layout de Mensajería (Chat)","Maquetar UI Base de Mensajería / Chat Interno (Lista de chats y burbujas de mensaje).",High,Todo,"Francisco Barriga","Semana 3, Frontend",2
+"[UI] Loading Skeletons","Crear Skeletons de carga fluídos para el Detalle de Publicación, Perfil y Dashboard.",Medium,Todo,"Francisco Barriga","Semana 3, Frontend",2
+"[UI] Responsive Chat y Dashboard","Hacer responsive móvil (Mobile First) la vista de Chat y Dashboard usando Tailwind.",High,Todo,"Francisco Barriga","Semana 4, Frontend",2
+"[UI] Refinar Botones de Estado","Auditoría de contraste y refinamiento UI de botones de estado en Órdenes (Aceptar, Rechazar).",Low,Todo,"Francisco Barriga","Semana 4, Frontend",2
+"[FE] DTOs OpenAPI a TS","Generar DTOs en TypeScript de Órdenes, Reseñas y Chat mapeados desde Swagger/Protobufs.",High,Todo,"Matias Briones","Semana 1, Frontend",2
+"[FE] GET /publicaciones/[id]","Conectar la vista /publicaciones/[id] haciendo llamado GET a la API de catálogo.",High,Todo,"Matias Briones","Semana 1, Frontend",2
+"[FE] GET Perfil Público","Conectar vista /perfil/[id] haciendo GET al servicio de Perfiles públicos de IAM.",High,Todo,"Matias Briones","Semana 1, Frontend",2
+"[FE] POST Acción Contratar","Implementar lógica axios.post al dar clic a Contratar e inyectar Token JWT global.",High,Todo,"Matias Briones","Semana 2, Frontend",2
+"[FE] GET Dashboard Órdenes","Conectar Dashboard de Mis Compras y Mis Ventas a la API de Órdenes usando Zustand.",High,Todo,"Matias Briones","Semana 2, Frontend",2
+"[FE] PATCH Cambiar Estados Órdenes","Implementar lógica Axios para cambiar estados (Aceptar/Completar) de las Órdenes.",High,Todo,"Matias Briones","Semana 2, Frontend",2
+"[FE] POST Crear Reseña","Conectar formulario y componente de Estrellas para hacer POST y dejar Reseñas reales.",Medium,Todo,"Matias Briones","Semana 3, Frontend",2
+"[FE] Subir Imágenes (Multipart Axios)","Implementar carga de imágenes multipart/form-data en edición de Perfil conectando a Media.",High,Todo,"Matias Briones","Semana 3, Frontend",2
+"[FE] Lógica Polling/WebSockets Chat","Integrar lógica del Chat: Implementar auto-refresco (Polling) o WebSockets conectando la API.",High,Todo,"Matias Briones","Semana 4, Frontend",2
+"[FE] Estado Zustand Chat","Centralizar estado global de Chat en Zustand (Mensajes no leídos y notificaciones navbar).",Medium,Todo,"Matias Briones","Semana 4, Frontend",2
+"[Ops] Docker-compose Órdenes y Chat","Modificar docker-compose.yml para orquestar los nuevos microservicios de Órdenes y Chat.",High,Todo,"Amaro Alarcon","Semana 1, DevOps",2
+"[Ops] Dockerfiles Multi-stage","Escribir Dockerfiles optimizados (multi-stage Scratch/Alpine) para Órdenes y Chat.",High,Todo,"Amaro Alarcon","Semana 1, DevOps",2
+"[Ops] Manifiestos K8s Órdenes","Crear manifiestos de Kubernetes (Deployment, Service) para el backend de Órdenes.",High,Todo,"Amaro Alarcon","Semana 1, DevOps",2
+"[Ops] Manifiestos K8s Chat","Crear manifiestos de Kubernetes (Deployment, Service) para el backend de Mensajería (Chat).",High,Todo,"Amaro Alarcon","Semana 2, DevOps",2
+"[Ops] Routing Ingress K8s","Actualizar el Ingress de Kubernetes para enrutar /v1/ordenes y /v1/chat a los nuevos pods.",High,Todo,"Amaro Alarcon","Semana 2, DevOps",2
+"[Ops] Configurar PVC Kubernetes","Configurar Persistent Volume Claims (PVC) en Kubernetes para persistencia de imágenes en Media.",High,Todo,"Amaro Alarcon","Semana 2, DevOps",2
+"[CI] Configurar Actions Tests Nuevos","Actualizar GitHub Actions de CI para correr tests unitarios Go de los nuevos microservicios.",High,Todo,"Amaro Alarcon","Semana 3, DevOps",2
+"[CD] Auto-Deploy Órdenes y Chat","Modificar GitHub Actions de CD para hacer push a Docker Hub y redesplegar Órdenes y Chat.",High,Todo,"Amaro Alarcon","Semana 3, DevOps",2
+"[Seguridad] K8s Secrets Prod","Estandarizar variables de entorno de Cloudinary y JWT en Kubernetes Secrets (Ocultos).",High,Todo,"Amaro Alarcon","Semana 4, DevOps",2
+"[Ops] Healthchecks Probes K8s","Implementar Healthchecks (Liveness/Readiness probes) robustos en K8s para todos los pods nuevos.",Medium,Todo,"Amaro Alarcon","Semana 4, DevOps",2

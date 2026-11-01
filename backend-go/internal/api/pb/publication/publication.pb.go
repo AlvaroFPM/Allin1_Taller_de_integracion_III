@@ -1116,6 +1116,7 @@ type ListPublicationsRequest struct {
 	ExcludeUserId *uint32                `protobuf:"varint,5,opt,name=exclude_user_id,json=excludeUserId,proto3,oneof" json:"exclude_user_id,omitempty"`
 	MinPrice      *int64                 `protobuf:"varint,6,opt,name=min_price,json=minPrice,proto3,oneof" json:"min_price,omitempty"` // Precio mínimo inclusivo (CLP)
 	MaxPrice      *int64                 `protobuf:"varint,7,opt,name=max_price,json=maxPrice,proto3,oneof" json:"max_price,omitempty"` // Precio máximo inclusivo (CLP)
+	UserId        *uint32                `protobuf:"varint,8,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`       // Filtrar por ID de usuario vendedor
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1195,6 +1196,13 @@ func (x *ListPublicationsRequest) GetMinPrice() int64 {
 func (x *ListPublicationsRequest) GetMaxPrice() int64 {
 	if x != nil && x.MaxPrice != nil {
 		return *x.MaxPrice
+	}
+	return 0
+}
+
+func (x *ListPublicationsRequest) GetUserId() uint32 {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
 	}
 	return 0
 }
@@ -1435,7 +1443,7 @@ const file_publication_proto_rawDesc = "" +
 	"\x1bGetPublicationDetailRequest\x12%\n" +
 	"\x0eid_publicacion\x18\x01 \x01(\rR\ridPublicacion\"X\n" +
 	"\x1cGetPublicationDetailResponse\x128\n" +
-	"\adetalle\x18\x01 \x01(\v2\x1e.publication.PublicationDetailR\adetalle\"\xf4\x02\n" +
+	"\adetalle\x18\x01 \x01(\v2\x1e.publication.PublicationDetailR\adetalle\"\x9e\x03\n" +
 	"\x17ListPublicationsRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12&\n" +
@@ -1443,14 +1451,17 @@ const file_publication_proto_rawDesc = "" +
 	"\rtipo_servicio\x18\x04 \x01(\x0e2\x19.publication.TipoServicioH\x01R\ftipoServicio\x88\x01\x01\x12+\n" +
 	"\x0fexclude_user_id\x18\x05 \x01(\rH\x02R\rexcludeUserId\x88\x01\x01\x12 \n" +
 	"\tmin_price\x18\x06 \x01(\x03H\x03R\bminPrice\x88\x01\x01\x12 \n" +
-	"\tmax_price\x18\a \x01(\x03H\x04R\bmaxPrice\x88\x01\x01B\x0f\n" +
+	"\tmax_price\x18\a \x01(\x03H\x04R\bmaxPrice\x88\x01\x01\x12\x1c\n" +
+	"\auser_id\x18\b \x01(\rH\x05R\x06userId\x88\x01\x01B\x0f\n" +
 	"\r_categoria_idB\x10\n" +
 	"\x0e_tipo_servicioB\x12\n" +
 	"\x10_exclude_user_idB\f\n" +
 	"\n" +
 	"_min_priceB\f\n" +
 	"\n" +
-	"_max_price\"\x89\x01\n" +
+	"_max_priceB\n" +
+	"\n" +
+	"\b_user_id\"\x89\x01\n" +
 	"\x18ListPublicationsResponse\x12<\n" +
 	"\fpublications\x18\x01 \x03(\v2\x18.publication.PublicationR\fpublications\x12/\n" +
 	"\x04meta\x18\x02 \x01(\v2\x1b.publication.PaginationMetaR\x04meta\"\x16\n" +
