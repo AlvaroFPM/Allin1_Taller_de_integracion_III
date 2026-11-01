@@ -26,8 +26,7 @@ export default function OrdenesPage() {
               Dashboard de Órdenes
             </h1>
             <p className="text-xs sm:text-sm text-content-muted mt-1 max-w-2xl">
-              Supervisa tus compras contratadas y tus ventas como proveedor, con pagos protegidos
-              bajo custodia Escrow.
+              Consulta tus compras y ventas con los datos disponibles de la API de órdenes.
             </p>
           </div>
 

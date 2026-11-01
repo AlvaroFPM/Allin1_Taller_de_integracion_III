@@ -3,146 +3,131 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
 import { OrderCard } from './order-card';
-import {
-  MOCK_ORDERS,
-  type DashboardOrder,
-  type OrderRole,
-  type OrderStatus,
-} from '@/types/orders-dashboard';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useOrdersStore } from '@/store/useOrdersStore';
+import { toDashboardOrder } from '@/lib/mappers/orders';
+import type { OrderDto } from '@/types/dto/orders';
+import type { DashboardOrder, OrderRole } from '@/types/orders-dashboard';
 
-export interface OrdersDashboardPanelProps {
-  initialOrders?: DashboardOrder[];
+function subscribeToHydration(listener: () => void) {
+  const start = useAuthStore.persist.onHydrate(() => listener());
+  const finish = useAuthStore.persist.onFinishHydration(() => listener());
+  return () => {
+    start();
+    finish();
+  };
 }
 
-export function OrdersDashboardPanel({ initialOrders = MOCK_ORDERS }: OrdersDashboardPanelProps) {
-  const [orders, setOrders] = React.useState<DashboardOrder[]>(initialOrders);
-  const [activeTab, setActiveTab] = React.useState<OrderRole>('COMPRA');
-  const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = React.useState<string>('');
-
-  // Estadísticas globales del dashboard
-  const stats = React.useMemo(() => {
-    const comprasActivas = orders.filter(
-      (o) => o.role === 'COMPRA' && (o.status === 'EN_PROCESO' || o.status === 'PAGO_CUSTODIADO'),
-    );
-    const ventasActivas = orders.filter(
-      (o) => o.role === 'VENTA' && (o.status === 'EN_PROCESO' || o.status === 'PAGO_CUSTODIADO'),
-    );
-    const completadas = orders.filter((o) => o.status === 'COMPLETADA');
-    const totalEnEscrow = orders
-      .filter(
-        (o) => o.escrowSecured && (o.status === 'EN_PROCESO' || o.status === 'PAGO_CUSTODIADO'),
-      )
-      .reduce((sum, o) => sum + o.price, 0);
-
+function mapList(orders: OrderDto[], role: OrderRole) {
+  try {
     return {
-      comprasActivasCount: comprasActivas.length,
-      ventasActivasCount: ventasActivas.length,
-      completadasCount: completadas.length,
-      totalEnEscrow,
+      orders: orders.map((order) => toDashboardOrder(order, role)),
+      error: null,
     };
-  }, [orders]);
+  } catch {
+    return {
+      orders: [] as DashboardOrder[],
+      error: 'La respuesta contiene datos de orden inválidos.',
+    };
+  }
+}
 
-  // Filtrado reactivo por pestaña, estado y buscador
-  const filteredOrders = React.useMemo(() => {
-    return orders.filter((order) => {
-      // 1. Filtro por pestaña (Compras / Ventas)
-      if (order.role !== activeTab) return false;
+export function OrdersDashboardPanel() {
+  const userId = useAuthStore((state) => state.user?.id);
+  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hydrated = React.useSyncExternalStore(
+    subscribeToHydration,
+    () => useAuthStore.persist.hasHydrated(),
+    () => false,
+  );
+  const purchases = useOrdersStore((state) => state.purchases);
+  const sales = useOrdersStore((state) => state.sales);
+  const loadPurchases = useOrdersStore((state) => state.loadPurchases);
+  const loadSales = useOrdersStore((state) => state.loadSales);
+  const [activeTab, setActiveTab] = React.useState<OrderRole>('COMPRA');
+  const [statusFilter, setStatusFilter] = React.useState('ALL');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const sessionReady = hydrated && isAuthenticated && userId != null && Boolean(token);
 
-      // 2. Filtro por estado
-      if (statusFilter !== 'ALL' && order.status !== statusFilter) return false;
+  React.useEffect(() => {
+    if (!sessionReady) return;
+    const controller = new AbortController();
+    void loadPurchases({}, controller.signal);
+    void loadSales({}, controller.signal);
+    return () => controller.abort();
+  }, [sessionReady, userId, token, loadPurchases, loadSales]);
 
-      // 3. Filtro por buscador (título, código o contraparte)
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchTitle = order.title.toLowerCase().includes(query);
-        const matchNumber = order.orderNumber.toLowerCase().includes(query);
-        const matchCounterpart = order.counterpartName.toLowerCase().includes(query);
-        if (!matchTitle && !matchNumber && !matchCounterpart) return false;
-      }
-
-      return true;
-    });
-  }, [orders, activeTab, statusFilter, searchQuery]);
-
-  // Contadores para las pestañas
-  const totalCompras = orders.filter((o) => o.role === 'COMPRA').length;
-  const totalVentas = orders.filter((o) => o.role === 'VENTA').length;
-
-  // Acciones interactivas en vivo
-  const handleConfirmReceipt = (order: DashboardOrder) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, status: 'COMPLETADA' as OrderStatus } : o)),
-    );
-    toast.success(
-      `¡Has confirmado la recepción de "${order.title}"! Los fondos han sido liberados al vendedor.`,
-      { title: 'Pago Liberado con Éxito' },
-    );
+  const mappedPurchases = React.useMemo(
+    () => mapList(purchases.orders, 'COMPRA'),
+    [purchases.orders],
+  );
+  const mappedSales = React.useMemo(() => mapList(sales.orders, 'VENTA'), [sales.orders]);
+  const orders = [...mappedPurchases.orders, ...mappedSales.orders];
+  const totalCompras = mappedPurchases.orders.length;
+  const totalVentas = mappedSales.orders.length;
+  const stats = {
+    comprasActivasCount: totalCompras,
+    ventasActivasCount: totalVentas,
+    completadasCount: orders.filter((order) => order.status === 'COMPLETADA').length,
   };
-
-  const handleMarkCompleted = (order: DashboardOrder) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, status: 'COMPLETADA' as OrderStatus } : o)),
+  const activeList = activeTab === 'COMPRA' ? purchases : sales;
+  const activeMapped = activeTab === 'COMPRA' ? mappedPurchases : mappedSales;
+  const activeError = activeList.error || activeMapped.error;
+  const filteredOrders = activeMapped.orders.filter((order) => {
+    if (statusFilter !== 'ALL' && order.status !== statusFilter) return false;
+    const query = searchQuery.trim().toLowerCase();
+    return (
+      !query ||
+      [order.title, order.orderNumber, order.counterpartName].some((value) =>
+        value.toLowerCase().includes(query),
+      )
     );
-    toast.success(
-      `Has marcado como terminado el trabajo para ${order.counterpartName}. El cliente revisará la entrega para liberar los fondos.`,
-      { title: 'Trabajo Terminado' },
-    );
+  });
+  const loadPage = (page: number) => {
+    if (!sessionReady || !Number.isInteger(page) || page < 1) return;
+    void (activeTab === 'COMPRA' ? loadPurchases : loadSales)({ page });
   };
+  const currentPage = activeList.meta?.currentPage;
+  const totalPages = activeList.meta?.totalPages;
 
-  const handleContact = (order: DashboardOrder) => {
-    toast.info(`Abriendo canal de mensajería seguro con ${order.counterpartName}...`, {
-      title: 'Mensajería Escrow',
-    });
-  };
-
-  const handleRate = (order: DashboardOrder) => {
-    toast.info(`Abriendo modal de calificación para ${order.counterpartName}...`, {
-      title: 'Calificar Servicio',
-    });
-  };
-
-  const handleViewDetail = (order: DashboardOrder) => {
-    toast.info(
-      `Detalle de la orden ${order.orderNumber}: $${order.price.toLocaleString('es-CL')} CLP bajo custodia Escrow.`,
-      { title: 'Información de Orden' },
-    );
-  };
-
+  if (!hydrated) return <p role="status">Comprobando sesión...</p>;
+  if (!sessionReady) return <p role="status">Inicia sesión para consultar tus órdenes.</p>;
   return (
     <div className="space-y-8">
       {/* 1. Tarjetas de Resumen / Métricas del Dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
-            Compras en Curso
+            Compras cargadas
           </span>
           <p className="text-2xl font-black text-content-main tracking-tight">
             {stats.comprasActivasCount}
           </p>
-          <span className="text-xs text-brand font-medium">Bajo custodia protegida</span>
+          <span className="text-xs text-brand font-medium">Cantidad en la página cargada</span>
         </div>
 
         <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
-            Ventas en Curso
+            Ventas cargadas
           </span>
           <p className="text-2xl font-black text-content-main tracking-tight">
             {stats.ventasActivasCount}
           </p>
-          <span className="text-xs text-emerald-700 font-medium">Por cobrar al terminar</span>
+          <span className="text-xs text-emerald-700 font-medium">
+            Cantidad en la página cargada
+          </span>
         </div>
 
         <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
-            Fondos Activos en Escrow
+            Información de pagos
           </span>
-          <p className="text-2xl font-black text-brand tracking-tight">
-            ${stats.totalEnEscrow.toLocaleString('es-CL')}
-          </p>
-          <span className="text-xs text-content-muted font-medium">Garantía protegida</span>
+          <p className="text-2xl font-black text-brand tracking-tight">No disponible</p>
+          <span className="text-xs text-content-muted font-medium">
+            No informada por la API de órdenes
+          </span>
         </div>
 
         <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
@@ -152,7 +137,9 @@ export function OrdersDashboardPanel({ initialOrders = MOCK_ORDERS }: OrdersDash
           <p className="text-2xl font-black text-content-main tracking-tight">
             {stats.completadasCount}
           </p>
-          <span className="text-xs text-emerald-700 font-medium">100% de éxito</span>
+          <span className="text-xs text-emerald-700 font-medium">
+            Solo órdenes de las páginas cargadas
+          </span>
         </div>
       </div>
 
@@ -213,8 +200,9 @@ export function OrdersDashboardPanel({ initialOrders = MOCK_ORDERS }: OrdersDash
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
           {[
             { key: 'ALL', label: 'Todas' },
-            { key: 'PAGO_CUSTODIADO', label: 'En Custodia Escrow' },
-            { key: 'EN_PROCESO', label: 'En Proceso' },
+            { key: 'PENDIENTE', label: 'Pendientes' },
+            { key: 'ACEPTADA', label: 'Aceptadas' },
+            { key: 'ESTADO_ORDEN_UNSPECIFIED', label: 'Sin estado informado' },
             { key: 'COMPLETADA', label: 'Completadas' },
             { key: 'CANCELADA', label: 'Canceladas' },
           ].map((pill) => (
@@ -239,7 +227,7 @@ export function OrdersDashboardPanel({ initialOrders = MOCK_ORDERS }: OrdersDash
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por orden, título o persona..."
+            placeholder="Buscar por ID de orden, publicación o usuario..."
             className="w-full text-xs py-2 pl-8 pr-3 rounded-xl border border-border-base bg-surface-main text-content-main placeholder:text-content-muted focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <svg
@@ -258,19 +246,50 @@ export function OrdersDashboardPanel({ initialOrders = MOCK_ORDERS }: OrdersDash
         </div>
       </div>
 
-      {/* 4. Lista de Tarjetas de Órdenes */}
-      {filteredOrders.length > 0 ? (
+      <p className="text-xs text-content-muted">
+        La API no informa nombres, tipos, moneda ni pagos. Las acciones no conectadas están
+        deshabilitadas. Los contadores y filtros corresponden solo a las páginas cargadas. Compras:{' '}
+        {purchases.status}. Ventas: {sales.status}.
+      </p>
+
+      {typeof currentPage === 'number' && typeof totalPages === 'number' && totalPages > 0 && (
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            size="sm"
+            disabled={activeList.status === 'loading' || currentPage <= 1}
+            onClick={() => loadPage(currentPage - 1)}
+          >
+            Anterior
+          </Button>
+          <span>
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            disabled={activeList.status === 'loading' || currentPage >= totalPages}
+            onClick={() => loadPage(currentPage + 1)}
+          >
+            Siguiente
+          </Button>
+        </div>
+      )}
+
+      {/* No convertir carga o error en éxito vacío. */}
+      {activeList.status === 'loading' || activeList.status === 'idle' ? (
+        <p role="status">Cargando órdenes...</p>
+      ) : activeError ? (
+        <div role="alert" className="space-y-3">
+          <p>{activeError}</p>
+          <Button type="button" size="sm" onClick={() => loadPage(1)}>
+            Reintentar
+          </Button>
+        </div>
+      ) : filteredOrders.length > 0 ? (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onConfirmReceipt={handleConfirmReceipt}
-              onMarkCompleted={handleMarkCompleted}
-              onContact={handleContact}
-              onRate={handleRate}
-              onViewDetail={handleViewDetail}
-            />
+            <OrderCard key={order.id} order={order} />
           ))}
         </div>
       ) : (

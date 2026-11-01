@@ -17,10 +17,21 @@ const eslintConfig = defineConfig([
       'no-console': ['warn', { allow: ['warn', 'error'] }],
 
       // Componentes sin children deben usar self-closing: <Component />
-      'react/self-closing-comp': 'warn',
 
       // Integración con Prettier: forzar regla de saltos de línea LF
       'prettier/prettier': ['error', { endOfLine: 'lf' }],
+    },
+  },
+  {
+    files: ['**/*.{jsx,tsx}'],
+    rules: {
+      'react/self-closing-comp': 'warn',
+    },
+  },
+  {
+    files: ['src/store/useOrdersStore.test.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
   // Override default ignores of eslint-config-next.

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans } from 'next/font/google';
 import { Navbar, Footer } from '@/components/shared';
 import { ToastContainer } from '@/components/ui';
+import { OrdersSessionBoundary } from '@/components/shared/orders-session-boundary';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-surface-base text-content-main">
+        <OrdersSessionBoundary />
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />

@@ -18,6 +18,9 @@ const STATUS_BADGE_CONFIG: Record<
   OrderStatus,
   { label: string; variant: 'brand' | 'warning' | 'success' | 'danger' | 'neutral' }
 > = {
+  PENDIENTE: { label: 'Pendiente', variant: 'warning' },
+  ACEPTADA: { label: 'Aceptada', variant: 'brand' },
+  ESTADO_ORDEN_UNSPECIFIED: { label: 'Estado no informado', variant: 'neutral' },
   PAGO_CUSTODIADO: {
     label: 'Pago en Custodia Escrow',
     variant: 'brand',
@@ -52,8 +55,14 @@ export function OrderCard({
   onViewDetail,
 }: OrderCardProps) {
   const statusConfig = STATUS_BADGE_CONFIG[order.status];
-  const typeVariant = TYPE_BADGE_VARIANT[order.type];
-  const currency = order.currency ?? 'CLP';
+  const typeVariant = order.type ? TYPE_BADGE_VARIANT[order.type] : 'neutral';
+  const currency = order.currency;
+  const priceLabel =
+    typeof order.price === 'string' && /^-?\d+$/.test(order.price)
+      ? BigInt(order.price).toLocaleString('es-CL')
+      : typeof order.price === 'number' && Number.isFinite(order.price)
+        ? order.price.toLocaleString('es-CL')
+        : 'Monto no informado';
 
   return (
     <div className="bg-surface-main rounded-2xl border border-border-base p-5 sm:p-6 shadow-xs hover:border-brand/40 transition-all space-y-4">
@@ -66,7 +75,7 @@ export function OrderCard({
           <span className="text-content-muted">•</span>
           <span className="text-content-muted">{order.createdAt}</span>
           <Badge variant={typeVariant} size="sm">
-            {order.type}
+            {order.type ?? 'Tipo no informado'}
           </Badge>
           {order.category && (
             <span className="text-content-muted hidden sm:inline">({order.category})</span>
@@ -122,11 +131,13 @@ export function OrderCard({
         {/* Monto de la Orden */}
         <div className="text-left sm:text-right shrink-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted block">
-            {order.role === 'COMPRA' ? 'Total Pagado' : 'Ganancia Neta'}
+            {'Monto de la orden'}
           </span>
           <p className="text-xl font-black text-brand tracking-tight">
-            ${order.price.toLocaleString('es-CL')}{' '}
-            <span className="text-xs font-semibold text-content-muted">{currency}</span>
+            {priceLabel}{' '}
+            <span className="text-xs font-semibold text-content-muted">
+              {currency ?? (order.price !== null ? 'Moneda no informada' : '')}
+            </span>
           </p>
           {order.escrowSecured && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1">
@@ -172,6 +183,7 @@ export function OrderCard({
             type="button"
             variant="ghost"
             size="sm"
+            disabled={!onViewDetail}
             onClick={() => onViewDetail?.(order)}
             className="text-xs"
           >
@@ -182,6 +194,7 @@ export function OrderCard({
             type="button"
             variant="secondary"
             size="sm"
+            disabled={!onContact}
             onClick={() => onContact?.(order)}
             className="text-xs"
           >
@@ -195,6 +208,7 @@ export function OrderCard({
                 type="button"
                 variant="primary"
                 size="sm"
+                disabled={!onConfirmReceipt}
                 onClick={() => onConfirmReceipt?.(order)}
                 className="text-xs font-bold"
               >
@@ -207,6 +221,7 @@ export function OrderCard({
               type="button"
               variant="outline"
               size="sm"
+              disabled={!onRate}
               onClick={() => onRate?.(order)}
               className="text-xs font-semibold"
             >
@@ -221,6 +236,7 @@ export function OrderCard({
                 type="button"
                 variant="primary"
                 size="sm"
+                disabled={!onMarkCompleted}
                 onClick={() => onMarkCompleted?.(order)}
                 className="text-xs font-bold"
               >

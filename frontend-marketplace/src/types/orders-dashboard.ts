@@ -1,6 +1,14 @@
 export type OrderRole = 'COMPRA' | 'VENTA';
 
-export type OrderStatus = 'EN_PROCESO' | 'PAGO_CUSTODIADO' | 'COMPLETADA' | 'CANCELADA';
+// Los estados de maqueta se conservan solo para sus fixtures sintéticos.
+export type OrderStatus =
+  | 'EN_PROCESO'
+  | 'PAGO_CUSTODIADO'
+  | 'PENDIENTE'
+  | 'ACEPTADA'
+  | 'ESTADO_ORDEN_UNSPECIFIED'
+  | 'COMPLETADA'
+  | 'CANCELADA';
 
 export type OrderItemType = 'SERVICIO' | 'ARTICULO' | 'FLETE' | 'TRABAJO';
 
@@ -9,13 +17,13 @@ export interface DashboardOrder {
   orderNumber: string;
   role: OrderRole;
   title: string;
-  type: OrderItemType;
+  type: OrderItemType | null;
   category: string;
   status: OrderStatus;
   createdAt: string;
-  price: number;
+  price: string | number | null;
   currency?: string;
-  escrowSecured: boolean;
+  escrowSecured: boolean | null;
   counterpartName: string;
   counterpartRole: 'Vendedor' | 'Comprador';
   counterpartAvatarUrl?: string;
@@ -33,6 +41,7 @@ export interface OrdersSummaryStats {
   escrowSecuredAmount: number;
 }
 
+// Fixtures sintéticos: el panel conectado no los importa.
 export const MOCK_ORDERS: DashboardOrder[] = [
   // --- Mis Compras ---
   {
