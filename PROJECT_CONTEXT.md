@@ -151,11 +151,11 @@ kubectl apply -f ingress.yaml
 - Namespace: `student-aalarcon`
 - Secretos K8s: `<servicio>-db-secret` (ej. `iam-db-secret`)
 - Imágenes Docker Hub: `am4roo/allin1-<servicio>-<stack>:<tag>`
-  - Tag vigente de IAM: `am4roo/allin1-iam-go:20261006-5cdbdee`
-  - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261006-5cdbdee`
+  - Tag vigente de IAM: `am4roo/allin1-iam-go:20261101-754d95d`
+  - Tag vigente de Catalog: `am4roo/allin1-catalog-go:20261101-754d95d`
   - Imagen de Orders: `am4roo/allin1-orders-go:<tag>` (tag en manifiesto K8s: `TAG_A_DEFINIR`, sin build oficial aún)
   - Imagen de Chat: `am4roo/allin1-chat-go:<tag>` (tag en manifiesto K8s: `TAG_A_DEFINIR`, sin build oficial aún)
-  - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20260929-b3e03c9`
+  - Ejemplo frontend (vigente): `am4roo/allin1-frontend-next:20261101-754d95d`
   - **Formato de tag recomendado**: `YYYYMMDD-<hash-corto-git>` (NO usar `latest`)
 
 ## 8. Kubernetes
@@ -194,6 +194,7 @@ kubectl apply -f service.yaml
 | `postgres-catalog.yaml` | PVC + StatefulSet + Service | PostgreSQL para Catalog (StatefulSet + headless Service) |
 | `deployment.yaml` | Deployment `catalog` | Microservicio Catalog (Go) — puertos 8082 (HTTP) y 50052 (gRPC) |
 | `service.yaml` | Service `catalog` | ClusterIP, port 8082 |
+| `hpa.yaml` | HorizontalPodAutoscaler `catalog-hpa` | Escalado automático 1→2 réplicas por CPU (60 % del request) |
 
 **Orden de apply para Catalog:**
 ```bash
@@ -214,10 +215,167 @@ kubectl apply -f deployment.yaml
 # 5. Service interno
 kubectl apply -f service.yaml
 
-# 6. Actualización del API Gateway
+# 6. HPA (DESPUÉS de deployment.yaml; requiere Metrics Server activo)
+kubectl apply -f hpa.yaml
+
+# 7. Actualización del API Gateway
 kubectl apply -f ../gateway/configmap.yaml
 kubectl rollout restart deployment/api-gateway
 ```
+
+### Dimensionamiento de recursos y cuota del namespace
+
+#### (a) ResourceQuota y LimitRange del namespace `student-aalarcon`
+
+**ResourceQuota `student-provisioner-quota`:**
+
+| Recurso | Límite total |
+|---------|-------------|
+| `requests.cpu` | 1 (1000m) |
+| `limits.cpu` | 2 (2000m) |
+| `requests.memory` | 1088Mi |
+| `limits.memory` | 2624Mi |
+| `pods` | 12 |
+| `persistentvolumeclaims` | 3 |
+| `services` | 10 |
+
+**LimitRange (por contenedor):**
+
+| Campo | CPU | Memoria |
+|-------|-----|---------|
+| Mínimo (`min`) | 25m | 64Mi |
+| Máximo (`max`) | 500m | 512Mi |
+
+#### (b) Memoria: ANTES y DESPUÉS del recorte (ticket ALL-122)
+
+| Servicio | requests ANTES | requests DESPUÉS | limits ANTES | limits DESPUÉS |
+|----------|---------------|-----------------|-------------|----------------|
+| catalog (×1) | 128Mi | 64Mi | 512Mi | 256Mi |
+| iam (×1) | 256Mi | 64Mi | 512Mi | 256Mi |
+
+Con 1 réplica de Catalog (estado esperado tras aplicar ALL-122):
+
+| Concepto | requests.memory | limits.memory |
+|----------|----------------|---------------|
+| Suma total del namespace (1× catalog + 1× iam + resto) | 832Mi | 2112Mi |
+| Cuota disponible | 1088Mi | 2624Mi |
+| Margen restante | 256Mi | 512Mi |
+
+Con 2 réplicas de Catalog activas (HPA en máximo):
+
+| Concepto | requests.memory | limits.memory |
+|----------|----------------|---------------|
+| Suma total del namespace (2× catalog + 1× iam + resto) | ~896Mi | ~2368Mi |
+| Cuota disponible | 1088Mi | 2624Mi |
+| Margen restante | ~192Mi | ~256Mi |
+
+#### (c) Mediciones de consumo de memoria
+
+| Servicio | Reposo | Pico (100 VUs, 30s) | Fuente |
+|----------|--------|---------------------|--------|
+| Catalog | 9,4 MiB | 19,1 MiB | Docker local (aproximado) |
+| IAM | ~9 MiB | — | Docker local (aproximado) |
+| Frontend (Next.js) | 62 MiB | — | Clúster UCT (`kubectl exec` leyendo `/sys/fs/cgroup/memory.current`; incluye caché de página) |
+
+> Las mediciones de Catalog e IAM se obtuvieron en Docker local y son aproximadas; el consumo real en el clúster puede diferir levemente.
+
+#### (d) Parámetros del HPA y observabilidad
+
+- **`averageUtilization: 60`**: el HPA escala cuando el promedio de CPU supera el 60 % de `requests.cpu` (100m), es decir **60m de CPU consumidos** en promedio por Pod.
+- **`minReplicas: 1` / `maxReplicas: 2`**: limitado por la cuota del namespace.
+- **`scaleUp.stabilizationWindowSeconds: 0`**: escala inmediatamente al detectar carga.
+- **`scaleDown.stabilizationWindowSeconds: 300`**: espera 5 minutos antes de reducir réplicas.
+- Los estudiantes **no pueden usar `kubectl top`** (acceso `Forbidden` a `metrics.k8s.io`). El consumo se puede observar en la columna `TARGETS` de:
+```bash
+kubectl get hpa catalog-hpa -n student-aalarcon
+```
+
+#### (e) Implicancias del rolling update con 1 réplica
+
+Los Deployments de este proyecto usan la estrategia por defecto (`RollingUpdate`) con `maxSurge: 0` y `maxUnavailable: 1`. Con una sola réplica activa, durante un `kubectl rollout`, el Pod existente se elimina antes de que el nuevo arranque, lo que implica **unos segundos sin servicio** en ese microservicio. Esto es aceptable en el entorno universitario actual.
+
+### Prueba de carga del HPA (ALL-122)
+
+Para validar el escalado automático del microservicio Catalog en el clúster sin exceder la cuota de memoria, se utiliza el script `load_test.js` en modo rampa gradual contra el API Gateway:
+
+```bash
+k6 run -e BASE_URL=https://student-aalarcon.dev.censei.cl -e MODE=ramp load_test.js
+```
+
+**Variables de entorno disponibles:**
+- `BASE_URL`: URL base del entorno (por defecto `http://localhost:8082`).
+- `MODE`: `constant` (VUs fijos) o `ramp` (etapas progresivas).
+- `USERS`: Cantidad de VUs en modo constante (por defecto `1`).
+- `DURATION`: Duración en modo constante (por defecto `2m`).
+- `LEVELS`: Niveles de concurrencia en modo rampa separados por coma (por defecto `1,5,10,20,40`).
+- `HOLD`: Tiempo de permanencia en cada nivel de concurrencia (por defecto `90s`).
+- `ENDPOINT`: Endpoint a probar (por defecto `/v1/publications?limit=100`, idéntico a la petición de `/explorar` en el frontend).
+
+**Procedimiento y puntos de medición:**
+Dado que los estudiantes no pueden usar `kubectl top` (acceso prohibido `Forbidden` en `metrics.k8s.io`), la observabilidad y los tiempos de reacción del HPA se miden observando los siguientes comandos en terminales paralelas:
+- Terminal 1: `kubectl get hpa catalog-hpa -n student-aalarcon -w`
+- Terminal 2: `kubectl get pods -n student-aalarcon -l app=catalog -w`
+
+**Puntos de medición temporales:**
+- **T0**: Primera vez que la columna `TARGETS` supera el umbral del 60 % de CPU (`kubectl get hpa -w`).
+- **T1**: Momento en que aparece el segundo pod de Catalog en el listado de pods.
+- **T2**: Momento en que ese segundo pod pasa a estado `1/1 Running` (`kubectl get pods -l app=catalog -w`) y queda listo para recibir tráfico.
+
+#### Resultados de la corrida del 2026-11-01
+
+**1. Tiempos de reacción del HPA (Escalado 1→2 réplicas):**
+
+| Hito | Hora (aprox.) | Evento observado | Estado / Métrica |
+|------|---------------|------------------|------------------|
+| Inicio escalón 5 VUs | ≈21:43:40 | Inicio de carga de 5 VUs en k6 (deducido) | 1 réplica |
+| **T0** | 21:44:03 | Primera detección de sobrecarga en HPA | CPU 78 % / 60 % (umbral superado) |
+| **T1** | 21:44:03 | Creación del segundo Pod de Catalog | Pod `catalog-...-ntp2q` en `Pending` |
+| — | 21:44:11 | Arranque del contenedor | Pod en `0/1 Running` |
+| **T2** | 21:44:22 | Segundo Pod listo para recibir tráfico | Pod en `1/1 Running` (readiness probe OK) |
+
+- **Métricas derivadas:**
+  - **T1 − T0**: ≈ 0 s (creación inmediata del Pod tras superar el umbral).
+  - **T2 − T1**: 19 s (tiempo de schedule, pull/inicio del contenedor y paso de readiness probe).
+  - **Tiempo total de reacción**: ≈ 42 s desde el inicio del escalón de 5 VUs hasta tener la segunda réplica 100 % operativa.
+  - *Nota*: Las lecturas de `kubectl get hpa` y `kubectl get pods` presentan una separación de 10 a 20 s y el inicio del escalón fue deducido a partir de los tiempos de k6, por lo que son valores aproximados.
+
+**2. Consumo de CPU por escalón de carga:**
+*(Porcentaje respecto al request configurado de 100m, valores aproximados)*
+
+| Nivel de carga (VUs) | Réplicas activas | Uso de CPU observado |
+|----------------------|------------------|----------------------|
+| 1 VU | 1 | 15 – 18 % |
+| 5 VUs | 1 → 2 | 25 % → 78 % (1 réplica) y 27 – 36 % tras escalar (2 réplicas) |
+| 10 VUs | 2 | 53 – 66 % |
+| 20 VUs | 2 | 66 – 108 % |
+| 40 VUs | 2 | 162 – 183 % |
+
+**3. Reducción de réplicas (Scale Down):**
+- Al finalizar la prueba, la CPU cayó a **1 %** a las 21:51:17.
+- La segunda réplica fue retirada a las 21:56:14 (≈ 5 minutos después), cumpliendo con la ventana de estabilización `scaleDown.stabilizationWindowSeconds: 300` configurada en el HPA para evitar fluctuaciones (*flapping*).
+
+**4. Resumen de resultados k6:**
+- **Peticiones totales**: 6.878 solicitudes HTTP.
+- **Tasa de error**: 0 % de fallos (`http_req_failed: rate<0.05` cumplido).
+- **Latencias**: Mediana de 65 ms, percentil 95 (p95) de 766 ms en toda la corrida, latencia máxima de 2,89 s.
+- **Configuración ejecutada**: Endpoint `/v1/publications?limit=100`, rampa con niveles 1, 5, 10, 20 y 40 VUs sosteniendo 90 s por nivel (`MODE=ramp`, `LEVELS=1,5,10,20,40`, `HOLD=90s`).
+
+**5. Observaciones técnicas:**
+- **Límite de réplicas**: Con 40 VUs (162–183 % de CPU sobre 2 pods), el algoritmo del HPA habría escalado a ≈ 6 réplicas si no estuviera acotado; se mantuvo en `maxReplicas: 2` para respetar la cuota estricta de memoria del namespace (`student-provisioner-quota`).
+- **Comportamiento del Pod en scaleDown**: Uno de los pods terminó con estado `Error` durante la reducción de réplicas (posible falta de manejo de apagado ordenado o *graceful shutdown* ante la señal `SIGTERM`; ocurrió sin impacto de servicio ya que el Pod ya no recibía tráfico; queda registrado como deuda técnica para investigar).
+- **Evidencia cruda**: Los registros completos de ejecución (`hpa.txt`, `pods.txt`, `k6.txt`) se encuentran almacenados localmente en el equipo donde se corrió la prueba, fuera del repositorio de control de versiones.
+
+### Evidencia de despliegue (2026-11-01)
+
+Despliegue verificado en el clúster con tag inmutable `20261101-754d95d` correspondiente al commit `754d95d`:
+
+| Microservicio | Imagen | Digest |
+|---------------|--------|--------|
+| Frontend | `am4roo/allin1-frontend-next:20261101-754d95d` | `sha256:b06094a378fa9f87dfd1e42f5d83d4e732ff8f6b532ceee889a70f336dcb8ff7` |
+| IAM | `am4roo/allin1-iam-go:20261101-754d95d` | `sha256:55ea638f8d2ffae695cad6be47aa0a73683085657cc306fe5fe643399c05bb3c` |
+| Catalog | `am4roo/allin1-catalog-go:20261101-754d95d` | `sha256:f2c2340ea6b317c91d4488d5cb9f428690e5b0845f5c4f581271c067e6abe82e` |
+
+Estas imágenes fueron desplegadas en el clúster con `kubectl set image`, y los manifiestos de Kubernetes del repositorio (`deployment.yaml` de cada servicio) ya declaran oficialmente estos mismos tags.
 
 ### Manifiestos de Orders (`backend-go/k8s/orders/`)
 
@@ -367,7 +525,7 @@ kubectl apply -f ingress.yaml
 > 4. **Regla "Commit antes de Build"**:
 >    - El tag de la imagen se construye con `YYYYMMDD-<hash-corto-git>`. El árbol de trabajo de Git (`git status`) debe estar completamente limpio antes de construir para garantizar trazabilidad exacta entre imagen y commit.
 > 
-> **Tag vigente desplegado**: `am4roo/allin1-frontend-next:20260929-b3e03c9`
+> **Tag vigente desplegado**: `am4roo/allin1-frontend-next:20261101-754d95d`
 
 **Flujo de tráfico del frontend:**
 ```
@@ -491,8 +649,11 @@ headers `Access-Control-Allow-*` en las respuestas proxy.
 | Inconsistencia de scopes en GitFlow | `README.md` | `README.md` no lista `orders` ni `media` dentro de los scopes de GitFlow (`iam`, `catalog`, `chat`, etc.), pero la rama de #281 utilizó el scope `orders` por decisión del equipo |
 | Alineación de puertos de base de datos del host | `docker-compose.yml`, `PROJECT_STRUCTURE.md` | Puerto host de `postgres_orders` se reasignó a `5437` para resolver colisión con `postgres_media` (`5435`); mantener `PROJECT_STRUCTURE.md` sincronizado |
 | Media sin manifiestos K8s completos | `backend-go/k8s/media/` | Solo existe `pvc.yaml` (`postgres-media-pvc`); faltan `postgres-media` (StatefulSet y Service), `deployment.yaml`, `service.yaml`, `configmap.yaml` y `secret.yaml` |
-| Cuota del namespace al límite (estado al 2026-10-19) | Clúster K8s (`student-provisioner-quota`) | `persistentvolumeclaims` alcanza 3/3 tras este PVC (Orders y Chat necesitarán PVC propio para su PostgreSQL), y `requests.memory` / `limits.memory` están al 100% (1088Mi/1088Mi y 2624Mi/2624Mi), por lo que los pods nuevos no se programarán hasta ampliar la cuota con el administrador del clúster |
+| Cuota del namespace al límite (estado al 2026-10-19) | Clúster K8s (`student-provisioner-quota`) | Tras ALL-122 la memoria ya no está al 100 % (con 1 réplica de Catalog: requests 832Mi/1088Mi y limits 2112Mi/2624Mi); PVC en el clúster al 2026-11-01: 2/3 usados (Orders y Chat necesitarán PVC propio para su PostgreSQL) |
 | Discrepancia alcance ALL-120 (persistencia de imágenes) | `backend-go/k8s/media/pvc.yaml`, `cmd/media/` | El ticket ALL-120 menciona "persistencia de imágenes", pero las imágenes van a Cloudinary; el PVC cubre exclusivamente la base de datos de Media (`media_db`) |
+| `scripts/gen-env.js` no genera `POSTGRES_PASSWORD_MEDIA` ni variables de Cloudinary | `scripts/gen-env.js`, `docker-compose.yml` | `docker compose up` completo (sin perfiles) falla en `postgres_media` porque las variables no se generan automáticamente; deben agregarse a mano en `.env` |
+| Margen de cuota de memoria del namespace tras ALL-122 | Clúster K8s (`student-provisioner-quota`) | Quedan ~192Mi de requests y ~256Mi de limits libres; cualquier servicio nuevo requiere ampliar la cuota con el administrador del clúster o aplicar más recortes |
+| HPA depende de Metrics Server en el clúster | `backend-go/k8s/catalog/hpa.yaml` | Si el Metrics Server deja de estar disponible en el clúster, el HPA no puede calcular `averageUtilization` y mantendrá las réplicas actuales sin escalar ni reducir |
 
 ## 13. GitFlow y Branching
 

@@ -32,7 +32,7 @@ Allin1_Taller_de_integracion_III/
 │   │   ├── seed/                    # Carga inicial de datos demostrativos
 │   │   └── service/                 # Servicios de lógica de negocio pura (auth, publication, media, order, chat)
 │   ├── k8s/                         # Manifiestos de Kubernetes para microservicios Go
-│   │   ├── catalog/                 # Deployment, Service, ConfigMap, Secrets y PostgreSQL
+│   │   ├── catalog/                 # Deployment, Service, ConfigMap, Secrets, HPA y PostgreSQL
 │   │   ├── chat/                    # Deployment y Service (pendientes ConfigMap, Secret y PostgreSQL)
 │   │   ├── gateway/                 # Deployment, Service, Ingress y ConfigMap
 │   │   ├── iam/                     # Deployment, Service, ConfigMap, Secrets y PostgreSQL
@@ -103,7 +103,7 @@ Allin1_Taller_de_integracion_III/
 ├── .env                             # Variables de entorno locales activas
 ├── .env.example                     # Plantilla de variables de entorno requeridas
 ├── docker-compose.yml               # Orquestación de contenedores locales (PostgreSQL, Go, Web)
-├── load_test.js                     # Script de pruebas de carga con k6
+├── load_test.js                     # Prueba de carga k6 parametrizable por variables de entorno (modo constante o rampa gradual)
 ├── Makefile                         # Automatización centralizada para Windows, Linux y macOS
 ├── payload.json                     # Archivo payload de muestra para pruebas de API
 ├── PROJECT_CONTEXT.md               # Contexto detallado de negocio y arquitectura
@@ -251,12 +251,12 @@ Backend distribuido implementado bajo principios de Clean Architecture. Combina 
   - `media/`: Servicios de carga y validación a Cloudinary (`upload_service.go`, `validator.go`, `processor.go`, `types.go`, `errors.go`).
 
 ### Dockerfiles y Construcción de Contenedores
-- **`Dockerfile`**: Construcción multi-stage parametrizada mediante el argumento `SERVICE_PATH` (ej. `cmd/iam`, `cmd/catalog`, `cmd/media`). Utiliza `golang:1.27-alpine` como builder y genera imagen runtime Alpine liviana.
+- **`Dockerfile`**: Construcción multi-stage parametrizada mediante el argumento `SERVICE_PATH` (ej. `cmd/iam`, `cmd/catalog`, `cmd/media`). Utiliza `golang:1.27-alpine` como builder y la imagen runtime se construye sobre `scratch` (sin shell ni sistema operativo; solo el binario, los certificados CA y tzdata).
 - **`Dockerfile.orders`**: Construcción multi-stage optimizada para producción del microservicio Orders (contexto `backend-go/`). Builder en `golang:1.27-alpine` con caché de BuildKit (`--mount=type=cache`), compilación estática (`CGO_ENABLED=0 -trimpath -ldflags="-s -w"`), y etapa final sobre `scratch` con usuario no-root `65532:65532`, `ca-certificates.crt` y `tzdata`. Expone HTTP `8084` y gRPC `50053`. Imagen de ~10.4 MB (~2.78 MB comprimida) sin shell (los healthchecks en K8s operan mediante tcpSocket).
 - **`Dockerfile.chat`**: Construcción multi-stage optimizada para producción del microservicio Chat (contexto `backend-go/`). Esquema idéntico a Orders (`golang:1.27-alpine` → `scratch`, usuario `65532:65532`, sin shell). Expone HTTP `8085` y gRPC `50054` (puertos propuestos).
 
 ### Infraestructura Kubernetes (`backend-go/k8s/`)
-- **`catalog/`**: `configmap.yaml`, `deployment.yaml`, `postgres-catalog.yaml` (BD dedicada), `secret.yaml`, `secret.example.yaml`, `service.yaml`.
+- **`catalog/`**: `configmap.yaml`, `deployment.yaml`, `hpa.yaml` (HPA `catalog-hpa`, escalado 1→2 réplicas por CPU), `postgres-catalog.yaml` (BD dedicada), `secret.yaml`, `secret.example.yaml`, `service.yaml`.
 - **`chat/`**: `deployment.yaml`, `service.yaml`. Manifiestos preparados para el microservicio Chat (Go). No incluye aún ConfigMap (`chat-db-config`), Secret (`chat-db-secret`) ni PostgreSQL dedicado (`postgres-chat`).
 - **`iam/`**: `configmap.yaml`, `deployment.yaml`, `namespace.yaml`, `postgres-iam.yaml` (BD dedicada), `secret.yaml`, `secret.example.yaml`, `service.yaml`.
 - **`gateway/`**: `configmap.yaml`, `deployment.yaml`, `ingress.yaml`, `service.yaml`.
@@ -311,9 +311,9 @@ Configura la red compartida `allin1_network` y levanta el entorno de desarrollo 
   - `scripts/gen-env.js`: Genera el archivo `.env` local combinando variables y defaults necesarios, incluyendo ahora `POSTGRES_PASSWORD_ORDERS` y `POSTGRES_PASSWORD_CHAT`.
   - `scripts/wait-ports.js`: Espera activamente a que los puertos de servicios base (`5433`, `5434`, `8081`, `8082` y `3000`) respondan antes de dar por listo el entorno. No incluye los puertos de los servicios opcionales por perfil (`5436`, `5437`, `8084`, `8085`) ni los de Media (`5435`, `8083`).
 - **`setup.cmd`**: Script por lotes para preparar y levantar el entorno fácilmente en sistemas Windows.
-- **`load_test.js`**: Script de pruebas de carga con **k6**:
-  - Evalúa la resiliencia del endpoint de catálogo (`GET http://localhost:8082/v1/publications`).
-  - Simula 100 usuarios virtuales concurrentes (`vus: 100`) durante 30 segundos (`duration: '30s'`).
+- **`load_test.js`**: Prueba de carga k6 parametrizable por variables de entorno (modo constante o rampa gradual), apunta por defecto a localhost:8082 y se usa contra el clúster para validar el HPA de Catalog (/v1/publications?limit=100).
+
+
 - **`payload.json`**: Muestra de cuerpo JSON para pruebas de publicación de servicios.
 
 ### Integración Continua (`.github/workflows/`)
