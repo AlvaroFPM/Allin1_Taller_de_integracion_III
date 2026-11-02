@@ -14,7 +14,7 @@ metadata:
     project: allin1
     tier: backend
 spec:
-  replicas: 1
+  # replicas lo gestiona el HPA (catalog-hpa); no fijar aqui o cada apply lo devuelve a 1
   selector:
     matchLabels:
       app: catalog
@@ -29,7 +29,7 @@ spec:
       containers:
         - name: catalog
           # Imagen en Docker Hub. Tag formato YYYYMMDD-<hash-corto-git> (nunca latest)
-          image: am4roo/allin1-catalog-go:20261006-5cdbdee
+          image: am4roo/allin1-catalog-go:20261101-754d95d
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8082
@@ -99,10 +99,10 @@ spec:
           resources:
             requests:
               cpu: "100m"       # >= 25m requerido por LimitRange
-              memory: "128Mi"   # >= 64Mi requerido por LimitRange
+              memory: "64Mi"    # >= 64Mi requerido por LimitRange
             limits:
               cpu: "250m"
-              memory: "512Mi"
+              memory: "256Mi"
 
           readinessProbe:
             tcpSocket:

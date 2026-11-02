@@ -45,7 +45,7 @@ spec:
       containers:
         - name: iam
           # Imagen publicada en Docker Hub por el equipo
-          image: am4roo/allin1-iam-go:20261006-5cdbdee
+          image: am4roo/allin1-iam-go:20261101-754d95d
 
           # IfNotPresent: usa la imagen local si ya fue descargada (tag inmutable)
           imagePullPolicy: IfNotPresent
@@ -110,10 +110,10 @@ spec:
           resources:
             requests:
               cpu: "100m"       # 0.1 vCPU — suficiente para carga baja
-              memory: "256Mi"   # 256 MB de RAM
+              memory: "64Mi"    # >= 64Mi requerido por LimitRange
             limits:
               cpu: "200m"       # 0.2 vCPU — tope para no afectar otros estudiantes
-              memory: "512Mi"   # 512 MB de RAM — margen para picos
+              memory: "256Mi"   # 256 MB de RAM — margen para picos
 
           # -----------------------------------------------------------------
           # Probes: Verificaciones de salud del contenedor
