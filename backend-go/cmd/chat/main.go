@@ -17,14 +17,12 @@ import (
 	"github.com/rs/cors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"gorm.io/gorm"
 )
 
 func main() {
 	fmt.Println("Iniciando microservicio Chat...")
 
 	// 1. Conexión a la base de datos
-	var db *gorm.DB
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Printf("Aviso: No se pudo conectar a la base de datos de Chat: %v. Operando en modo memoria.", err)
