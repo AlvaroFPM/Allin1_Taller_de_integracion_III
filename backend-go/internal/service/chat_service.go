@@ -113,24 +113,22 @@ func (s *ChatServiceServer) GetOrCreateRoom(ctx context.Context, req *chatpb.Get
 		}
 
 		err := query.First(&sala).Error
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				var pubID *uint
-				if req.PublicacionId != nil && *req.PublicacionId > 0 {
-					p := uint(*req.PublicacionId)
-					pubID = &p
-				}
-				sala = models.ChatSala{
-					CompradorID:   currentUserID,
-					VendedorID:    uint(req.GetVendedorId()),
-					PublicacionID: pubID,
-				}
-				if err := s.db.WithContext(ctx).Create(&sala).Error; err != nil {
-					return nil, status.Errorf(codes.Internal, "error al crear la sala de chat: %v", err)
-				}
-			} else {
-				return nil, status.Errorf(codes.Internal, "error al consultar sala: %v", err)
+		if err == gorm.ErrRecordNotFound {
+			var pubID *uint
+			if req.PublicacionId != nil && *req.PublicacionId > 0 {
+				p := uint(*req.PublicacionId)
+				pubID = &p
 			}
+			sala = models.ChatSala{
+				CompradorID:   currentUserID,
+				VendedorID:    uint(req.GetVendedorId()),
+				PublicacionID: pubID,
+			}
+			if err := s.db.WithContext(ctx).Create(&sala).Error; err != nil {
+				return nil, status.Errorf(codes.Internal, "error al crear la sala de chat: %v", err)
+			}
+		} else if err != nil {
+			return nil, status.Errorf(codes.Internal, "error al consultar sala: %v", err)
 		}
 	}
 
