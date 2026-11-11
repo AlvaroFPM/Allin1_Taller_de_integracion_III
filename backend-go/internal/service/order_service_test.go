@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// getEnvOrDefault obtiene una variable de entorno o retorna el valor por defecto
+// getOrderTestEnv obtiene una variable de entorno o retorna el valor por defecto
 // (apunta por defecto al contenedor local de postgres_catalog en el puerto 5434).
 func getOrderTestEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
