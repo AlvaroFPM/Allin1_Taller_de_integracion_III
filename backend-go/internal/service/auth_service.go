@@ -169,7 +169,7 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 func generateJWT(userID uint) (string, error) {
 	secretKey := os.Getenv("JWT_SECRET")
 	if secretKey == "" {
-		secretKey = "super-secret-key-development-only" // Fallback seguro para desarrollo
+		secretKey = "super-secret-key-development-only" // TODO: fallback INSEGURO, solo para desarrollo local
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
