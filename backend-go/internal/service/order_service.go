@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
@@ -134,23 +135,18 @@ func validateCreateOrder(compradorID, vendedorID, publicacionID uint, precio int
 
 // validateOrderTransition valida que el nuevo estado sea conocido y que la transición esté permitida (FSM pura).
 func validateOrderTransition(estadoActual, nuevoEstado string) error {
-	// Verificar que el estado solicitado sea válido en el dominio
-	switch nuevoEstado {
-	case models.EstadoOrdenPendiente, models.EstadoOrdenAceptada, models.EstadoOrdenCompletada, models.EstadoOrdenCancelada:
-	default:
+	// Verificar que el estado solicitado exista en el dominio usando el mapa como fuente única
+	if _, ok := transicionesValidas[nuevoEstado]; !ok {
 		return status.Errorf(codes.InvalidArgument, "estado de orden desconocido: %s", nuevoEstado)
 	}
 
-	// Verificar transiciones según el mapa
 	destinosValidos, ok := transicionesValidas[estadoActual]
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "el estado actual '%s' no es válido en el sistema", estadoActual)
 	}
 
-	for _, permitida := range destinosValidos {
-		if permitida == nuevoEstado {
-			return nil
-		}
+	if slices.Contains(destinosValidos, nuevoEstado) {
+		return nil
 	}
 
 	return status.Errorf(codes.FailedPrecondition, "transición no permitida: no se puede pasar de %s a %s", estadoActual, nuevoEstado)
@@ -204,7 +200,7 @@ func (s *OrderService) listOrdersByUser(ctx context.Context, columna string, usu
 		return nil, 0, status.Errorf(codes.Internal, "columna de consulta no permitida: %s", columna)
 	}
 
-	// 2. Normalizar paginación
+	// 2. Normalizar paginación (se conserva el retorno de página por contrato de tests y futuro PaginationMeta)
 	_, limitNorm, offset := normalizePagination(page, limit)
 
 	// 3. Validar estado: recortar una sola vez al inicio y evaluar
@@ -232,17 +228,18 @@ func (s *OrderService) listOrdersByUser(ctx context.Context, columna string, usu
 		return nil, 0, status.Errorf(codes.Internal, "error al contar órdenes: %v", err)
 	}
 
+	if totalRecords == 0 {
+		return make([]models.Orden, 0), 0, nil
+	}
+
 	// 6. Traer página con orden descendente por fecha y fallback por id_orden
 	ordenes := make([]models.Orden, 0)
-	if totalRecords > 0 {
-		err := baseQuery.
-			Order("fecha_creacion DESC, id_orden DESC").
-			Offset(offset).
-			Limit(int(limitNorm)).
-			Find(&ordenes).Error
-		if err != nil {
-			return nil, 0, status.Errorf(codes.Internal, "error al listar órdenes: %v", err)
-		}
+	if err := baseQuery.
+		Order("fecha_creacion DESC, id_orden DESC").
+		Offset(offset).
+		Limit(int(limitNorm)).
+		Find(&ordenes).Error; err != nil {
+		return nil, 0, status.Errorf(codes.Internal, "error al listar órdenes: %v", err)
 	}
 
 	// 7. Retornar resultados (slice no nil y total de registros)
@@ -269,10 +266,8 @@ func validateOrderFilterState(estado string) error {
 	if estado == "" {
 		return nil
 	}
-	switch estado {
-	case models.EstadoOrdenPendiente, models.EstadoOrdenAceptada, models.EstadoOrdenCompletada, models.EstadoOrdenCancelada:
-		return nil
-	default:
+	if _, ok := transicionesValidas[estado]; !ok {
 		return status.Errorf(codes.InvalidArgument, "estado de orden inválido: %s", estado)
 	}
+	return nil
 }
