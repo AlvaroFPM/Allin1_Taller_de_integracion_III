@@ -1,0 +1,199 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{booktabs,longtable,array,xcolor,hyperref,listings}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\definecolor{codegray}{RGB}{245,245,245}
+\lstset{language=Go,basicstyle=\ttfamily\small,backgroundcolor=\color{codegray},frame=single,breaklines=true,showstringspaces=false}
+\title{Informe técnico de revisión\\Responsabilidades y dependencias del módulo Media}
+\author{ALL-133 -- Sprint final S1}
+\date{10 de noviembre de 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este documento registra la revisión solicitada para la semana 1 del sprint final. Se analizaron handlers, validación, procesamiento, subida a Cloudinary, persistencia de referencias, manejo de errores y composición del microservicio Media. La línea base es \texttt{develop} en \texttt{b3dc9ad51c97bccc5bdb8aba8fc44d0449ff7bad}. No se modificó el código Go ni se aplicaron refactors.
+\end{abstract}
+
+\section{Resumen ejecutivo}
+El módulo tiene dos flujos:
+\begin{enumerate}
+\item \textbf{Subida múltiple}: \texttt{POST /upload/multiple}. Acepta el campo multipart \texttt{files}, valida y procesa hasta diez archivos, los sube a Cloudinary y devuelve referencias. No crea filas en BD.
+\item \textbf{Subida autenticada}: \texttt{POST /v1/media/upload}. Exige \texttt{HTTPAuth}, acepta \texttt{tipo} y exactamente un \texttt{file}, utiliza las políticas \texttt{PERFIL}/\texttt{PORTADA}, sube a Cloudinary y persiste \texttt{models.Media}.
+\end{enumerate}
+
+La separación de capas es razonable: HTTP está en \texttt{internal/api/media}, el pipeline en \texttt{internal/service/media} y la composición en \texttt{cmd/media/main.go}. Los principales candidatos de refactor son la duplicación de parseo multipart, la ubicación compartida del mapeo de errores, los campos no consumidos de \texttt{ProcessedFile} y los mapas paralelos de política por tipo. Los archivos huérfanos en Cloudinary y el rollback de lotes son defectos pendientes, no cambios de esta semana.
+
+\section{Estado de la revisión}
+\begin{longtable}{p{0.30\textwidth}p{0.62\textwidth}}
+\toprule
+Elemento & Evidencia\\ \midrule
+Rama de trabajo & \texttt{ALL-133-analisis-tecnico-media}, creada para esta tarea desde \texttt{develop}.\\
+Línea base & \texttt{b3dc9ad51c97bccc5bdb8aba8fc44d0449ff7bad}.\\
+Estado inicial & Rama \texttt{develop} limpia y alineada con \texttt{origin/develop}; no había cambios locales.\\
+Rutas revisadas & \texttt{backend-go/internal/api/media}, \texttt{backend-go/internal/service/media}, \texttt{backend-go/cmd/media/main.go}; consumidores buscados en todo \texttt{backend-go}.\\
+Validación ejecutada & Desde \texttt{backend-go}: \texttt{go test ./internal/api/media ./internal/service/media}. Resultado: ambos paquetes \texttt{ok}.\\
+Cambios de aplicación & Ninguno. Solo se crea este informe.\\
+\bottomrule
+\end{longtable}
+
+\section{Arquitectura y dependencias}
+\begin{lstlisting}
+main
+  -> UploadService(CloudinaryUploader, FileValidator, ImageProcessor)
+       -> UploadHandler -> /upload/multiple
+  -> MediaService(UploadService, MediaRepository)
+       -> MediaHandler + HTTPAuth -> /v1/media/upload
+\end{lstlisting}
+
+\subsection{Responsabilidades por archivo}
+\begin{longtable}{p{0.31\textwidth}p{0.60\textwidth}}
+\toprule
+Ruta y líneas & Responsabilidad, entrada, salida y efectos\\ \midrule
+\texttt{api/media/upload\_handler.go:23--60} & Recibe POST multipart, limita y parsea body, obtiene \texttt{files}, llama a \texttt{ProcessFiles} y devuelve JSON 200 o error. Puede producir assets Cloudinary, no BD.\\
+\texttt{api/media/media\_handler.go:32--78} & Exige ID de usuario en contexto, normaliza \texttt{tipo}, exige un \texttt{file}, llama a \texttt{MediaService.Upload} y devuelve JSON 201 con id, tipo, URL y PublicID.\\
+\texttt{service/media/upload\_service.go:79--112} & Orquesta lectura, validación, procesamiento y subida a Cloudinary. Devuelve \texttt{models.UploadResult}.\\
+\texttt{service/media/upload\_service.go:118--134} & Abre cada header y lee todo a memoria para producir \texttt{[]File}.\\
+\texttt{service/media/validator.go:73--126} & Comprueba vacío, tamaño, cantidad y MIME real por magic bytes; el lote falla completo ante un archivo inválido.\\
+\texttt{service/media/processor.go:65--148} & Decodifica, redimensiona y recomprime JPEG/PNG/WEBP; AVIF pasa sin transcodificar.\\
+\texttt{service/media/media\_service.go:59--89} & Selecciona carpeta/dimensión por tipo, ejecuta el upload y crea \texttt{models.Media}.\\
+\texttt{service/media/media\_service.go:32--45} & Adapta GORM mediante \texttt{MediaRepository.Create}; inserta la referencia en BD.\\
+\texttt{cmd/media/main.go:25--52} & Conecta BD, inicializa dependencias y registra los dos endpoints; el segundo queda detrás de \texttt{HTTPAuth}.\\
+\bottomrule
+\end{longtable}
+
+\section{Flujos y efectos persistentes}
+\subsection{Subida múltiple}
+La secuencia es: parseo multipart $\rightarrow$ lectura a memoria $\rightarrow$ validación completa $\rightarrow$ procesamiento completo $\rightarrow$ subida individual a Cloudinary $\rightarrow$ respuesta. La validación y el procesamiento son todo-o-nada; la subida externa no es atómica. Si una subida posterior falla, las anteriores pueden quedar creadas.
+
+\subsection{Subida autenticada}
+La secuencia es: autenticación $\rightarrow$ parseo $\rightarrow$ tipo y cardinalidad $\rightarrow$ selección de política $\rightarrow$ validación/procesamiento $\rightarrow$ Cloudinary $\rightarrow$ GORM. Si GORM falla después de Cloudinary, el asset remoto puede quedar sin fila correspondiente.
+
+\section{Comportamientos a preservar}
+\begin{itemize}
+\item Solo POST; otros métodos devuelven 405.
+\item Campos multipart: \texttt{files} para múltiple y \texttt{file} para autenticado.
+\item Ausencia de usuario en contexto: 401.
+\item Tipos válidos: \texttt{PERFIL} y \texttt{PORTADA}; otro tipo: 400.
+\item Límite por defecto: 5 MiB por archivo; máximo múltiple: 10 archivos.
+\item Detección por magic bytes, no por extensión ni Content-Type del cliente.
+\item Validación y procesamiento de lote antes de comenzar las subidas.
+\item JPEG, PNG y WEBP se transcodifican; AVIF pasa sin tocar.
+\item El endpoint autenticado conserva 201 y JSON \texttt{id}, \texttt{tipo}, \texttt{url}, \texttt{publicId}.
+\item BD no disponible: 503 en subida autenticada; subida múltiple independiente de la BD.
+\end{itemize}
+
+\section{Hallazgos y cambios propuestos}
+\subsection{R1 -- Duplicación de parseo multipart}
+\textbf{Archivos/líneas}: \texttt{upload\_handler.go:11--48} y \texttt{media\_handler.go:12--59}.
+
+Ambos handlers repiten constantes, \texttt{MaxBytesReader}, \texttt{ParseMultipartForm} y la traducción del error de límite. La diferencia válida es el límite efectivo. La duplicación puede causar respuestas distintas al corregir un handler.
+Se propone un helper interno que reciba el límite y no conozca nombres de campos:
+\begin{lstlisting}
+func parseMultipart(w http.ResponseWriter, r *http.Request,
+    limit int64) (*multipart.Form, error) {
+    r.Body = http.MaxBytesReader(w, r.Body, limit)
+    if err := r.ParseMultipartForm(multipartMemoryBuffer); err != nil {
+        return nil, err
+    }
+    return r.MultipartForm, nil
+}
+\end{lstlisting}
+Debe comprobarse que 413 y 400, mensajes y límites permanezcan iguales.
+
+\subsection{R2 -- Ubicación ambigua de \texttt{mapUploadError}}
+\textbf{Archivo/líneas}: \texttt{upload\_handler.go:62--97}; usado también desde \texttt{media\_handler.go:64--73}.
+
+La función está en el archivo del handler múltiple, pero es una traducción compartida por ambos handlers. Funciona por pertenecer al mismo paquete, aunque la ubicación induce a pensar que es exclusiva del endpoint múltiple.
+Se propone moverla a \texttt{internal/api/media/errors.go}, conservando firma, status y textos:
+\begin{lstlisting}
+// errors.go, paquete api/media
+func mapUploadError(err error) (status int, message string) {
+    // misma tabla de errores; solo cambia la ubicación
+}
+\end{lstlisting}
+
+\subsection{R3 -- Datos de \texttt{ProcessedFile} sin consumidor productivo}
+\textbf{Archivo/líneas}: \texttt{processor.go:22--30,65--101}; consumidor \texttt{upload\_service.go:96--108}.
+
+La búsqueda global muestra que producción usa solo \texttt{Name} y \texttt{Data}. \texttt{Format} y \texttt{WasTranscoded} se producen y se comprueban en tests, pero no son usados por el siguiente bloque ni por otro consumidor productivo. Transportarlos agrega superficie interna.
+Cambio condicionado a confirmar que no se requieren para observabilidad:
+\begin{lstlisting}
+type ProcessedFile struct {
+    Name string
+    Data []byte
+}
+\end{lstlisting}
+Después deben ajustarse tests para verificar bytes, dimensiones, passthrough AVIF y nombre. No debe eliminarse \texttt{ValidatedFile.Format}, porque sí se usa para decidir la transcodificación.
+
+\subsection{R4 -- Dos mapas paralelos por tipo}
+\textbf{Archivo/líneas}: \texttt{media\_service.go:20--30,64--69}.
+
+\texttt{mediaFolders} y \texttt{mediaMaxDimension} usan las mismas claves. Olvidar una entrada puede producir una política incompleta. Se propone consolidar ambos valores:
+\begin{lstlisting}
+type mediaPolicy struct {
+    folder string
+    maxDimension int
+}
+var mediaPolicies = map[string]mediaPolicy{
+    models.TipoMediaPerfil:  {folder: "media/perfil", maxDimension: 512},
+    models.TipoMediaPortada: {folder: "media/portada", maxDimension: 1600},
+}
+\end{lstlisting}
+La política nueva debe conservar tipos, carpetas y dimensiones actuales.
+
+\subsection{R5 -- Responsabilidad amplia de \texttt{UploadService}}
+\textbf{Archivo/líneas}: \texttt{upload\_service.go:21--134}.
+
+El servicio lee multipart, valida, procesa, sube y construye resultados. Es una secuencia coherente, pero concentra responsabilidades. No se recomienda dividirlo en esta semana porque aumentaría dependencias y riesgo. Si se extraen componentes después, \texttt{ProcessFiles} debe mantenerse como fachada durante la migración.
+
+\section{Defectos e integraciones para semanas posteriores}
+\subsection{P1 -- Asset huérfano al fallar persistencia}
+\textbf{Archivo/líneas}: \texttt{media\_service.go:78--87}. Cloudinary se actualiza antes de GORM. Si \texttt{repo.Create} falla, se devuelve \texttt{ErrMediaPersist} pero no se elimina el asset. Debe resolverse con compensación, cola de limpieza o reconciliación; no existe una transacción distribuida real.
+
+\subsection{P2 -- Lote parcialmente subido}
+\textbf{Archivo/líneas}: \texttt{upload\_service.go:95--111}. Si falla el archivo $n$, los anteriores permanecen en Cloudinary aunque la operación devuelva error. Se debe decidir rollback compensatorio, resultado parcial o proceso asíncrono; cambiarlo afecta comportamiento y operación.
+
+\subsection{P3 -- Lectura completa antes de validar tamaño}
+\textbf{Archivo/líneas}: \texttt{upload\_service.go:118--132} y \texttt{validator.go:73--82}. \texttt{io.ReadAll} ocurre antes de la validación por archivo. El endpoint HTTP limita el body, pero una llamada directa puede consumir más memoria. Posteriormente debe diseñarse lectura acotada sin confiar únicamente en el tamaño declarado.
+
+\subsection{P4 -- Magic bytes no garantizan decodificación}
+\textbf{Archivo/líneas}: \texttt{validator.go:84--104}; test \texttt{validator\_test.go:235--243}. Un JPEG corrupto puede pasar el detector y luego ser rechazado por \texttt{image.Decode} en \texttt{processor.go:75--83}. Es una limitación documentada, no un refactor de esta semana.
+
+\subsection{P5 -- Pérdida de transparencia PNG}
+\textbf{Archivo}: \texttt{processor.go:87--100}; test \texttt{TestLimitacionConocida\_PNGConTransparenciaPierdeElAlfa}. Transcodificar todo a JPEG elimina alfa. Si se agregan logos transparentes, se necesitará otra política de formato.
+
+\subsection{P6 -- Cobertura insuficiente de persistencia}
+Hay integración real para Cloudinary, pero no se encontró una prueba equivalente de \texttt{MediaHandler -> MediaService -> MediaRepository} que cubra 201, 401, 400, 503 y fallo de persistencia. Es una brecha de evidencia, no una prueba de fallo.
+
+\section{Validación antes/después}
+\begin{longtable}{p{0.25\textwidth}p{0.30\textwidth}p{0.35\textwidth}}
+\toprule
+Área & Evidencia actual & Criterio posterior\\ \midrule
+Build/tests & \texttt{go test ./internal/api/media ./internal/service/media}; pasa. & Debe seguir pasando.\\
+HTTP/límites & Tests cubren método, body, tamaño y lotes. & Status, mensajes y límites efectivos iguales.\\
+Formatos & Tests cubren JPEG, PNG, WEBP, AVIF e inválidos. & Igual detección y transcodificación.\\
+Todo-o-nada previo & Tests evitan subidas si falla validación/procesamiento. & Ninguna subida antes de ambas etapas.\\
+Persistencia & Cobertura directa insuficiente. & Agregar pruebas antes de modificar este flujo.\\
+JSON & \texttt{mediaResponse} en \texttt{media\_handler.go:23--28}. & Mismos campos y 201.\\
+\bottomrule
+\end{longtable}
+
+\begin{lstlisting}
+cd backend-go
+gofmt -d internal/api/media internal/service/media cmd/media/main.go
+go test ./internal/api/media ./internal/service/media
+go test ./...
+go test -tags=integration ./internal/service/media
+\end{lstlisting}
+La prueba de integración requiere credenciales y conectividad con Cloudinary y no se ejecutó para no afectar recursos externos.
+
+\section{Entrega, archivos y conclusión}
+El informe se entrega en \texttt{Documentacion Sprint Final/analisis tecnico media/} dentro de la rama \texttt{ALL-133-analisis-tecnico-media}. Los archivos revisados fueron los handlers de \texttt{internal/api/media}, los servicios y tipos de \texttt{internal/service/media}, \texttt{cmd/media/main.go} y \texttt{internal/models/media.go}. No hay commit de refactor ni PR de código porque no se aplicaron cambios.
+
+La revisión identifica responsabilidades, llamadores, salidas, efectos persistentes, duplicación, datos no consumidos y riesgos. La recomendación es cerrar esta actividad como revisión documentada. Si se aprueba implementación, el alcance más seguro es R1, R2 y R4 con regresión; R3 requiere confirmar consumidores futuros; P1--P6 deben planificarse por separado.
+
+\end{document}
+
