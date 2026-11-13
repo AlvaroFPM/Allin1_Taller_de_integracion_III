@@ -16,7 +16,6 @@ export default function PublicarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
-  const [, setIsLoadingCategories] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
 
@@ -37,8 +36,6 @@ export default function PublicarPage() {
         setCategories(data);
       } catch (error: unknown) {
         console.error('Error al cargar categorías:', error);
-      } finally {
-        setIsLoadingCategories(false);
       }
     };
 
