@@ -29,27 +29,27 @@ func (s *PublicationServiceServer) CreatePublication(ctx context.Context, req *p
 		return nil, err
 	}
 
-	tipoStr, err := protoTipoToModel(req.GetTipoServicio())
+	tipoServicio, err := protoTipoToModel(req.GetTipoServicio())
 	if err != nil {
 		return nil, err
 	}
 
 	// SEGURIDAD: Sobrescribir el id_usuario_vendedor del body con el ID real del token JWT
 	userIDCtx := ctx.Value(middleware.UserIDKey)
-	var realUserID uint
+	var vendedorID uint
 	if userIDCtx != nil {
-		realUserID = userIDCtx.(uint)
+		vendedorID = userIDCtx.(uint)
 	} else {
 		// Fallback (no debería pasar por el interceptor, pero por seguridad)
-		realUserID = uint(req.GetIdUsuarioVendedor())
+		vendedorID = uint(req.GetIdUsuarioVendedor())
 	}
 
 	nuevaPublicacion := models.Publicacion{
-		IDUsuarioVendedor: realUserID,
+		IDUsuarioVendedor: vendedorID,
 		CategoriaID:       uint(req.GetCategoriaId()),
 		Titulo:            req.GetTitulo(),
 		Descripcion:       req.GetDescripcion(),
-		TipoServicio:      tipoStr,
+		TipoServicio:      tipoServicio,
 		PrecioBase:        req.GetPrecioBase(),
 		Ciudad:            req.GetCiudad(),
 		Region:            req.GetRegion(),
@@ -71,7 +71,7 @@ func (s *PublicationServiceServer) CreatePublication(ctx context.Context, req *p
 // GetPublication consulta una publicación por ID
 func (s *PublicationServiceServer) GetPublication(ctx context.Context, req *pb.GetPublicationRequest) (*pb.GetPublicationResponse, error) {
 	if req.GetIdPublicacion() == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "id de publicación inválido")
+		return nil, status.Error(codes.InvalidArgument, "id de publicación inválido")
 	}
 
 	var pub models.Publicacion
@@ -82,7 +82,7 @@ func (s *PublicationServiceServer) GetPublication(ctx context.Context, req *pb.G
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, status.Errorf(codes.NotFound, "publicación no encontrada")
+			return nil, status.Error(codes.NotFound, "publicación no encontrada")
 		}
 		return nil, status.Errorf(codes.Internal, "error al consultar publicación: %v", err)
 	}
@@ -124,30 +124,28 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 
 	offset := int((page - 1) * limit)
 
-	// FIX 2: Session(&gorm.Session{}) evita que Count() y Find() compartan y
-	// contaminen el mismo *Statement al reusar la variable `query`.
-	// Ver: https://gorm.io/docs/method_chaining.html#Reusability-and-Safety
-	query := s.db.WithContext(ctx).Session(&gorm.Session{}).
+	// Consulta base: parte de una sesión de GORM y acumula los filtros opcionales.
+	// No accede a la base de datos hasta ejecutar Count y Find.
+	baseQuery := s.db.WithContext(ctx).Session(&gorm.Session{}).
 		Model(&models.Publicacion{}).
 		Where("estado = ?", models.EstadoActivo)
 
 	// Filtros opcionales
 	if req.CategoriaId != nil && *req.CategoriaId > 0 {
-		query = query.Where("id_categoria = ?", *req.CategoriaId)
+		baseQuery = baseQuery.Where("id_categoria = ?", *req.CategoriaId)
 	}
 
 	if req.TipoServicio != nil && *req.TipoServicio != pb.TipoServicio_TIPO_SERVICIO_UNSPECIFIED {
-		tipoStr, err := protoTipoToModel(*req.TipoServicio)
+		tipoServicio, err := protoTipoToModel(*req.TipoServicio)
 		if err == nil {
-			query = query.Where("tipo_servicio = ?", tipoStr)
+			baseQuery = baseQuery.Where("tipo_servicio = ?", tipoServicio)
 		}
 	}
 
 	// Filtro por usuario vendedor (para vista de perfil / mis publicaciones)
 	if req.UserId != nil && *req.UserId > 0 {
-		query = query.Where("id_usuario_vendedor = ?", *req.UserId)
+		baseQuery = baseQuery.Where("id_usuario_vendedor = ?", *req.UserId)
 	} else {
-		// RN-12: Excluir publicaciones del usuario en sesión del feed general (cuando no se filtra por usuario específico).
 		// Prioridad: ID del token JWT (si el interceptor lo inyectó en el contexto).
 		// Respaldo: parámetro opcional exclude_user_id (visitantes sin sesión o clientes que lo envían).
 		var excludeUserID uint
@@ -157,26 +155,25 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 			excludeUserID = uint(*req.ExcludeUserId)
 		}
 		if excludeUserID > 0 {
-			query = query.Where("id_usuario_vendedor <> ?", excludeUserID)
+			baseQuery = baseQuery.Where("id_usuario_vendedor <> ?", excludeUserID)
 		}
 	}
 
-	// Rango de precio (límites inclusivos). Como el precio base siempre es > 0 (RN-23),
 	// un valor <= 0 se trata como "sin límite". Si min > max el resultado queda vacío.
 	if req.MinPrice != nil && *req.MinPrice > 0 {
-		query = query.Where("precio_base >= ?", *req.MinPrice)
+		baseQuery = baseQuery.Where("precio_base >= ?", *req.MinPrice)
 	}
 	if req.MaxPrice != nil && *req.MaxPrice > 0 {
-		query = query.Where("precio_base <= ?", *req.MaxPrice)
+		baseQuery = baseQuery.Where("precio_base <= ?", *req.MaxPrice)
 	}
 
 	var totalRecords int64
-	if err := query.Count(&totalRecords).Error; err != nil {
+	if err := baseQuery.Count(&totalRecords).Error; err != nil {
 		return nil, status.Errorf(codes.Internal, "error al contar publicaciones: %v", err)
 	}
 
 	var publicaciones []models.Publicacion
-	err := query.
+	err := baseQuery.
 		Preload("Categoria").
 		Order("fecha_creacion DESC, id_publicacion DESC"). // desempate estable: evita repetidos/saltos entre páginas
 		Offset(offset).
@@ -189,15 +186,14 @@ func (s *PublicationServiceServer) ListPublications(ctx context.Context, req *pb
 
 	totalPages := int32(math.Ceil(float64(totalRecords) / float64(limit)))
 
-	// FIX 1: make() en vez de `var` para que el JSON devuelva [] en vez de null
-	// cuando no hay resultados (evita TypeError en el .map() de Next.js).
-	protoList := make([]*pb.Publication, 0, len(publicaciones))
+	// Se inicializa con make() para devolver una lista vacía (y no nil) cuando no hay resultados.
+	protoPublications := make([]*pb.Publication, 0, len(publicaciones))
 	for i := range publicaciones {
-		protoList = append(protoList, mapModelToProto(&publicaciones[i]))
+		protoPublications = append(protoPublications, mapModelToProto(&publicaciones[i]))
 	}
 
 	return &pb.ListPublicationsResponse{
-		Publications: protoList,
+		Publications: protoPublications,
 		Meta: &pb.PaginationMeta{
 			TotalRecords: totalRecords,
 			CurrentPage:  page,
