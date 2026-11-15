@@ -17,16 +17,13 @@ var (
 	ErrMediaPersist          = errors.New("no se pudo guardar la referencia de la imagen")
 )
 
-// mediaFolders define la carpeta de Cloudinary según el tipo de imagen.
-var mediaFolders = map[string]string{
-	models.TipoMediaPerfil:  "media/perfil",
-	models.TipoMediaPortada: "media/portada",
-}
-
-// mediaMaxDimension define el lado más largo permitido, en píxeles, según el tipo.
-var mediaMaxDimension = map[string]int{
-	models.TipoMediaPerfil:  512,
-	models.TipoMediaPortada: 1600,
+// mediaPolicies mantiene juntas la carpeta y la dimensión máxima de cada tipo.
+var mediaPolicies = map[string]struct {
+	folder       string
+	maxDimension int
+}{
+	models.TipoMediaPerfil:  {folder: "media/perfil", maxDimension: 512},
+	models.TipoMediaPortada: {folder: "media/portada", maxDimension: 1600},
 }
 
 // MediaRepository guarda las referencias de imágenes.
@@ -57,34 +54,35 @@ func NewMediaService(upload *UploadService, repo MediaRepository) *MediaService 
 func (s *MediaService) MaxFileSize() int64 { return s.upload.MaxFileSize() }
 
 func (s *MediaService) Upload(ctx context.Context, idUsuario uint, tipo string, fh *multipart.FileHeader) (*models.Media, error) {
-	// Se valida todo antes de subir a Cloudinary para no dejar imágenes huérfanas.
+	// Comprobar repositorio y tipo antes de subir. Un fallo posterior de
+	// persistencia todavía puede dejar una imagen huérfana en Cloudinary.
 	if s.repo == nil {
 		return nil, ErrMediaStoreUnavailable
 	}
-	folder, ok := mediaFolders[tipo]
+	policy, ok := mediaPolicies[tipo]
 	if !ok {
 		return nil, ErrInvalidMediaType
 	}
 
-	res, err := s.upload.WithFolder(folder).WithMaxDimension(mediaMaxDimension[tipo]).ProcessFiles(ctx, []*multipart.FileHeader{fh})
+	uploadResult, err := s.upload.WithFolder(policy.folder).WithMaxDimension(policy.maxDimension).ProcessFiles(ctx, []*multipart.FileHeader{fh})
 	if err != nil {
 		return nil, err
 	}
-	if len(res.Files) != 1 {
+	if len(uploadResult.Files) != 1 {
 		return nil, ErrMediaPersist
 	}
-	f := res.Files[0]
+	uploadedFile := uploadResult.Files[0]
 
-	m := &models.Media{
+	mediaRecord := &models.Media{
 		IDUsuario: idUsuario,
 		Tipo:      tipo,
-		URL:       f.URL,
-		PublicID:  f.PublicID,
+		URL:       uploadedFile.URL,
+		PublicID:  uploadedFile.PublicID,
 	}
-	if err := s.repo.Create(ctx, m); err != nil {
+	if err := s.repo.Create(ctx, mediaRecord); err != nil {
 		// La imagen ya está en Cloudinary; se deja el public_id en el log (borrado: #173).
-		log.Printf("error al guardar media (public_id=%s) tras subir a Cloudinary: %v", f.PublicID, err)
+		log.Printf("error al guardar media (public_id=%s) tras subir a Cloudinary: %v", uploadedFile.PublicID, err)
 		return nil, ErrMediaPersist
 	}
-	return m, nil
+	return mediaRecord, nil
 }

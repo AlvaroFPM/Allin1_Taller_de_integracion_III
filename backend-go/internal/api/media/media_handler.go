@@ -41,7 +41,7 @@ func (h *MediaHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.service.MaxFileSize()+(multipartOverhead))
+	r.Body = http.MaxBytesReader(w, r.Body, h.service.MaxFileSize()+multipartOverhead)
 	if err := r.ParseMultipartForm(multipartMemoryBuffer); err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
@@ -60,7 +60,7 @@ func (h *MediaHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m, err := h.service.Upload(r.Context(), userID, tipo, headers[0])
+	mediaRecord, err := h.service.Upload(r.Context(), userID, tipo, headers[0])
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidMediaType):
@@ -74,5 +74,5 @@ func (h *MediaHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, mediaResponse{ID: m.IDMedia, Tipo: m.Tipo, URL: m.URL, PublicID: m.PublicID})
+	writeJSON(w, http.StatusCreated, mediaResponse{ID: mediaRecord.IDMedia, Tipo: mediaRecord.Tipo, URL: mediaRecord.URL, PublicID: mediaRecord.PublicID})
 }

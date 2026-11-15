@@ -7,10 +7,9 @@ import (
 
 // Errores de dominio. El paquete media no conoce HTTP ni gRPC: es la capa
 // internal/api/ la que traduce estos errores a status codes.
-//	ErrEmptyFile, ErrUnsupportedFormat -> 400 / codes.InvalidArgument
-//	ErrFileTooLarge                    -> 413 / codes.InvalidArgument
-//	ErrTooManyFiles                    -> 400 / codes.InvalidArgument
-//	ErrNoFiles                         -> 400 / codes.InvalidArgument
+// En HTTP, los errores por archivo envueltos en FileError se traducen así:
+// ErrEmptyFile -> 400, ErrUnsupportedFormat -> 415, ErrFileTooLarge -> 413.
+// Los errores de lote ErrTooManyFiles y ErrNoFiles se traducen a 400.
 var (
 	ErrNoFiles           = errors.New("media: no se recibió ningún archivo")
 	ErrEmptyFile         = errors.New("media: el archivo está vacío")
