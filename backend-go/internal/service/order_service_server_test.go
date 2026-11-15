@@ -18,20 +18,142 @@ func authenticatedContext(userID uint) context.Context {
 	return context.WithValue(context.Background(), middleware.UserIDKey, userID)
 }
 
-func TestOrderServiceServer_CreateOrder_Unimplemented_ALL141(t *testing.T) {
+func TestOrderServiceServer_CreateOrder_Validations(t *testing.T) {
 	svc := NewOrderService(nil)
 	server := NewOrderServiceServer(svc)
 
-	// Se mantiene fuera del despliegue público hasta validar contra Catálogo en ALL-141
-	resp, err := server.CreateOrder(context.Background(), &orderspb.CreateOrderRequest{
-		IdUsuarioVendedor: 2,
-		IdPublicacion:     5,
-		Precio:            10000,
+	t.Run("nil request retorna InvalidArgument", func(t *testing.T) {
+		resp, err := server.CreateOrder(context.Background(), nil)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "la solicitud de creación es requerida")
 	})
-	require.Error(t, err)
-	assert.Nil(t, resp)
-	assert.Equal(t, codes.Unimplemented, status.Code(err))
-	assert.Contains(t, err.Error(), "ALL-141")
+
+	t.Run("sin usuario autenticado retorna Unauthenticated", func(t *testing.T) {
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 2,
+			IdPublicacion:     10,
+			Precio:            15000,
+		}
+		resp, err := server.CreateOrder(context.Background(), req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+		assert.Contains(t, err.Error(), "usuario no autenticado")
+	})
+
+	t.Run("comprador igual a vendedor (RN-21 auto-compra) retorna InvalidArgument", func(t *testing.T) {
+		ctx := authenticatedContext(5)
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 5, // mismo ID que comprador autenticado
+			IdPublicacion:     10,
+			Precio:            15000,
+		}
+		resp, err := server.CreateOrder(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "RN-21")
+	})
+
+	t.Run("precio menor o igual a cero (RN-23) retorna InvalidArgument", func(t *testing.T) {
+		ctx := authenticatedContext(1)
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 2,
+			IdPublicacion:     10,
+			Precio:            -500,
+		}
+		resp, err := server.CreateOrder(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "RN-23")
+	})
+
+	t.Run("vendedorID cero retorna InvalidArgument", func(t *testing.T) {
+		ctx := authenticatedContext(1)
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 0,
+			IdPublicacion:     10,
+			Precio:            15000,
+		}
+		resp, err := server.CreateOrder(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "el id del vendedor es obligatorio")
+	})
+
+	t.Run("publicacionID cero retorna InvalidArgument", func(t *testing.T) {
+		ctx := authenticatedContext(1)
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 2,
+			IdPublicacion:     0,
+			Precio:            15000,
+		}
+		resp, err := server.CreateOrder(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "el id de la publicación es obligatorio")
+	})
+}
+
+func TestOrderServiceServer_CreateOrder_DBIntegration(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx)
+	server := NewOrderServiceServer(svc)
+
+	ctx := authenticatedContext(7) // Comprador autenticado: ID 7
+
+	t.Run("creacion exitosa vincula comprador autenticado y persiste en BD", func(t *testing.T) {
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 3,
+			IdPublicacion:     10,
+			Precio:            25000,
+		}
+
+		resp, err := server.CreateOrder(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Order)
+
+		// Coincidencia estricta de comprador con el token
+		assert.Equal(t, uint32(7), resp.Order.GetIdUsuarioComprador())
+		assert.Equal(t, uint32(3), resp.Order.GetIdUsuarioVendedor())
+		assert.Equal(t, uint32(10), resp.Order.GetIdPublicacion())
+		assert.Equal(t, int64(25000), resp.Order.GetPrecio())
+		assert.Equal(t, orderspb.EstadoOrden_PENDIENTE, resp.Order.GetEstado())
+		assert.Equal(t, models.EstadoOrdenPendiente, resp.Order.GetEstadoStr())
+		assert.NotZero(t, resp.Order.GetIdOrden())
+		assert.Contains(t, resp.GetMessage(), "exitosamente")
+
+		// Verificar que la orden realmente existe en la BD
+		var enBD models.Orden
+		err = tx.First(&enBD, resp.Order.GetIdOrden()).Error
+		require.NoError(t, err)
+		assert.Equal(t, uint(7), enBD.IDUsuarioComprador)
+		assert.Equal(t, uint(3), enBD.IDUsuarioVendedor)
+		assert.Equal(t, uint(10), enBD.IDPublicacion)
+		assert.Equal(t, int64(25000), enBD.Precio)
+		assert.Equal(t, models.EstadoOrdenPendiente, enBD.Estado)
+	})
+
+	t.Run("rechazo de orden activa duplicada (RN-22)", func(t *testing.T) {
+		req := &orderspb.CreateOrderRequest{
+			IdUsuarioVendedor: 3,
+			IdPublicacion:     10,
+			Precio:            25000,
+		}
+
+		// Segunda llamada para la misma publicación estando en PENDIENTE
+		resp, err := server.CreateOrder(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.AlreadyExists, status.Code(err))
+		assert.Contains(t, err.Error(), "RN-22")
+	})
 }
 
 func TestOrderServiceServer_PatchOrderStatus_Validations(t *testing.T) {

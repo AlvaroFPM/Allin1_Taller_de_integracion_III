@@ -67,11 +67,34 @@ func ModelToProtoOrder(o *models.Orden) *orderspb.Order {
 	}
 }
 
-// CreateOrder mantiene la creación de órdenes fuera del despliegue público hasta
-// implementar la validación cruzada con el microservicio Catálogo (ALL-141).
-// Esto evita persistir vendedor, publicación y precio no verificados en una BD real.
+// CreateOrder adapta la petición gRPC CreateOrderRequest al servicio de negocio existente OrderService (ALL-138).
+// Toma de manera obligatoria la identidad del comprador desde el contexto validado (middleware.UserIDKey),
+// garantizando que coincida con el usuario autenticado por JWT y evitando suplantación.
+// Extrae vendedor, publicación y precio conservando el tipo int64 exacto, valida las reglas de negocio
+// (RN-21, RN-22, RN-23) y persiste la orden en estado PENDIENTE retornando CreateOrderResponse.
 func (s *OrderServiceServer) CreateOrder(ctx context.Context, req *orderspb.CreateOrderRequest) (*orderspb.CreateOrderResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "operación CreateOrder no habilitada para despliegue público hasta validar datos contra Catálogo (pendiente ALL-141)")
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "la solicitud de creación es requerida")
+	}
+
+	compradorID := extractUserID(ctx)
+	if compradorID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado o token inválido")
+	}
+
+	vendedorID := uint(req.GetIdUsuarioVendedor())
+	publicacionID := uint(req.GetIdPublicacion())
+	precio := req.GetPrecio()
+
+	orden, err := s.orderService.CreateOrder(ctx, compradorID, vendedorID, publicacionID, precio)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderspb.CreateOrderResponse{
+		Order:   ModelToProtoOrder(orden),
+		Message: "Orden creada exitosamente",
+	}, nil
 }
 
 // PatchOrderStatus adapta la petición gRPC de actualización de estado de orden.
