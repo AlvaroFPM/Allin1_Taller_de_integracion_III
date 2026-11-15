@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	ordersapi "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/orders"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
@@ -22,7 +23,13 @@ import (
 func main() {
 	fmt.Println("Iniciando microservicio Orders (Órdenes)...")
 
-	// 1. Conexión estricta a PostgreSQL (falla de forma visible ante BD inválida, sin simular persistencia)
+	// 1. Validar variables de entorno críticas antes de abrir puertos o conectar servicios
+	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if jwtSecret == "" {
+		log.Fatalf("Error crítico de configuración: la variable de entorno JWT_SECRET es obligatoria para iniciar el microservicio Orders")
+	}
+
+	// 2. Conexión estricta a PostgreSQL (falla de forma visible ante BD inválida, sin simular persistencia)
 	db, err := database.ConnectDB()
 	if err != nil {
 		log.Fatalf("Error crítico al conectar a la base de datos de Orders: %v", err)

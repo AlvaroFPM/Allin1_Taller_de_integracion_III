@@ -67,31 +67,11 @@ func ModelToProtoOrder(o *models.Orden) *orderspb.Order {
 	}
 }
 
-// CreateOrder adapta la petición gRPC de creación de orden.
-// Extrae el comprador autenticado desde el contexto JWT y delega en el OrderService de dominio.
+// CreateOrder mantiene la creación de órdenes fuera del despliegue público hasta
+// implementar la validación cruzada con el microservicio Catálogo (ALL-141).
+// Esto evita persistir vendedor, publicación y precio no verificados en una BD real.
 func (s *OrderServiceServer) CreateOrder(ctx context.Context, req *orderspb.CreateOrderRequest) (*orderspb.CreateOrderResponse, error) {
-	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "la solicitud de creación es requerida")
-	}
-
-	compradorID := extractUserID(ctx)
-	if compradorID == 0 {
-		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado o token inválido")
-	}
-
-	vendedorID := uint(req.GetIdUsuarioVendedor())
-	publicacionID := uint(req.GetIdPublicacion())
-	precio := req.GetPrecio()
-
-	orden, err := s.orderService.CreateOrder(ctx, compradorID, vendedorID, publicacionID, precio)
-	if err != nil {
-		return nil, err
-	}
-
-	return &orderspb.CreateOrderResponse{
-		Order:   ModelToProtoOrder(orden),
-		Message: "Orden creada exitosamente",
-	}, nil
+	return nil, status.Error(codes.Unimplemented, "operación CreateOrder no habilitada para despliegue público hasta validar datos contra Catálogo (pendiente ALL-141)")
 }
 
 // PatchOrderStatus adapta la petición gRPC de actualización de estado de orden.
@@ -120,9 +100,9 @@ func (s *OrderServiceServer) PatchOrderStatus(ctx context.Context, req *orderspb
 	}, nil
 }
 
-// GetOrder registra expresamente la operación como pendiente para sprints posteriores (ALL-137).
+// GetOrder registra expresamente la operación como pendiente para sprints posteriores (ALL-149).
 func (s *OrderServiceServer) GetOrder(ctx context.Context, req *orderspb.GetOrderRequest) (*orderspb.GetOrderResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "operación GetOrder no implementada en esta fase (registrada para sprint posterior)")
+	return nil, status.Error(codes.Unimplemented, "operación GetOrder no implementada en esta fase (registrada para sprint posterior ALL-149)")
 }
 
 // ListMyPurchases adapta la petición gRPC para consultar las compras del usuario autenticado.

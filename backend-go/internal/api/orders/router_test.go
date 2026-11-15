@@ -148,8 +148,7 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 
 	tokenUser10 := createTestJWT(t, 10)
 
-	t.Run("POST /v1/orders con token ejecuta validaciones de dominio gRPC (RN-21)", func(t *testing.T) {
-		// Usuario comprador = 10 en token, enviamos id_usuario_vendedor = 10 -> falla RN-21
+	t.Run("POST /v1/orders con token retorna 501 Not Implemented (pendiente validacion Catalogo ALL-141)", func(t *testing.T) {
 		body := strings.NewReader(`{"id_usuario_vendedor": 10, "id_publicacion": 5, "precio": 15000}`)
 		req, err := http.NewRequest(http.MethodPost, httpServer.URL+"/v1/orders", body)
 		require.NoError(t, err)
@@ -161,12 +160,12 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 		defer resp.Body.Close()
 
 		respBytes, _ := io.ReadAll(resp.Body)
-		// gRPC InvalidArgument -> HTTP 400 Bad Request
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		assert.Contains(t, string(respBytes), "RN-21")
+		// gRPC Unimplemented -> HTTP 501 Not Implemented
+		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+		assert.Contains(t, string(respBytes), "ALL-141")
 	})
 
-	t.Run("GET /v1/orders/{id} con token alcanza gRPC y retorna 501 Not Implemented", func(t *testing.T) {
+	t.Run("GET /v1/orders/{id} con token alcanza gRPC y retorna 501 Not Implemented (ALL-149)", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, httpServer.URL+"/v1/orders/1", nil)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenUser10)
@@ -175,8 +174,25 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
+		respBytes, _ := io.ReadAll(resp.Body)
 		// gRPC Unimplemented -> HTTP 501 Not Implemented
 		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+		assert.Contains(t, string(respBytes), "ALL-149")
+	})
+
+	t.Run("PATCH /v1/orders/{id} con token autenticado atraviesa Gateway hasta servicio", func(t *testing.T) {
+		body := strings.NewReader(`{"nuevo_estado": "ACEPTADA"}`)
+		req, err := http.NewRequest(http.MethodPatch, httpServer.URL+"/v1/orders/1", body)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenUser10)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Como s.db es nil, el servicio devuelve Unavailable (HTTP 503), confirmando que NO es 401 Unauthorized
+		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	})
 
 	t.Run("GET /v1/orders/mis-compras con token autenticado atraviesa Gateway hasta servicio", func(t *testing.T) {

@@ -18,56 +18,20 @@ func authenticatedContext(userID uint) context.Context {
 	return context.WithValue(context.Background(), middleware.UserIDKey, userID)
 }
 
-func TestOrderServiceServer_CreateOrder_Validations(t *testing.T) {
+func TestOrderServiceServer_CreateOrder_Unimplemented_ALL141(t *testing.T) {
 	svc := NewOrderService(nil)
 	server := NewOrderServiceServer(svc)
 
-	t.Run("nil request retorna InvalidArgument", func(t *testing.T) {
-		resp, err := server.CreateOrder(context.Background(), nil)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	// Se mantiene fuera del despliegue público hasta validar contra Catálogo en ALL-141
+	resp, err := server.CreateOrder(context.Background(), &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 2,
+		IdPublicacion:     5,
+		Precio:            10000,
 	})
-
-	t.Run("sin usuario autenticado retorna Unauthenticated", func(t *testing.T) {
-		req := &orderspb.CreateOrderRequest{
-			IdUsuarioVendedor: 2,
-			IdPublicacion:     10,
-			Precio:            15000,
-		}
-		resp, err := server.CreateOrder(context.Background(), req)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Equal(t, codes.Unauthenticated, status.Code(err))
-	})
-
-	t.Run("comprador igual a vendedor (RN-21) retorna InvalidArgument", func(t *testing.T) {
-		ctx := authenticatedContext(5)
-		req := &orderspb.CreateOrderRequest{
-			IdUsuarioVendedor: 5, // mismo ID
-			IdPublicacion:     10,
-			Precio:            15000,
-		}
-		resp, err := server.CreateOrder(ctx, req)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Contains(t, err.Error(), "RN-21")
-	})
-
-	t.Run("precio menor o igual a cero (RN-23) retorna InvalidArgument", func(t *testing.T) {
-		ctx := authenticatedContext(1)
-		req := &orderspb.CreateOrderRequest{
-			IdUsuarioVendedor: 2,
-			IdPublicacion:     10,
-			Precio:            -500,
-		}
-		resp, err := server.CreateOrder(ctx, req)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Contains(t, err.Error(), "RN-23")
-	})
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, codes.Unimplemented, status.Code(err))
+	assert.Contains(t, err.Error(), "ALL-141")
 }
 
 func TestOrderServiceServer_PatchOrderStatus_Validations(t *testing.T) {
@@ -105,16 +69,16 @@ func TestOrderServiceServer_PatchOrderStatus_Validations(t *testing.T) {
 	})
 }
 
-func TestOrderServiceServer_GetOrder_Unimplemented(t *testing.T) {
+func TestOrderServiceServer_GetOrder_Unimplemented_ALL149(t *testing.T) {
 	svc := NewOrderService(nil)
 	server := NewOrderServiceServer(svc)
 
-	// Registra expresamente la operación como pendiente (ALL-137)
+	// Registra expresamente la operación como pendiente para ALL-149
 	resp, err := server.GetOrder(context.Background(), &orderspb.GetOrderRequest{IdOrden: 1})
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, codes.Unimplemented, status.Code(err))
-	assert.Contains(t, err.Error(), "GetOrder no implementada")
+	assert.Contains(t, err.Error(), "ALL-149")
 }
 
 func TestOrderServiceServer_ListOrders_Validations(t *testing.T) {
