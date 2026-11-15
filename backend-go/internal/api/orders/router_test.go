@@ -103,7 +103,6 @@ func TestHTTPGateway_ReachGRPC_Unauthenticated(t *testing.T) {
 	resp, err := http.Get(httpServer.URL + "/v1/orders/mis-compras")
 	require.NoError(t, err)
 	defer resp.Body.Close()
-
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 	// 2. Petición POST sin token a /v1/orders -> interceptor gRPC devuelve 401 Unauthorized
@@ -111,11 +110,177 @@ func TestHTTPGateway_ReachGRPC_Unauthenticated(t *testing.T) {
 	respPost, err := http.Post(httpServer.URL+"/v1/orders", "application/json", body)
 	require.NoError(t, err)
 	defer respPost.Body.Close()
-
 	assert.Equal(t, http.StatusUnauthorized, respPost.StatusCode)
+
+	// 3. Petición POST sin token al alias /v1/ordenes -> interceptor gRPC devuelve 401 Unauthorized
+	bodyAlias := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 5, "precio": 10000}`)
+	respAlias, err := http.Post(httpServer.URL+"/v1/ordenes", "application/json", bodyAlias)
+	require.NoError(t, err)
+	defer respAlias.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, respAlias.StatusCode)
 }
 
-func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
+func TestHTTPGateway_CreateOrder_DefaultDisabled(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("ORDERS_ENABLE_CREATION", "")
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer lis.Close()
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
+	)
+	orderService := service.NewOrderService(nil)
+	orderServer := service.NewOrderServiceServer(orderService)
+	RegisterGRPCRouter(grpcServer, orderServer)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = RegisterGatewayRouter(ctx, mux, lis.Addr().String(), opts)
+	require.NoError(t, err)
+
+	httpServer := httptest.NewServer(mux)
+	defer httpServer.Close()
+
+	tokenUser10 := createTestJWT(t, 10)
+
+	rutas := []string{"/v1/orders", "/v1/ordenes"}
+	for _, ruta := range rutas {
+		t.Run("Ruta "+ruta+" deshabilitada por defecto retorna 501", func(t *testing.T) {
+			body := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 5, "precio": 15000}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+			assert.Contains(t, string(respBytes), "ALL-141")
+		})
+	}
+}
+
+func TestHTTPGateway_CreateOrder_EndpointsAndAlias(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer lis.Close()
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
+	)
+	orderService := service.NewOrderService(nil)
+	orderServer := service.NewOrderServiceServer(orderService)
+	RegisterGRPCRouter(grpcServer, orderServer)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = RegisterGatewayRouter(ctx, mux, lis.Addr().String(), opts)
+	require.NoError(t, err)
+
+	httpServer := httptest.NewServer(mux)
+	defer httpServer.Close()
+
+	tokenUser10 := createTestJWT(t, 10)
+
+	// Criterio de aceptación 1: POST /v1/orders y su alias declarado llegan a la misma lógica
+	rutas := []string{"/v1/orders", "/v1/ordenes"}
+
+	for _, ruta := range rutas {
+		t.Run("Ruta "+ruta+" rechaza comprador==vendedor (RN-21)", func(t *testing.T) {
+			// Comprador autenticado = 10, enviamos id_usuario_vendedor = 10 -> falla RN-21
+			body := strings.NewReader(`{"id_usuario_vendedor": 10, "id_publicacion": 5, "precio": 15000}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			assert.Contains(t, string(respBytes), "RN-21")
+		})
+
+		t.Run("Ruta "+ruta+" rechaza precio menor o igual a cero (RN-23)", func(t *testing.T) {
+			body := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 5, "precio": 0}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			assert.Contains(t, string(respBytes), "RN-23")
+		})
+
+		t.Run("Ruta "+ruta+" rechaza publicacion en cero", func(t *testing.T) {
+			body := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 0, "precio": 15000}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			assert.Contains(t, string(respBytes), "el id de la publicación es obligatorio")
+		})
+
+		t.Run("Ruta "+ruta+" con datos validos supera autenticacion y validaciones", func(t *testing.T) {
+			body := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 5, "precio": 15000}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			// Como el servicio no tiene BD activa en test unitario puro (db == nil),
+			// responde 503 Service Unavailable confirmando que atravesó el Gateway,
+			// superó la autenticación JWT y pasó todas las validaciones de negocio en OrderService.
+			assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+		})
+	}
+}
+
+func TestHTTPGateway_OtherEndpoints(t *testing.T) {
 	t.Setenv("JWT_SECRET", testJWTSecret)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -148,24 +313,7 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 
 	tokenUser10 := createTestJWT(t, 10)
 
-	t.Run("POST /v1/orders con token retorna 501 Not Implemented (pendiente validacion Catalogo ALL-141)", func(t *testing.T) {
-		body := strings.NewReader(`{"id_usuario_vendedor": 10, "id_publicacion": 5, "precio": 15000}`)
-		req, err := http.NewRequest(http.MethodPost, httpServer.URL+"/v1/orders", body)
-		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenUser10)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		respBytes, _ := io.ReadAll(resp.Body)
-		// gRPC Unimplemented -> HTTP 501 Not Implemented
-		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
-		assert.Contains(t, string(respBytes), "ALL-141")
-	})
-
-	t.Run("GET /v1/orders/{id} con token alcanza gRPC y retorna 501 Not Implemented (ALL-149)", func(t *testing.T) {
+	t.Run("GET /v1/orders/{id} con token retorna 501 Not Implemented (ALL-149)", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, httpServer.URL+"/v1/orders/1", nil)
 		require.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenUser10)
@@ -175,7 +323,6 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 		defer resp.Body.Close()
 
 		respBytes, _ := io.ReadAll(resp.Body)
-		// gRPC Unimplemented -> HTTP 501 Not Implemented
 		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
 		assert.Contains(t, string(respBytes), "ALL-149")
 	})
@@ -191,7 +338,6 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// Como s.db es nil, el servicio devuelve Unavailable (HTTP 503), confirmando que NO es 401 Unauthorized
 		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	})
 
@@ -204,7 +350,6 @@ func TestHTTPGateway_ReachGRPC_Authenticated(t *testing.T) {
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// Como s.db es nil, el servicio devuelve Unavailable (HTTP 503), confirmando que NO es 401 Unauthorized
 		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	})
 }

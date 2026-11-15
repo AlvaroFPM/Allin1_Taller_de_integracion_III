@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math"
+	"os"
 	"strings"
 
 	orderspb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/orders"
@@ -67,11 +68,38 @@ func ModelToProtoOrder(o *models.Orden) *orderspb.Order {
 	}
 }
 
-// CreateOrder mantiene la creación de órdenes fuera del despliegue público hasta
-// implementar la validación cruzada con el microservicio Catálogo (ALL-141).
-// Esto evita persistir vendedor, publicación y precio no verificados en una BD real.
+// CreateOrder adapta la petición gRPC CreateOrderRequest al servicio de negocio existente OrderService (ALL-138).
+// Por defecto se mantiene deshabilitada para el despliegue público (retornando 501 Not Implemented / codes.Unimplemented)
+// para evitar persistir vendedor, publicación y precio no verificados hasta que se complete la validación cruzada con
+// el microservicio Catálogo (ALL-141, coordinado con Nicolás Fuentes).
+// Se puede habilitar explícitamente mediante la variable de entorno ORDERS_ENABLE_CREATION=true.
 func (s *OrderServiceServer) CreateOrder(ctx context.Context, req *orderspb.CreateOrderRequest) (*orderspb.CreateOrderResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "operación CreateOrder no habilitada para despliegue público hasta validar datos contra Catálogo (pendiente ALL-141)")
+	if os.Getenv("ORDERS_ENABLE_CREATION") != "true" {
+		return nil, status.Error(codes.Unimplemented, "operación CreateOrder deshabilitada por defecto hasta integrar la validación con Catálogo (ALL-141)")
+	}
+
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "la solicitud de creación es requerida")
+	}
+
+	compradorID := extractUserID(ctx)
+	if compradorID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado o token inválido")
+	}
+
+	vendedorID := uint(req.GetIdUsuarioVendedor())
+	publicacionID := uint(req.GetIdPublicacion())
+	precio := req.GetPrecio()
+
+	orden, err := s.orderService.CreateOrder(ctx, compradorID, vendedorID, publicacionID, precio)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderspb.CreateOrderResponse{
+		Order:   ModelToProtoOrder(orden),
+		Message: "Orden creada exitosamente",
+	}, nil
 }
 
 // PatchOrderStatus adapta la petición gRPC de actualización de estado de orden.

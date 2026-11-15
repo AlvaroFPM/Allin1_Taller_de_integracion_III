@@ -14,6 +14,21 @@ jobs:
     name: Backend Go CI (Protoc, Build & Test)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: catalog_user
+          POSTGRES_PASSWORD: catalog_password
+          POSTGRES_DB: catalog_db
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       # =========================================================================
       # Paso 1: Checkout del código fuente
@@ -106,4 +121,11 @@ jobs:
       # =========================================================================
       - name: Ejecutar pruebas unitarias (go test -v ./...)
         working-directory: backend-go
+        env:
+          ORDERS_ENABLE_CREATION: "true"
+          DB_HOST: "localhost"
+          DB_PORT: "5434"
+          DB_USER: "catalog_user"
+          DB_PASSWORD: "catalog_password"
+          DB_NAME: "catalog_db"
         run: go test -v ./...
