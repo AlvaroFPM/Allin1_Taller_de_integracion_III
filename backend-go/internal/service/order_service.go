@@ -38,6 +38,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, compradorID, vendedorID,
 		return nil, err
 	}
 
+	if s.db == nil {
+		return nil, status.Error(codes.Unavailable, "base de datos no disponible")
+	}
+
 	// Verificar que no exista una orden activa duplicada
 	var count int64
 	if err := s.db.WithContext(ctx).Model(&models.Orden{}).
@@ -76,6 +80,10 @@ func (s *OrderService) PatchOrderStatus(ctx context.Context, ordenID, usuarioID 
 	}
 	if usuarioID == 0 {
 		return nil, status.Error(codes.InvalidArgument, "el id del usuario solicitante es obligatorio")
+	}
+
+	if s.db == nil {
+		return nil, status.Error(codes.Unavailable, "base de datos no disponible")
 	}
 
 	// Buscar la orden existente por ID
@@ -210,6 +218,10 @@ func (s *OrderService) listOrdersByUser(ctx context.Context, columna string, usu
 	}
 	if err := validateOrderFilterState(estadoLimpio); err != nil {
 		return nil, 0, err
+	}
+
+	if s.db == nil {
+		return nil, 0, status.Error(codes.Unavailable, "base de datos no disponible")
 	}
 
 	// 4. Consulta base con filtros: columna de usuario y estado (si aplica)
