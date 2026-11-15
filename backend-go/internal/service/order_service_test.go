@@ -32,11 +32,6 @@ func getOrderTestEnv(key, fallback string) string {
 func setupOrderTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	// En GitHub Actions (CI) no se levanta contenedor de PostgreSQL; se salta el test de BD
-	if os.Getenv("CI") != "" {
-		t.Skip("Saltando test de integración de BD en entorno CI")
-	}
-
 	host := getOrderTestEnv("DB_HOST", "localhost")
 	port := getOrderTestEnv("DB_PORT", "5434")
 	user := getOrderTestEnv("DB_USER", "catalog_user")

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math"
+	"os"
 	"strings"
 
 	orderspb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/orders"
@@ -68,11 +69,15 @@ func ModelToProtoOrder(o *models.Orden) *orderspb.Order {
 }
 
 // CreateOrder adapta la petición gRPC CreateOrderRequest al servicio de negocio existente OrderService (ALL-138).
-// Toma de manera obligatoria la identidad del comprador desde el contexto validado (middleware.UserIDKey),
-// garantizando que coincida con el usuario autenticado por JWT y evitando suplantación.
-// Extrae vendedor, publicación y precio conservando el tipo int64 exacto, valida las reglas de negocio
-// (RN-21, RN-22, RN-23) y persiste la orden en estado PENDIENTE retornando CreateOrderResponse.
+// Por defecto se mantiene deshabilitada para el despliegue público (retornando 501 Not Implemented / codes.Unimplemented)
+// para evitar persistir vendedor, publicación y precio no verificados hasta que se complete la validación cruzada con
+// el microservicio Catálogo (ALL-141, coordinado con Nicolás Fuentes).
+// Se puede habilitar explícitamente mediante la variable de entorno ORDERS_ENABLE_CREATION=true.
 func (s *OrderServiceServer) CreateOrder(ctx context.Context, req *orderspb.CreateOrderRequest) (*orderspb.CreateOrderResponse, error) {
+	if os.Getenv("ORDERS_ENABLE_CREATION") != "true" {
+		return nil, status.Error(codes.Unimplemented, "operación CreateOrder deshabilitada por defecto hasta integrar la validación con Catálogo (ALL-141)")
+	}
+
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "la solicitud de creación es requerida")
 	}

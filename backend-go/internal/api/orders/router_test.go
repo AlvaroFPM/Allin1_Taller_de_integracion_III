@@ -120,8 +120,63 @@ func TestHTTPGateway_ReachGRPC_Unauthenticated(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, respAlias.StatusCode)
 }
 
+func TestHTTPGateway_CreateOrder_DefaultDisabled(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("ORDERS_ENABLE_CREATION", "")
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer lis.Close()
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
+	)
+	orderService := service.NewOrderService(nil)
+	orderServer := service.NewOrderServiceServer(orderService)
+	RegisterGRPCRouter(grpcServer, orderServer)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	defer grpcServer.Stop()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = RegisterGatewayRouter(ctx, mux, lis.Addr().String(), opts)
+	require.NoError(t, err)
+
+	httpServer := httptest.NewServer(mux)
+	defer httpServer.Close()
+
+	tokenUser10 := createTestJWT(t, 10)
+
+	rutas := []string{"/v1/orders", "/v1/ordenes"}
+	for _, ruta := range rutas {
+		t.Run("Ruta "+ruta+" deshabilitada por defecto retorna 501", func(t *testing.T) {
+			body := strings.NewReader(`{"id_usuario_vendedor": 2, "id_publicacion": 5, "precio": 15000}`)
+			req, err := http.NewRequest(http.MethodPost, httpServer.URL+ruta, body)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+			assert.Contains(t, string(respBytes), "ALL-141")
+		})
+	}
+}
+
 func TestHTTPGateway_CreateOrder_EndpointsAndAlias(t *testing.T) {
 	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

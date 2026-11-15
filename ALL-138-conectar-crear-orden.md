@@ -30,20 +30,32 @@ Conectar la operación `CreateOrder` en el adaptador gRPC del microservicio Orde
    - El contrato `CreateOrderRequest` en `orders.proto` omite intencionalmente el campo `id_usuario_comprador` en el body para impedir que un cliente suplante a otro usuario.
    - La identidad del comprador proviene obligatoria y exclusivamente del claim `user_id` del token JWT verificado con la clave `JWT_SECRET`.
 
-3. **Frontera de Coordinación con Catálogo (ALL-141 / Nicolás Fuentes):**
-   - El servicio Orders valida de forma autónoma:
+3. **Frontera de Coordinación con Catálogo (ALL-141 / Nicolás Fuentes) y Salvaguarda por Defecto:**
+   - Para evitar persistir vendedor, publicación y precio directamente recibidos del cliente antes de que esté operativa la validación cruzada con Catálogo (ALL-141), la operación `CreateOrder` se mantiene **deshabilitada por defecto** en despliegue público (retornando `codes.Unimplemented` / HTTP 501 indicando la coordinación pendiente con ALL-141).
+   - Se habilita de forma controlada mediante la variable de entorno `ORDERS_ENABLE_CREATION=true` para pruebas de integración y despliegues autorizados.
+   - Cuando está habilitada, el servicio Orders valida de forma autónoma:
      - Campos obligatorios no nulos ni cero (`compradorID != 0`, `vendedorID != 0`, `publicacionID != 0`).
      - `RN-21`: Que el comprador no sea el mismo vendedor (prevención de auto-contratación).
      - `RN-22`: Que no exista ya una orden activa (en estado `PENDIENTE` o `ACEPTADA`) para esa publicación por el mismo comprador.
      - `RN-23`: Que el precio sea estrictamente mayor a cero.
    - La verificación cruzada vía cliente gRPC contra el microservicio Catálogo (para validar que la publicación exista en Catálogo, pertenezca al vendedor y coincida con el precio base oficial) queda acotada y coordinada para la tarea **ALL-141**, permitiendo cerrar la integración de identidad del contrato sin acoplar dependencias no finalizadas.
 
+4. **Infraestructura de CI con PostgreSQL Real (.github/workflows/backend-go-ci.yml):**
+   - Se configuró un servicio contenedor de PostgreSQL 16 en GitHub Actions (`port: 5434:5432`, `catalog_user`/`catalog_db`).
+   - Se eliminó el omisor genérico `CI != ""` en `setupOrderTestDB` para que el test de persistencia `TestOrderServiceServer_CreateOrder_DBIntegration` se ejecute contra una base de datos PostgreSQL real y reporte PASS en la canalización de integración continua.
+
 ---
 
 ## 3. Verificación de Criterios de Aceptación
 
+### Criterio 0: Salvaguarda por defecto hasta integración con Catálogo (ALL-141)
+- Con `ORDERS_ENABLE_CREATION` sin configurar, tanto gRPC como HTTP Gateway retornan `codes.Unimplemented` (HTTP 501 Not Implemented) señalando explícitamente: `"operación CreateOrder deshabilitada por defecto hasta integrar la validación con Catálogo (ALL-141)"`.
+- Verificado en:
+  - `TestOrderServiceServer_CreateOrder_DefaultDisabled` -> **PASS**.
+  - `TestHTTPGateway_CreateOrder_DefaultDisabled` en ambas rutas (`/v1/orders` y `/v1/ordenes`) -> **PASS**.
+
 ### Criterio 1: `POST /v1/orders` y su alias declarado (`POST /v1/ordenes`) llegan a la misma lógica
-En `internal/api/orders/router_test.go` (`TestHTTPGateway_CreateOrder_EndpointsAndAlias`), se levantaron gRPC y gRPC-Gateway y se enviaron peticiones HTTP reales a ambas rutas:
+En `internal/api/orders/router_test.go` (`TestHTTPGateway_CreateOrder_EndpointsAndAlias`), con `ORDERS_ENABLE_CREATION=true`:
 - **Ruta `/v1/orders`:**
   - Rechaza auto-compra `comprador == vendedor` (RN-21) con HTTP `400 Bad Request` ("el comprador no puede ser el mismo vendedor (RN-21)").
   - Rechaza precio <= 0 (RN-23) con HTTP `400 Bad Request`.
@@ -89,3 +101,4 @@ En `internal/service/order_service_server_test.go` (`TestOrderServiceServer_Crea
 - **Pruebas Unitarias y de Adaptador gRPC (`internal/service`):**
   - 12 suites / 56 subcasos puros -> **100% PASS** (0.375s).
   - Pruebas existentes de `OrderService` (ALL-126) y `OrderServiceServer` -> **100% PASS** sin regresiones.
+

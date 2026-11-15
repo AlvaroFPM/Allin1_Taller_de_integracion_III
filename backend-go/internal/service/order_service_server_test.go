@@ -18,7 +18,27 @@ func authenticatedContext(userID uint) context.Context {
 	return context.WithValue(context.Background(), middleware.UserIDKey, userID)
 }
 
+func TestOrderServiceServer_CreateOrder_DefaultDisabled(t *testing.T) {
+	t.Setenv("ORDERS_ENABLE_CREATION", "")
+	svc := NewOrderService(nil)
+	server := NewOrderServiceServer(svc)
+
+	ctx := authenticatedContext(1)
+	req := &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 2,
+		IdPublicacion:     10,
+		Precio:            15000,
+	}
+
+	resp, err := server.CreateOrder(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, codes.Unimplemented, status.Code(err))
+	assert.Contains(t, err.Error(), "ALL-141")
+}
+
 func TestOrderServiceServer_CreateOrder_Validations(t *testing.T) {
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
 	svc := NewOrderService(nil)
 	server := NewOrderServiceServer(svc)
 
@@ -101,6 +121,7 @@ func TestOrderServiceServer_CreateOrder_Validations(t *testing.T) {
 }
 
 func TestOrderServiceServer_CreateOrder_DBIntegration(t *testing.T) {
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
 	tx := setupOrderTestDB(t)
 	svc := NewOrderService(tx)
 	server := NewOrderServiceServer(svc)
