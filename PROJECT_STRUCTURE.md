@@ -53,16 +53,6 @@ Allin1_Taller_de_integracion_III/
 │   ├── Makefile                     # Tareas de generación gRPC, OpenAPI y dependencias
 │   └── README.md
 │
-├── backend-microservices/           # [HEREDADO / FUERA DE ALCANCE] Backend monolítico NestJS
-│   ├── apps/                        # Microservicios NestJS descartados (catalog, iam, etc.)
-│   ├── dist/                        # Compilados de NestJS
-│   ├── libs/shared/                 # Librerías compartidas de NestJS
-│   ├── prisma/                      # Esquemas y seeds de Prisma ORM
-│   ├── Dockerfile
-│   ├── nest-cli.json
-│   ├── package.json
-│   └── tsconfig.json
-│
 ├── Documentacion Sprint 0/          # Documentación académica y diagramas iniciales
 │   ├── Diagramas Allin1/            # Diagramas MER, componentes, secuencia y arquitectura
 │   ├── Mockups Allin1/              # Wireframes y prototipos visuales de pantallas
@@ -265,13 +255,9 @@ Backend distribuido implementado bajo principios de Clean Architecture. Combina 
 
 ---
 
-## 3. Backend Monolítico NestJS (`backend-microservices`)
+## 3. Backend Monolítico NestJS (`backend-microservices` — Eliminado)
 
-> **Estado**: **Heredado / Fuera de alcance**. Este directorio contiene el desarrollo previo en NestJS + Prisma ORM. Fue sustituido por la arquitectura en Go (`backend-go`). Se conserva en el repositorio como referencia histórica y no participa en la ejecución actual de Docker Compose ni en los flujos principales de CI.
-
-- **`apps/`**: Módulos del monolito original (`backend-microservices`, `catalog`, `chat`, `geo`, `iam`, `match`, `notify`, `payments`, `reputation`, `search`, `support`).
-- **`prisma/`**: Esquemas de Prisma ORM y scripts de seed (`seed.ts`, `seed-iam.ts`, `seed-catalog.ts`).
-- **`libs/shared/`**: Clases y utilidades compartidas.
+> **Estado**: **Descartado y eliminado**. El directorio `backend-microservices/` (desarrollo previo en NestJS + Prisma ORM) fue sustituido por la arquitectura en Go (`backend-go`) y eliminado para aligerar el monorepo. Su implementación histórica permanece accesible en el historial de Git.
 
 ---
 
