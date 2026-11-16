@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	orderspb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/orders"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/service"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const testJWTSecret = "super-secret-key-development-only"
@@ -313,43 +317,176 @@ func TestHTTPGateway_OtherEndpoints(t *testing.T) {
 
 	tokenUser10 := createTestJWT(t, 10)
 
-	t.Run("GET /v1/orders/{id} con token retorna 501 Not Implemented (ALL-149)", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodGet, httpServer.URL+"/v1/orders/1", nil)
-		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenUser10)
+	// Pruebas exhaustivas de compatibilidad de rutas y sus alias declarados en orders.proto (ALL-179)
+	t.Run("GET /v1/orders/{id} y alias /v1/ordenes/{id} retornan 501 Not Implemented (ALL-149)", func(t *testing.T) {
+		for _, endpoint := range []string{"/v1/orders/1", "/v1/ordenes/1"} {
+			req, err := http.NewRequest(http.MethodGet, httpServer.URL+endpoint, nil)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
 
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
 
-		respBytes, _ := io.ReadAll(resp.Body)
-		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode)
-		assert.Contains(t, string(respBytes), "ALL-149")
+			respBytes, _ := io.ReadAll(resp.Body)
+			assert.Equal(t, http.StatusNotImplemented, resp.StatusCode, "endpoint %s debe retornar 501", endpoint)
+			assert.Contains(t, string(respBytes), "ALL-149")
+		}
 	})
 
-	t.Run("PATCH /v1/orders/{id} con token autenticado atraviesa Gateway hasta servicio", func(t *testing.T) {
-		body := strings.NewReader(`{"nuevo_estado": "ACEPTADA"}`)
-		req, err := http.NewRequest(http.MethodPatch, httpServer.URL+"/v1/orders/1", body)
-		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenUser10)
-		req.Header.Set("Content-Type", "application/json")
+	t.Run("PATCH /v1/orders/{id} y alias /v1/ordenes/{id} admiten snake_case y camelCase", func(t *testing.T) {
+		casos := []struct {
+			endpoint string
+			body     string
+		}{
+			{"/v1/orders/1", `{"nuevo_estado": "ACEPTADA"}`},
+			{"/v1/orders/1", `{"nuevoEstado": "ACEPTADA"}`},
+			{"/v1/ordenes/1", `{"nuevo_estado": "ACEPTADA"}`},
+			{"/v1/ordenes/1", `{"nuevoEstado": "ACEPTADA"}`},
+		}
 
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
+		for _, tc := range casos {
+			req, err := http.NewRequest(http.MethodPatch, httpServer.URL+tc.endpoint, strings.NewReader(tc.body))
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
+			req.Header.Set("Content-Type", "application/json")
 
-		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			// Con db == nil alcanza el servicio y retorna 503 indicando transporte correcto
+			assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+		}
 	})
 
-	t.Run("GET /v1/orders/mis-compras con token autenticado atraviesa Gateway hasta servicio", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodGet, httpServer.URL+"/v1/orders/mis-compras", nil)
-		require.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenUser10)
+	t.Run("GET mis-compras y mis-ventas con rutas principales y alias", func(t *testing.T) {
+		rutas := []string{
+			"/v1/orders/mis-compras?page=1&limit=10&estado=PENDIENTE",
+			"/v1/ordenes/mis-compras?page=1&limit=10&estado=PENDIENTE",
+			"/v1/orders/mis-ventas?page=1&limit=10&estado=PENDIENTE",
+			"/v1/ordenes/mis-ventas?page=1&limit=10&estado=PENDIENTE",
+		}
 
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
+		for _, ruta := range rutas {
+			req, err := http.NewRequest(http.MethodGet, httpServer.URL+ruta, nil)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+tokenUser10)
 
-		assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode, "ruta %s debe alcanzar el servicio", ruta)
+		}
+	})
+}
+
+func TestProtoJSON_FrontendCompatibility(t *testing.T) {
+	// 1. Verificación de deserialización JSON de CreateOrderRequest compatible con Frontend (CreateOrderRequestDto)
+	t.Run("CreateOrderRequest deserializa camelCase y tipos string/int64 enviados por Frontend", func(t *testing.T) {
+		// El frontend (orderService.ts) envía precio como string y campos en camelCase
+		jsonPayload := `{"idUsuarioVendedor": 3, "idPublicacion": 15, "precio": "25000"}`
+		var req orderspb.CreateOrderRequest
+		err := protojson.Unmarshal([]byte(jsonPayload), &req)
+		require.NoError(t, err)
+
+		assert.Equal(t, uint32(3), req.GetIdUsuarioVendedor())
+		assert.Equal(t, uint32(15), req.GetIdPublicacion())
+		assert.Equal(t, int64(25000), req.GetPrecio())
+
+		// También acepta número entero puro si algún consumidor lo envía directamente
+		jsonNumPayload := `{"idUsuarioVendedor": 3, "idPublicacion": 15, "precio": 25000}`
+		var reqNum orderspb.CreateOrderRequest
+		err = protojson.Unmarshal([]byte(jsonNumPayload), &reqNum)
+		require.NoError(t, err)
+		assert.Equal(t, int64(25000), reqNum.GetPrecio())
+	})
+
+	// 2. Verificación de serialización JSON de CreateOrderResponse compatible con Frontend (OrderDto / CreateOrderResponseDto)
+	t.Run("CreateOrderResponse serializa camelCase y precio string int64 para el Frontend", func(t *testing.T) {
+		now := time.Date(2026, 11, 15, 20, 0, 0, 0, time.UTC)
+		resp := &orderspb.CreateOrderResponse{
+			Order: &orderspb.Order{
+				IdOrden:            101,
+				IdUsuarioComprador: 7,
+				IdUsuarioVendedor:  3,
+				IdPublicacion:      15,
+				Estado:             orderspb.EstadoOrden_PENDIENTE,
+				EstadoStr:          "PENDIENTE",
+				Precio:             25000,
+				CreatedAt:          timestamppb.New(now),
+				UpdatedAt:          timestamppb.New(now),
+			},
+			Message: "Orden creada exitosamente",
+		}
+
+		jsonBytes, err := protojson.Marshal(resp)
+		require.NoError(t, err)
+
+		// Parsear a mapa genérico para verificar las claves JSON que consume el frontend
+		var rawMap map[string]interface{}
+		err = json.Unmarshal(jsonBytes, &rawMap)
+		require.NoError(t, err)
+
+		assert.Equal(t, "Orden creada exitosamente", rawMap["message"])
+
+		orderMap, ok := rawMap["order"].(map[string]interface{})
+		require.True(t, ok, "el objeto order debe estar presente")
+
+		// Comprobar nombres camelCase consumidos por order.ts y ordenes-dashboard
+		assert.Equal(t, float64(101), orderMap["idOrden"])
+		assert.Equal(t, float64(7), orderMap["idUsuarioComprador"])
+		assert.Equal(t, float64(3), orderMap["idUsuarioVendedor"])
+		assert.Equal(t, float64(15), orderMap["idPublicacion"])
+		assert.Equal(t, "PENDIENTE", orderMap["estado"])
+		assert.Equal(t, "PENDIENTE", orderMap["estadoStr"])
+		// int64 se serializa como string en protojson para preservar precisión en JavaScript
+		assert.Equal(t, "25000", orderMap["precio"])
+		assert.NotEmpty(t, orderMap["createdAt"])
+		assert.NotEmpty(t, orderMap["updatedAt"])
+	})
+
+	// 3. Verificación de deserialización de PatchOrderStatusRequest (ordersMutationService.ts)
+	t.Run("PatchOrderStatusRequest deserializa camelCase nuevoEstado", func(t *testing.T) {
+		jsonPayload := `{"nuevoEstado": "ACEPTADA"}`
+		var req orderspb.PatchOrderStatusRequest
+		err := protojson.Unmarshal([]byte(jsonPayload), &req)
+		require.NoError(t, err)
+		assert.Equal(t, "ACEPTADA", req.GetNuevoEstado())
+	})
+
+	// 4. Verificación de serialización de ListOrdersResponse (useOrdersStore.ts y ordersQueryService.ts)
+	t.Run("ListOrdersResponse serializa array de orders y meta con totalRecords string", func(t *testing.T) {
+		resp := &orderspb.ListOrdersResponse{
+			Orders: []*orderspb.Order{
+				{
+					IdOrden:   1,
+					Estado:    orderspb.EstadoOrden_PENDIENTE,
+					EstadoStr: "PENDIENTE",
+					Precio:    10000,
+				},
+			},
+			Meta: &orderspb.PaginationMeta{
+				TotalRecords: 1,
+				CurrentPage:  1,
+				TotalPages:   1,
+				Limit:        10,
+			},
+		}
+
+		jsonBytes, err := protojson.Marshal(resp)
+		require.NoError(t, err)
+
+		var rawMap map[string]interface{}
+		err = json.Unmarshal(jsonBytes, &rawMap)
+		require.NoError(t, err)
+
+		metaMap, ok := rawMap["meta"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "1", metaMap["totalRecords"]) // string por int64
+		assert.Equal(t, float64(1), metaMap["currentPage"])
+		assert.Equal(t, float64(1), metaMap["totalPages"])
+		assert.Equal(t, float64(10), metaMap["limit"])
 	})
 }

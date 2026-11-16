@@ -20,6 +20,9 @@ type OrderServiceServer struct {
 	orderService *OrderService
 }
 
+// Verificación estricta en tiempo de compilación de que OrderServiceServer satisface la interfaz generada por Protobuf (ALL-179).
+var _ orderspb.OrderServiceServer = (*OrderServiceServer)(nil)
+
 // NewOrderServiceServer crea una nueva instancia del servidor gRPC de órdenes.
 func NewOrderServiceServer(orderService *OrderService) *OrderServiceServer {
 	return &OrderServiceServer{

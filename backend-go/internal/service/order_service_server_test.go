@@ -18,6 +18,20 @@ func authenticatedContext(userID uint) context.Context {
 	return context.WithValue(context.Background(), middleware.UserIDKey, userID)
 }
 
+func TestOrderServiceServer_InterfaceCompliance(t *testing.T) {
+	// Verificación en tiempo de compilación y ejecución de que OrderServiceServer
+	// implementa completamente la interfaz orderspb.OrderServiceServer generada por Protobuf (ALL-179)
+	var serverInterface orderspb.OrderServiceServer = (*OrderServiceServer)(nil)
+	assert.Nil(t, serverInterface)
+
+	svc := NewOrderService(nil)
+	server := NewOrderServiceServer(svc)
+	require.NotNil(t, server)
+
+	serverInterface = server
+	assert.NotNil(t, serverInterface)
+}
+
 func TestOrderServiceServer_CreateOrder_DefaultDisabled(t *testing.T) {
 	t.Setenv("ORDERS_ENABLE_CREATION", "")
 	svc := NewOrderService(nil)
