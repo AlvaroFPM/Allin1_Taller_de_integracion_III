@@ -73,17 +73,31 @@ func TestProcessRedimensionaCuandoExcedeElLimite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no se esperaba error: %v", err)
 	}
-	if !out.WasTranscoded {
-		t.Error("WasTranscoded debería ser true: la imagen excedía el límite")
+	if out.Name != input.Name {
+		t.Fatalf("nombre = %q, se esperaba %q", out.Name, input.Name)
 	}
-	if out.Format != FormatJPEG {
-		t.Errorf("Format = %q, se esperaba image/jpeg", out.Format)
+	if _, err := jpeg.Decode(bytes.NewReader(out.Data)); err != nil {
+		t.Fatalf("el resultado debe ser un JPEG real: %v", err)
 	}
 
 	result := decodeImage(t, out.Data)
 	b := result.Bounds()
 	if b.Dx() != 1920 || b.Dy() != 1440 {
 		t.Errorf("dimensiones = %dx%d, se esperaba 1920x1440", b.Dx(), b.Dy())
+	}
+
+	// Caracterizar ambas orientaciones y el mínimo de un píxel sin fixtures grandes.
+	processor := NewImageProcessor(ProcessorConfig{MaxDimension: 100})
+	for _, tc := range []struct{ width, height, wantWidth, wantHeight int }{
+		{200, 50, 100, 25}, {50, 200, 25, 100},
+		{300, 1, 100, 1}, {1, 300, 1, 100},
+		{100, 50, 100, 50}, {20, 40, 20, 40},
+	} {
+		img := image.NewRGBA(image.Rect(0, 0, tc.width, tc.height))
+		got := processor.resizeIfNeeded(img).Bounds().Size()
+		if got != image.Pt(tc.wantWidth, tc.wantHeight) {
+			t.Errorf("resize %dx%d = %v, se esperaba %dx%d", tc.width, tc.height, got, tc.wantWidth, tc.wantHeight)
+		}
 	}
 }
 
@@ -137,11 +151,11 @@ func TestProcessPNGSeConvierteAJPEG(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no se esperaba error: %v", err)
 	}
-	if out.Format != FormatJPEG {
-		t.Errorf("Format = %q, todo lo transcodificado debe salir como JPEG", out.Format)
+	if out.Name != input.Name {
+		t.Fatalf("nombre = %q, se esperaba conservar %q", out.Name, input.Name)
 	}
-	if !out.WasTranscoded {
-		t.Error("WasTranscoded debería ser true para un PNG de entrada")
+	if _, err := jpeg.Decode(bytes.NewReader(out.Data)); err != nil {
+		t.Fatalf("los bytes del PNG procesado deben ser JPEG: %v", err)
 	}
 }
 
@@ -156,11 +170,8 @@ func TestProcessAVIFPassthrough(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AVIF en passthrough no debería fallar: %v", err)
 	}
-	if out.WasTranscoded {
-		t.Error("WasTranscoded debería ser false: AVIF va sin tocar")
-	}
-	if out.Format != FormatAVIF {
-		t.Errorf("Format = %q, se esperaba image/avif", out.Format)
+	if out.Name != input.Name {
+		t.Fatalf("nombre = %q, se esperaba %q", out.Name, input.Name)
 	}
 	if !bytes.Equal(out.Data, original) {
 		t.Error("el passthrough de AVIF no debe alterar ni un byte del original")

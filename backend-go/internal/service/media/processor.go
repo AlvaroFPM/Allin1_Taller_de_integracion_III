@@ -19,14 +19,10 @@ const (
 	JPEGQuality = 82
 )
 
-// ProcessedFile es el resultado del procesador: bytes listos para subir a
-// Cloudinary, junto con el formato final (para construir el nombre/extensión)
-// y si se aplicó transformación o fue passthrough.
+// ProcessedFile contiene el nombre original y los bytes listos para subir.
 type ProcessedFile struct {
-	Name          string
-	Data          []byte
-	Format        Format // formato final tras procesar, no el original
-	WasTranscoded bool
+	Name string
+	Data []byte
 }
 
 // ImageProcessor redimensiona y recomprime imágenes en memoria. No conoce
@@ -65,10 +61,8 @@ func NewImageProcessor(cfg ProcessorConfig) *ImageProcessor {
 func (p *ImageProcessor) Process(vf ValidatedFile) (ProcessedFile, error) {
 	if !vf.Format.NeedsTranscoding() {
 		return ProcessedFile{
-			Name:          vf.Name,
-			Data:          vf.Data,
-			Format:        vf.Format,
-			WasTranscoded: false,
+			Name: vf.Name,
+			Data: vf.Data,
 		}, nil
 	}
 
@@ -94,10 +88,8 @@ func (p *ImageProcessor) Process(vf ValidatedFile) (ProcessedFile, error) {
 	}
 
 	return ProcessedFile{
-		Name:          vf.Name,
-		Data:          buf.Bytes(),
-		Format:        FormatJPEG,
-		WasTranscoded: true,
+		Name: vf.Name,
+		Data: buf.Bytes(),
 	}, nil
 }
 
@@ -123,23 +115,14 @@ func (p *ImageProcessor) resizeIfNeeded(img image.Image) image.Image {
 	bounds := img.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 
-	longest := w
-	if h > longest {
-		longest = h
-	}
+	longest := max(w, h)
 	if longest <= p.maxDimension {
 		return img
 	}
 
 	scale := float64(p.maxDimension) / float64(longest)
-	newW := int(float64(w) * scale)
-	newH := int(float64(h) * scale)
-	if newW < 1 {
-		newW = 1
-	}
-	if newH < 1 {
-		newH = 1
-	}
+	newW := max(1, int(float64(w)*scale))
+	newH := max(1, int(float64(h)*scale))
 
 	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
 	// CatmullRom da mejor nitidez que ApproxBiLinear para fotos, a costa de
