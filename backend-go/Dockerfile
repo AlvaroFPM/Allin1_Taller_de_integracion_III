@@ -16,7 +16,8 @@ FROM golang:1.27-alpine AS builder
 # Argumento para especificar qué microservicio compilar dentro del monorepo.
 # Por defecto se establece 'cmd/iam', pero puede sobreescribirse al hacer el build:
 # --build-arg SERVICE_PATH=cmd/catalog
-ARG SERVICE_PATH=cmd/iam
+# SERVICE_PATH se declara justo antes de compilar para compartir la cache
+# de dependencias entre IAM, Catalog y Media.
 
 # Instalamos ca-certificates y tzdata en el builder:
 # 1. ca-certificates: Certificados SSL/TLS raíz para permitir conexiones seguras
@@ -49,6 +50,7 @@ COPY . .
 #     * -s: Elimina la tabla de símbolos del binario.
 #   Ambos flags reducen significativamente el peso del binario final (~20-30% menos)
 #   sin afectar en absoluto el rendimiento o funcionamiento en producción.
+ARG SERVICE_PATH=cmd/iam
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/service ./${SERVICE_PATH}
 
 # ==============================================================================
