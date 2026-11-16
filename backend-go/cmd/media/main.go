@@ -5,8 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"github.com/rs/cors"
+
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 
 	apiMedia "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/media"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
@@ -51,7 +52,7 @@ func main() {
 	mux.HandleFunc("/upload/multiple", uploadHandler.Handle)
 	mux.Handle("/v1/media/upload", middleware.HTTPAuth(http.HandlerFunc(mediaHandler.Handle)))
 
-		port := os.Getenv("MEDIA_PORT")
+	port := os.Getenv("MEDIA_PORT")
 	if port == "" {
 		port = "8083"
 	}
