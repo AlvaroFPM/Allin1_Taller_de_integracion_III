@@ -61,22 +61,22 @@ func userIDFromToken(ctx context.Context) (uint, error) {
 	// Extraer metadata del contexto (grpc-gateway pasa los headers HTTP aquí)
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "metadata no proporcionada")
+		return 0, status.Error(codes.Unauthenticated, "metadata no proporcionada")
 	}
 
 	// El header "Authorization" se convierte a minúsculas en gRPC metadata
-	values := md["authorization"]
-	if len(values) == 0 {
+	authHeaderValues := md["authorization"]
+	if len(authHeaderValues) == 0 {
 		// Intentar con "grpcgateway-authorization" por si acaso
-		values = md["grpcgateway-authorization"]
-		if len(values) == 0 {
-			return 0, status.Errorf(codes.Unauthenticated, "token de autorización no proporcionado")
-		}
+		authHeaderValues = md["grpcgateway-authorization"]
+	}
+	if len(authHeaderValues) == 0 {
+		return 0, status.Error(codes.Unauthenticated, "token de autorización no proporcionado")
 	}
 
-	authHeader := values[0]
+	authHeader := authHeaderValues[0]
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return 0, status.Errorf(codes.Unauthenticated, "formato de token inválido")
+		return 0, status.Error(codes.Unauthenticated, "formato de token inválido")
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -94,17 +94,17 @@ func userIDFromToken(ctx context.Context) (uint, error) {
 	})
 
 	if err != nil || !token.Valid {
-		return 0, status.Errorf(codes.Unauthenticated, "token inválido o expirado")
+		return 0, status.Error(codes.Unauthenticated, "token inválido o expirado")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "claims inválidos")
+		return 0, status.Error(codes.Unauthenticated, "claims inválidos")
 	}
 
 	userIDFloat, ok := claims["user_id"].(float64)
 	if !ok {
-		return 0, status.Errorf(codes.Unauthenticated, "user_id no encontrado en el token")
+		return 0, status.Error(codes.Unauthenticated, "user_id no encontrado en el token")
 	}
 
 	return uint(userIDFloat), nil
