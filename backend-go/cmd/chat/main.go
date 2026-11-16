@@ -25,14 +25,14 @@ func main() {
 	// 1. Conexión a la base de datos
 	db, err := database.ConnectDB()
 	if err != nil {
-		log.Printf("Aviso: No se pudo conectar a la base de datos de Chat: %v. Operando en modo memoria.", err)
-	} else {
-		// AutoMigrate de tablas de Chat
-		if err := db.AutoMigrate(&models.ChatSala{}, &models.ChatMensaje{}); err != nil {
-			log.Fatalf("Error al migrar tablas de Chat: %v", err)
-		}
-		fmt.Println("Migración exitosa: Tablas 'chat_salas' y 'chat_mensajes' sincronizadas.")
+		log.Fatalf("No se pudo conectar a la base de datos de Chat; se cancela el arranque: %v", err)
 	}
+
+	// AutoMigrate de tablas de Chat
+	if err := db.AutoMigrate(&models.ChatSala{}, &models.ChatMensaje{}); err != nil {
+		log.Fatalf("Error al migrar tablas de Chat: %v", err)
+	}
+	fmt.Println("Migración exitosa: Tablas 'chat_salas' y 'chat_mensajes' sincronizadas.")
 
 	// 2. Configuración de puertos
 	grpcPort := os.Getenv("GRPC_PORT")
