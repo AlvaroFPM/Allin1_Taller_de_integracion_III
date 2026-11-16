@@ -73,7 +73,7 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 	// 2. Hashear la contraseña con bcrypt
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.GetPassword()), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error al procesar la contraseña")
+		return nil, status.Error(codes.Internal, "error al procesar la contraseña")
 	}
 
 	// 3. Mapear al modelo GORM basado en el MER
@@ -90,13 +90,13 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 	// 4. Guardar en PostgreSQL
 	if s.db != nil {
 		// Verificar si el correo ya existe
-		var check models.Usuario
-		if err := s.db.Where("correo = ?", req.GetEmail()).First(&check).Error; err == nil {
-			return nil, status.Errorf(codes.AlreadyExists, "el correo ya está registrado")
+		var usuarioExistente models.Usuario
+		if err := s.db.Where("correo = ?", req.GetEmail()).First(&usuarioExistente).Error; err == nil {
+			return nil, status.Error(codes.AlreadyExists, "el correo ya está registrado")
 		}
 
 		if err := s.db.Create(&nuevoUsuario).Error; err != nil {
-			return nil, status.Errorf(codes.Internal, "error al guardar el usuario en la base de datos")
+			return nil, status.Error(codes.Internal, "error al guardar el usuario en la base de datos")
 		}
 		fmt.Printf("Usuario %s registrado exitosamente con ID %d\n", nuevoUsuario.Correo, nuevoUsuario.IDUsuario)
 	} else {
@@ -107,7 +107,7 @@ func (s *AuthService) Register(ctx context.Context, req *auth.RegisterRequest) (
 	// 5. Generar JWT Real
 	tokenString, err := generateJWT(nuevoUsuario.IDUsuario)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error al generar token de sesión")
+		return nil, status.Error(codes.Internal, "error al generar token de sesión")
 	}
 
 	return &auth.RegisterResponse{
@@ -137,14 +137,14 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 	if s.db != nil {
 		if err := s.db.Where("correo = ?", req.GetEmail()).First(&usuario).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, status.Errorf(codes.Unauthenticated, "credenciales incorrectas")
+				return nil, status.Error(codes.Unauthenticated, "credenciales incorrectas")
 			}
-			return nil, status.Errorf(codes.Internal, "error al consultar la base de datos")
+			return nil, status.Error(codes.Internal, "error al consultar la base de datos")
 		}
 
 		// 3. Comparar contraseñas
 		if err := bcrypt.CompareHashAndPassword([]byte(usuario.PasswordHash), []byte(req.GetPassword())); err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "credenciales incorrectas")
+			return nil, status.Error(codes.Unauthenticated, "credenciales incorrectas")
 		}
 	} else {
 		// Mock para pruebas si db es nil
@@ -154,7 +154,7 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 	// 4. Generar Token JWT Real
 	tokenString, err := generateJWT(usuario.IDUsuario)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error al generar el token de acceso")
+		return nil, status.Error(codes.Internal, "error al generar el token de acceso")
 	}
 
 	fmt.Printf("Login exitoso para email: %s\n", req.GetEmail())
@@ -183,14 +183,14 @@ func generateJWT(userID uint) (string, error) {
 // GetProfile maneja la obtención de datos del usuario autenticado
 func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) (*auth.ProfileResponse, error) {
 	// Extraer el user_id del contexto inyectado por el interceptor JWT
-	userIDVal := ctx.Value(middleware.UserIDKey)
-	if userIDVal == nil {
-		return nil, status.Errorf(codes.Unauthenticated, "usuario no autenticado")
+	rawUserID := ctx.Value(middleware.UserIDKey)
+	if rawUserID == nil {
+		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado")
 	}
 
-	idUsuario, ok := userIDVal.(uint)
+	idUsuario, ok := rawUserID.(uint)
 	if !ok {
-		return nil, status.Errorf(codes.Internal, "error interno al leer el ID de usuario")
+		return nil, status.Error(codes.Internal, "error interno al leer el ID de usuario")
 	}
 
 	return s.getProfileByUserID(idUsuario)
@@ -199,23 +199,23 @@ func (s *AuthService) GetProfile(ctx context.Context, req *auth.ProfileRequest) 
 // GetPublicProfile devuelve el perfil público de un usuario por ID, sin datos de contacto.
 func (s *AuthService) GetPublicProfile(ctx context.Context, req *auth.PublicProfileRequest) (*auth.PublicProfileResponse, error) {
 	if req.GetUserId() <= 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "user_id debe ser un número positivo")
+		return nil, status.Error(codes.InvalidArgument, "user_id debe ser un número positivo")
 	}
-	p, err := s.getProfileByUserID(uint(req.GetUserId()))
+	perfilCompleto, err := s.getProfileByUserID(uint(req.GetUserId()))
 	if err != nil {
 		return nil, err
 	}
 	return &auth.PublicProfileResponse{
-		UserId:         p.GetUserId(),
-		FirstName:      p.GetFirstName(),
-		LastName:       p.GetLastName(),
-		BioExperiencia: p.GetBioExperiencia(),
-		Habilidades:    p.GetHabilidades(),
-		Ciudad:         p.GetCiudad(),
-		Region:         p.GetRegion(),
-		FotoPerfilUrl:  p.GetFotoPerfilUrl(),
-		PortadaUrl:     p.GetPortadaUrl(),
-		Rol:            p.GetRol(),
+		UserId:         perfilCompleto.GetUserId(),
+		FirstName:      perfilCompleto.GetFirstName(),
+		LastName:       perfilCompleto.GetLastName(),
+		BioExperiencia: perfilCompleto.GetBioExperiencia(),
+		Habilidades:    perfilCompleto.GetHabilidades(),
+		Ciudad:         perfilCompleto.GetCiudad(),
+		Region:         perfilCompleto.GetRegion(),
+		FotoPerfilUrl:  perfilCompleto.GetFotoPerfilUrl(),
+		PortadaUrl:     perfilCompleto.GetPortadaUrl(),
+		Rol:            perfilCompleto.GetRol(),
 	}, nil
 }
 const fallbackAvatarURL = "https://res.cloudinary.com/rstk3bky/image/upload/avatars/default-avatar.png"
@@ -231,14 +231,14 @@ func defaultAvatarURL() string {
 // extraído del contexto para poder testearla con distintos usuarios.
 func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse, error) {
 	if s.db == nil {
-		return nil, status.Errorf(codes.Internal, "conexión a base de datos no disponible")
+		return nil, status.Error(codes.Internal, "conexión a base de datos no disponible")
 	}
 
 	// 1. Buscar el usuario 
 	var usuario models.Usuario
 	if err := s.db.First(&usuario, idUsuario).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, status.Errorf(codes.NotFound, "usuario no encontrado")
+			return nil, status.Error(codes.NotFound, "usuario no encontrado")
 		}
 		return nil, status.Errorf(codes.Internal, "error al buscar el usuario: %v", err)
 	}
@@ -249,7 +249,7 @@ func (s *AuthService) getProfileByUserID(idUsuario uint) (*auth.ProfileResponse,
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, status.Errorf(codes.Internal, "error al buscar el perfil: %v", err)
 	}
-		fotoURL := strings.TrimSpace(perfil.FotoPerfilURL)
+	fotoURL := strings.TrimSpace(perfil.FotoPerfilURL)
 	if fotoURL == "" {
 		fotoURL = defaultAvatarURL()
 	}
@@ -276,7 +276,7 @@ var telefonoRegex = regexp.MustCompile(`^\+?[0-9 ()-]{7,20}$`)
 func userIDFromContext(ctx context.Context) (uint, error) {
 	id, ok := ctx.Value(middleware.UserIDKey).(uint)
 	if !ok || id == 0 {
-		return 0, status.Errorf(codes.Unauthenticated, "usuario no autenticado")
+		return 0, status.Error(codes.Unauthenticated, "usuario no autenticado")
 	}
 	return id, nil
 }
@@ -284,13 +284,13 @@ func userIDFromContext(ctx context.Context) (uint, error) {
 // validateUpdateProfileRequest valida los campos del formulario de perfil.
 func validateUpdateProfileRequest(req *auth.UpdateProfileRequest) error {
 	if tel := strings.TrimSpace(req.GetTelefono()); tel != "" && !telefonoRegex.MatchString(tel) {
-		return status.Errorf(codes.InvalidArgument, "el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis")
+		return status.Error(codes.InvalidArgument, "el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(req.GetCiudad())) > 100 {
-		return status.Errorf(codes.InvalidArgument, "la ciudad no puede superar los 100 caracteres")
+		return status.Error(codes.InvalidArgument, "la ciudad no puede superar los 100 caracteres")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(req.GetRegion())) > 100 {
-		return status.Errorf(codes.InvalidArgument, "la región no puede superar los 100 caracteres")
+		return status.Error(codes.InvalidArgument, "la región no puede superar los 100 caracteres")
 	}
 	if err := validateImageURL("foto_perfil_url", req.GetFotoPerfilUrl()); err != nil {
 		return err
@@ -312,12 +312,12 @@ func cloudinaryURLPrefix() string {
 }
 
 // validateImageURL acepta vacío (no cambiar) o una URL de nuestro Cloudinary.
-func validateImageURL(campo, raw string) error {
-	u := strings.TrimSpace(raw)
-	if u == "" {
+func validateImageURL(campo, rawURL string) error {
+	trimmedURL := strings.TrimSpace(rawURL)
+	if trimmedURL == "" {
 		return nil
 	}
-	if utf8.RuneCountInString(u) > 500 || !strings.HasPrefix(u, cloudinaryURLPrefix()) {
+	if utf8.RuneCountInString(trimmedURL) > 500 || !strings.HasPrefix(trimmedURL, cloudinaryURLPrefix()) {
 		return status.Errorf(codes.InvalidArgument, "%s debe ser una URL de imagen subida a Cloudinary (máximo 500 caracteres)", campo)
 	}
 	return nil
@@ -335,7 +335,7 @@ func (s *AuthService) UpdateProfile(ctx context.Context, req *auth.UpdateProfile
 // updateProfileByUserID contiene la lógica de negocio, separada del contexto
 func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProfileRequest) (*auth.ProfileResponse, error) {
 	if s.db == nil {
-		return nil, status.Errorf(codes.Internal, "conexión a base de datos no disponible")
+		return nil, status.Error(codes.Internal, "conexión a base de datos no disponible")
 	}
 	if err := validateUpdateProfileRequest(req); err != nil {
 		return nil, err
@@ -345,18 +345,18 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 	var usuario models.Usuario
 	if err := s.db.First(&usuario, idUsuario).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, status.Errorf(codes.NotFound, "usuario no encontrado")
+			return nil, status.Error(codes.NotFound, "usuario no encontrado")
 		}
 		return nil, status.Errorf(codes.Internal, "error al buscar el usuario: %v", err)
 	}
 
 	bio := strings.TrimSpace(req.GetBioExperiencia())
-	tel := strings.TrimSpace(req.GetTelefono())
-	hab := strings.TrimSpace(req.GetHabilidades())
+	telefono := strings.TrimSpace(req.GetTelefono())
+	habilidades := strings.TrimSpace(req.GetHabilidades())
 	ciudad := strings.TrimSpace(req.GetCiudad())
 	region := strings.TrimSpace(req.GetRegion())
-	foto := strings.TrimSpace(req.GetFotoPerfilUrl())
-	portada := strings.TrimSpace(req.GetPortadaUrl())
+	fotoURL := strings.TrimSpace(req.GetFotoPerfilUrl())
+	portadaURL := strings.TrimSpace(req.GetPortadaUrl())
 
 	// 2. Actualizar el perfil o crearlo si el usuario aún no lo tiene
 	var perfil models.Perfil
@@ -366,12 +366,12 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 		perfil = models.Perfil{
 			IDUsuario:      idUsuario,
 			BioExperiencia: bio,
-			Telefono:       tel,
-			Habilidades:    hab,
+			Telefono:       telefono,
+			Habilidades:    habilidades,
 			Ciudad:         ciudad,
 			Region:         region,
-			FotoPerfilURL: foto,
-			PortadaURL: portada,
+			FotoPerfilURL:  fotoURL,
+			PortadaURL:     portadaURL,
 		}
 		if err := s.db.Omit("Usuario").Create(&perfil).Error; err != nil {
 			return nil, status.Errorf(codes.Internal, "error al crear el perfil: %v", err)
@@ -380,13 +380,17 @@ func (s *AuthService) updateProfileByUserID(idUsuario uint, req *auth.UpdateProf
 		return nil, status.Errorf(codes.Internal, "error al buscar el perfil: %v", err)
 	default:
 		perfil.BioExperiencia = bio
-		perfil.Telefono = tel
-		perfil.Habilidades = hab
+		perfil.Telefono = telefono
+		perfil.Habilidades = habilidades
 		perfil.Ciudad = ciudad
 		perfil.Region = region
-		
-		if foto != "" {perfil.FotoPerfilURL = foto}
-		if portada != "" {perfil.PortadaURL = portada}
+
+		if fotoURL != "" {
+			perfil.FotoPerfilURL = fotoURL
+		}
+		if portadaURL != "" {
+			perfil.PortadaURL = portadaURL
+		}
 		if err := s.db.Omit("Usuario").Save(&perfil).Error; err != nil {
 			return nil, status.Errorf(codes.Internal, "error al actualizar el perfil: %v", err)
 		}

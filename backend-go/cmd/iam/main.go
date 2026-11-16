@@ -32,7 +32,7 @@ func main() {
 
 	// Auto-migrar la tabla del diagrama MER
 	if err := db.AutoMigrate(&models.Usuario{}); err != nil {
-    log.Fatalf("Error al migrar Usuario: %v", err)
+		log.Fatalf("Error al migrar Usuario: %v", err)
 	}
 	if err := db.AutoMigrate(&models.Perfil{}); err != nil {
 		log.Fatalf("Error al migrar Perfil: %v", err)
@@ -71,8 +71,7 @@ func main() {
 	}()
 
 	// 2. Configurar servidor HTTP (gRPC-Gateway)
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	mux := runtime.NewServeMux()
