@@ -158,3 +158,173 @@ Estos bloques son instrucciones de reproduccion; la evidencia ejecutada arriba u
 Para el responsable de Kubernetes: construir con contexto backend-go y SERVICE_PATH=cmd/media; puerto HTTP 8083; variables DB_*, JWT_SECRET compatible con IAM y CLOUDINARY_*; PostgreSQL debe conservar su volumen. Media termina con error si no puede conectar al arrancar. /healthz refleja disponibilidad de BD y no comprueba Cloudinary: no tratar una caida de BD como motivo automatico de reinicios masivos de liveness. La imagen scratch requiere un directorio temporal escribible para lotes multipart grandes. Los manifiestos existentes no se modificaron.
 
 La implementacion y comprobacion local de ALL-145 quedan listas para entrega. El PR y el push siguen pendientes de autorizacion; no se marca el ticket externamente. ALL-146 sigue a continuacion con la matriz de errores y ejemplos para el consumidor, sin mezclarla con la integracion del cliente de ALL-183.
+
+## ALL-146: revision del contrato y de la persistencia
+
+Estado: revision estatica y matriz de integracion real completadas localmente; publicacion pendiente. Rama `ALL-146-media-contrato-integracion`, base `f0c5ff3` de origin/develop, que incorpora ALL-145 mediante PR #342. La nota anterior de push pendiente describe el momento de entrega de ALL-145, no su estado actual.
+
+### Recorrido revisado
+
+| Capa | Archivo | Responsabilidad y observacion |
+|---|---|---|
+| Arranque | [cmd/media/main.go](../backend-go/cmd/media/main.go) | Conexion, AutoMigrate del modelo Media, repositorio GORM, registro HTTP y autorizacion |
+| API | [media_handler.go](../backend-go/internal/api/media/media_handler.go) | Multipart, normalizacion de tipo, archivo unico, respuesta 201 y errores |
+| Autorizacion | [jwt_http.go](../backend-go/internal/middleware/jwt_http.go) | Bearer JWT y user_id; no recibe el usuario desde el multipart ni consulta IAM en cada subida |
+| Servicio | [media_service.go](../backend-go/internal/service/media/media_service.go) | Politicas PERFIL/PORTADA; sube y despues persiste referencia |
+| Pipeline | [upload_service.go](../backend-go/internal/service/media/upload_service.go) | Lee, valida, procesa y envia bytes a Cloudinary |
+| Validacion | [validator.go](../backend-go/internal/service/media/validator.go) | Peso y MIME detectado por contenido |
+| Procesamiento | [processor.go](../backend-go/internal/service/media/processor.go) | JPEG/PNG/WebP a JPEG; AVIF sin transformar |
+| Modelo | [models/media.go](../backend-go/internal/models/media.go) | Tabla media, PK id_media, public_id unico, indice usuario/tipo; no guarda binarios |
+| Conexion | [database/postgres.go](../backend-go/internal/database/postgres.go) | Configuracion DB_* y conexion GORM compartida |
+| Contrato IAM | [auth.proto](../backend-go/api/proto/auth.proto) | URLs de perfil/portada en mensajes de IAM, no subida multipart |
+| Generados | [auth.pb.go](../backend-go/internal/api/pb/auth/auth.pb.go) | Campos y numeros revisados contra auth.proto; no editados ni regenerados |
+
+Media no tiene un proto de subida: su contrato es HTTP implementado manualmente. Los .pb de IAM son contratos de transporte, no esquemas de PostgreSQL. Se comprobaron los numeros de foto_perfil_url/portada_url: ProfileResponse 10/12, UpdateProfileRequest 6/7 y PublicProfileResponse 8/9. Coinciden con el Go generado revisado. No se afirma que se hayan regenerado o auditado todos los protobuf del monorepo.
+
+El servicio IAM consume las URLs mediante UpdateProfile y las guarda en su modelo Perfil. Subir a Media NO actualiza por si solo el perfil de IAM. Tampoco existe una FK entre las bases independientes: el modelo Media almacena id_usuario procedente del token. La estructura real de BD y sus indices se consultaron en la ejecucion descrita mas abajo.
+
+### Contrato revisado en codigo
+
+- POST /v1/media/upload; Authorization: Bearer; Content-Type multipart/form-data con boundary generado por el cliente.
+- Campo `file`: exactamente un archivo. Campo `tipo`: PERFIL o PORTADA; se recortan espacios y convierte a mayusculas.
+- Maximo individual: 5,242,880 bytes (5 MiB). Limite total de cuerpo: 6,291,456 bytes, incluido multipart.
+- Formatos por contenido: JPEG, PNG, WebP, AVIF. No basta extension o Content-Type declarados.
+- Dimensiones maximas PERFIL 512, PORTADA 1600; AVIF es excepcion porque pasa sin redimensionar.
+- Exito 201: objeto directo con `id`, `tipo`, `url`, `publicId`. No tiene envoltorio `data` ni campo `success`.
+- Error: objeto directo `{"error":"mensaje"}`. Tipo invalido/archivo ausente 400, sesion invalida 401, peso excesivo 413, formato no admitido 415. Errores internos 500. Repositorio nulo 503 en el servicio; el nuevo arranque evita iniciar en ese estado.
+- /upload/multiple es otro contrato: campo files, respuesta success/files, sin middleware HTTPAuth en el registro actual y sin persistencia de referencias por MediaService. No usarlo como sustituto para perfil.
+
+### Matriz inicialmente planificada
+
+| Caso | Preparacion | Resultado esperado por codigo |
+|---|---|---|
+| Nominal perfil y portada | Imagen sintetica y sesion IAM | 201, URL accesible y fila coincidente |
+| Tipo invalido | tipo=OTRO, archivo valido | 400, sin nuevas referencias |
+| Formato invalido | Texto bajo nombre .png | 415, sin nuevas referencias |
+| Archivo excesivo | 5 MiB + 1 byte, cuerpo menor de 6 MiB | 413 del validador, sin nuevas referencias |
+| Cuerpo excesivo | Multipart mayor de 6 MiB | 413 del lector HTTP, sin nuevas referencias |
+| Sin sesion / token invalido | Omitir Bearer / token malformado | 401, sin nuevas referencias |
+| Campo incorrecto / varios archivos | files en vez de file / dos partes file | 400, sin nuevas referencias |
+
+La estrategia fue comparar referencias antes/despues de cada rechazo, sin inferir ausencia de persistencia solo por el status HTTP, y capturar JSON sin credenciales para ALL-183. El bloqueo inicial por Docker no disponible quedo resuelto; los resultados efectivos se detallan abajo. En la corrida final de tipo=OTRO se envio texto bajo nombre .png: el 400 comprueba que la validacion de tipo precede a la de contenido. No debe confundirse esa entrada con la imagen valida prevista en esta matriz inicial.
+
+### Hallazgos y limites de la revision
+
+- Fallo de BD posterior a subir puede dejar asset huerfano: limitacion conocida, no resuelta aqui.
+- El mapper HTTP concatena errores internos en respuestas 500; conviene sanitizarlos en una correccion acotada con regresion, sin divulgar credenciales en evidencia. No se ha provocado un fallo real del proveedor en esta etapa.
+- La autorizacion verifica firma/claims, no vigencia del usuario en BD IAM; no se acredita revocacion o desactivacion inmediata.
+- Las limitaciones de AVIF, transparencia PNG y consumo de memoria siguen pendientes. Esta revision no autoriza alterar formatos o reglas silenciosamente.
+- No se modifico codigo de aplicacion, contratos, modelos ni archivos generados. La matriz real inicialmente bloqueada se completo en la ejecucion descrita a continuacion.
+
+### ALL-146: resultados reales, 16 de noviembre de 2026
+
+Docker Desktop estaba activo pero los contenedores detenidos. Se levantaron media, iam y ambas BD con Compose, conservando volumenes. Imagen Media comprobada: sha256:77459b035c28c7bf33d2e74e534ec41de4346ef45835b971b9a8eea644285160. El codigo de Media y jwt_http no difiere entre cb3cd8e y la base f0c5ff3. Las pruebas son locales, no de Kubernetes ni de un navegador.
+
+Esquema real consultado con `docker exec postgres_media psql -U postgres -d media_db -c '\d media'`: id_media/id_usuario bigint; tipo varchar(20); url varchar(500); public_id varchar(255); fecha_creacion timestamptz. PK media_pkey, UNIQUE idx_media_public_id e indice idx_media_usuario_tipo. Todos los campos excepto fecha_creacion son NOT NULL. Sin FK a IAM. Coincide con el modelo revisado; no se altero el esquema.
+
+Se usaron cuentas sinteticas registradas realmente en IAM, con password aleatoria y token mantenidos en memoria. Imagen PNG sintetica de 2000x1000 creada en memoria. Cliente System.Net.Http.HttpClient y MultipartFormDataContent, que genera el boundary; nombres file/tipo. La descarga desde Cloudinary no incluye el Bearer de IAM.
+
+| Caso ejecutado | HTTP | Comprobacion |
+|---|---:|---|
+| PERFIL con espacios/minusculas | 201 | id=11, PERFIL normalizado, 512x256, URL descargable; filas 8 a 9 |
+| PORTADA | 201 | id=12, 1600x800, URL descargable; filas 9 a 10 |
+| tipo=OTRO | 400 | Tabla identica |
+| Texto de 5 bytes con nombre .png y MIME declarado image/png | 415 | Tabla identica |
+| Archivo de 5,242,881 bytes, cuerpo menor de 6 MiB | 413 | Tabla identica |
+| Archivo de 6,291,457 bytes, cuerpo mayor de 6 MiB | 413 | Tabla identica |
+| Sin Authorization | 401 | Tabla identica |
+| Bearer malformado/invalid-token | 401 | Tabla identica |
+| Campo files en lugar de file | 400 | Tabla identica |
+| Dos partes file | 400 | Tabla identica |
+| Sin parte de archivo | 400 | Tabla identica |
+| Archivo de cero bytes | 400 | Tabla identica |
+
+En ambos exitos se verificaron id, tipo, URL y publicId contra la fila guardada, incremento de exactamente una fila y usuario perteneciente a la cuenta de prueba IAM. En los diez rechazos se verificaron status, Content-Type application/json, propiedad error y tabla sin cambios. La consulta anterior/posterior fue:
+
+```sql
+SELECT count(*) || ':' || md5(coalesce(json_agg(m ORDER BY id_media)::text,'[]'))
+FROM media m;
+```
+
+La huella cubre el contenido ordenado completo de la tabla, no solo el conteo. Es una comprobacion de cambios, no un mecanismo criptografico de seguridad ni prueba de ausencia de assets remotos; no se inspecciono el inventario de Cloudinary para cada rechazo. El flujo de codigo rechaza estos casos antes de subir.
+
+Nota de ejecucion: dos intentos iniciales del script fallaron al comparar arrays/objetos devueltos por PowerShell. No fueron pruebas aprobadas ni defectos demostrados de Media. La comprobacion final utiliza conteos SQL explicitos y salida escalar normalizada con Out-String.Trim(). Se conservaron tres nuevas referencias (10, 11 y 12) y tres assets de esta tarea; la 10 corresponde a la primera subida cuya comprobacion se interrumpio. Se crearon tres cuentas sinteticas al repetir los scripts, sin modificar usuarios existentes. Conteo previo a ALL-146: 7; final: 10. No se borraron datos para ocultar intentos fallidos.
+
+### Ejemplos reales para el consumidor de perfil
+
+Respuesta de perfil observada, sin credenciales (asset sintetico):
+
+```json
+{"id":11,"tipo":"PERFIL","url":"https://res.cloudinary.com/rstk3bky/image/upload/v1794883588/media/perfil/gwvbk1tyvbnko8gxtglk.jpg","publicId":"media/perfil/gwvbk1tyvbnko8gxtglk"}
+```
+
+Respuesta de portada observada:
+
+```json
+{"id":12,"tipo":"PORTADA","url":"https://res.cloudinary.com/rstk3bky/image/upload/v1794883590/media/portada/arrgtcihsuwyxe9puxip.jpg","publicId":"media/portada/arrgtcihsuwyxe9puxip"}
+```
+
+URLs publicas de prueba, verificadas durante la ejecucion; pueden dejar de existir si se limpian los assets. No deben codificarse como valores permanentes del frontend.
+
+Errores observados (el status HTTP se recibe fuera del JSON):
+
+```json
+{"error":"tipo inválido: debe ser PERFIL o PORTADA"}
+```
+
+```json
+{"error":"\"all146.png\" (text/plain; charset=utf-8, 5 bytes): media: el contenido real del archivo no es una imagen soportada"}
+```
+
+```json
+{"error":"\"all146.png\" (5242881 bytes): media: el archivo excede el peso máximo permitido"}
+```
+
+```json
+{"error":"el archivo excede el límite permitido"}
+```
+
+```json
+{"error":"token de autorización no proporcionado"}
+```
+
+```json
+{"error":"token inválido o expirado"}
+```
+
+```json
+{"error":"se debe enviar exactamente un archivo en el campo 'file'"}
+```
+
+```json
+{"error":"\"all146.png\" (0 bytes): media: el archivo está vacío"}
+```
+
+Para ALL-183: usar status HTTP para categorizar errores y error como detalle; no analizar el texto buscando palabras. Enviar FormData sin Content-Type manual. Adaptar la URL del objeto directo, no data.url. Guardar foto/portada en IAM es una operacion posterior distinta. Un fallo de red no garantiza que la subida no se haya completado: no repetir automaticamente una solicitud de resultado desconocido, ya que no existe idempotencia comprobada.
+
+### Reproduccion de los rechazos y limites
+
+Reutilizar autenticacion y cliente multipart documentados en ALL-145. Antes/despues de cada solicitud ejecutar la consulta de huella con docker exec; convertir su salida a un unico string mediante `(salida | Out-String).Trim()` en Windows PowerShell. Para formato usar UTF8.GetBytes('texto'); para pesos usar byte[5242881] y byte[6291457]; para vacio byte[0]. Para sesion omitir Authorization o usar Bearer invalid-token. Alterar tipo/campo/cantidad segun la tabla. Conservar response.StatusCode y JSON, pero nunca token/password. No es necesario un nuevo endpoint o un protobuf de Media.
+
+No se provoco caida de Cloudinary/BD ni se simulo expiracion temporal de un JWT real: el mensaje 'invalido o expirado' observado corresponde al token malformado. Tampoco se certifican revocacion, cancelacion, navegadores, todos los formatos o cuotas de Kubernetes. El pendiente de sanitizar errores 500 sigue separado; no fue necesario cambiar codigo para que pasaran los casos exigidos por esta tarea. No hay nueva prueba de regresion de un fix porque no se implemento un fix en ALL-146.
+
+### Comprobaciones existentes y entrega
+
+Desde [backend-go](../backend-go), se ejecutaron tambien las comprobaciones existentes:
+
+```powershell
+go test -count=1 ./cmd/media ./internal/api/media ./internal/service/media ./internal/middleware
+go vet ./cmd/media ./internal/api/media ./internal/service/media
+```
+
+Resultado: los cuatro paquetes de test aprobaron; go vet termino con codigo 0, sin diagnosticos. Estas comprobaciones complementan, pero no sustituyen, las solicitudes de integracion real anteriores.
+
+| Criterio de ALL-146 | Evidencia y resultado |
+|---|---|
+| URL/referencia valida y errores consistentes | Dos exitos completamente comprobados: referencias 11/12, descarga y dimensiones verificadas; diez rechazos con status y JSON comprobados |
+| Rechazos sin referencias persistidas como exito | Conteo y huella de toda la tabla sin cambios antes/despues de cada rechazo |
+| Contrato con ejemplos sin credenciales | Campos, limites, autenticacion, respuestas reales y pasos de reproduccion en este documento |
+
+Tarea: [ALL-146](https://linear.app/allin1/issue/ALL-146/sprint-final-s2-media-verificar-el-contrato-de-subida-y-sus-errores-de). Dependencia incorporada: [PR #342 de ALL-145](https://github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/pull/342). El unico archivo afectado en esta entrega es este documento; no se modificaron codigo, contratos, protobuf, esquema ni manifiestos. Los pendientes funcionales estan enumerados en la seccion de hallazgos y no se declaran resueltos.
+
+Conclusion: contrato y rechazos solicitados verificados con HTTP, IAM, Cloudinary y PostgreSQL reales en local. Alcance tecnico de ALL-146 completado en ese entorno. Queda publicar la rama, abrir el PR y enlazarlo en Linear; el push requiere autorizacion del usuario. No se cerro el ticket externamente. ALL-183 queda como siguiente tarea, sin acreditar aqui su integracion frontend.
