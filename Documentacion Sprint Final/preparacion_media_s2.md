@@ -328,3 +328,70 @@ Resultado: los cuatro paquetes de test aprobaron; go vet termino con codigo 0, s
 Tarea: [ALL-146](https://linear.app/allin1/issue/ALL-146/sprint-final-s2-media-verificar-el-contrato-de-subida-y-sus-errores-de). Dependencia incorporada: [PR #342 de ALL-145](https://github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/pull/342). El unico archivo afectado en esta entrega es este documento; no se modificaron codigo, contratos, protobuf, esquema ni manifiestos. Los pendientes funcionales estan enumerados en la seccion de hallazgos y no se declaran resueltos.
 
 Conclusion: contrato y rechazos solicitados verificados con HTTP, IAM, Cloudinary y PostgreSQL reales en local. Alcance tecnico de ALL-146 completado en ese entorno. Queda publicar la rama, abrir el PR y enlazarlo en Linear; el push requiere autorizacion del usuario. No se cerro el ticket externamente. ALL-183 queda como siguiente tarea, sin acreditar aqui su integracion frontend.
+
+## ALL-183: cliente multipart del frontend
+
+Ejecucion: 17 de noviembre de 2026, Docker local y navegador en http://localhost:3001. Rama `ALL-183-media-cliente-multipart`, creada desde `174e314` para conservar la evidencia de ALL-146 (ya publicada; no se presupone su merge). Al abrir el PR hacia develop, incorporar primero ALL-146 o advertir que su commit tambien aparece en el diff.
+
+### Cambios y consumo
+
+- [mediaService.ts](../frontend-marketplace/src/services/mediaService.ts): `uploadMedia(file, tipo, signal?)` reutiliza el cliente autenticado y devuelve el objeto directo `{ id, tipo, url, publicId }`. Exporta tipos y `MediaUploadError` con kind/status/message. No actualiza el perfil IAM ni reintenta automaticamente.
+- [pagina de prueba existente](../frontend-marketplace/src/app/test-media/page.tsx): utiliza el servicio, elimina el ingreso manual de JWT y permite cancelar. No se creo otra pantalla ni endpoint. El formulario definitivo de perfil queda para semana 3.
+- [.env.example](../frontend-marketplace/.env.example): `NEXT_PUBLIC_MEDIA_API_URL`, con default local 8083. Es una URL publica incorporada en build, no un secreto; no se modifico .env.local ni Kubernetes.
+- [mediaService.test.mjs](../frontend-marketplace/src/services/mediaService.test.mjs): regresiones con node:test y dependencias ya instaladas. Estas pruebas sinteticas no sustituyen la integracion real descrita abajo.
+
+La solicitud envia FormData con `file` y `tipo`, elimina el Content-Type JSON heredado y deja que el navegador genere el boundary. Se configura `withCredentials: false` solo para Media: el interceptor sigue enviando Authorization Bearer, pero no cookies entre origenes. La primera prueba real detecto que heredar `withCredentials: true` bloqueaba el preflight porque Media no habilita Access-Control-Allow-Credentials. Se corrigio el cliente, sin ampliar el CORS del backend.
+
+Errores disponibles: format (400/415), size (413), session (401/403), network (sin respuesta), cancelled, server y response (respuesta no conforme). Se conserva el comportamiento global existente de redireccion al login ante 401. Cancelar o perder conexion no implica revertir una subida ya recibida por el servidor; no hay reintentos automaticos.
+
+Ejemplo para el futuro formulario:
+
+```typescript
+import { uploadMedia, MediaUploadError } from '@/services/mediaService';
+
+const controller = new AbortController();
+try {
+  const media = await uploadMedia(file, 'PERFIL', controller.signal);
+  // media.url y media.publicId disponibles. Guardar el perfil IAM es otra operacion.
+} catch (error) {
+  if (error instanceof MediaUploadError) {
+    // Clasificar por error.kind/status; mostrar error.message sin analizar su texto.
+  }
+}
+// Para cancelar mientras la promesa esta pendiente: controller.abort().
+```
+
+### Evidencia de navegador y BD
+
+Se registro una cuenta sintetica por IAM; token y password no se incluyen. Se creo un PNG negro de 2000x1000 en memoria y se selecciono en el input de la pagina existente. El cliente ejecutado fue el servicio frontend real, no un fetch sustituto para la subida.
+
+| Caso | Resultado observado |
+|---|---|
+| PERFIL PNG | 201, Authorization presente sin exponer su valor; Content-Type multipart/form-data con boundary WebKit generado por el navegador |
+| Imagen retornada | Referencia 13, publicId media/perfil/gidumpvs0mnrywyuy9zs; imagen cargada en la pagina, dimensiones 512x256 |
+| Persistencia | SELECT de referencia 13 coincide con respuesta; id_usuario 31; conteo total 11 (era 10 al finalizar ALL-146) |
+| Texto de 5 bytes nombrado all183.png | 415; pagina muestra categoria format y mensaje del backend |
+| Archivo de 5,242,881 bytes | 413; pagina muestra categoria size y mensaje del backend |
+| Sin cookie de sesion, archivo pequeno | HTTP 401 observado y redireccion real a /login?session=expired; la navegacion impidio recuperar el JSON con la herramienta, por lo que no se acredita captura del cuerpo en este caso |
+| Sin sesion, conservando el archivo grande | El navegador recibio ERR_CONNECTION_RESET y mostro network. No se atribuye un status HTTP ni una causa confirmada a ese intento |
+
+URL publica sintetica comprobada: https://res.cloudinary.com/rstk3bky/image/upload/v1794886307/media/perfil/gidumpvs0mnrywyuy9zs.jpg. Puede desaparecer al limpiar datos; no incorporarla como valor fijo del formulario. Se conserva una cuenta y una referencia/asset nuevos, sin borrar datos existentes.
+
+La cancelacion previa y durante la solicitud se comprueba con adaptador sintetico; no se declara una cancelacion real del procesamiento remoto. No se comprobaron todos los formatos, portada desde navegador ni despliegue Kubernetes. Los casos de backend de ALL-146 siguen siendo evidencia separada.
+
+### Reproduccion y validacion
+
+Con Media/IAM y sus BD activos, ejecutar desde [frontend-marketplace](../frontend-marketplace):
+
+```powershell
+npm run dev -- --port 3001
+node --test src/services/mediaService.test.mjs
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+node node_modules/eslint/bin/eslint.js src/services/mediaService.ts src/services/mediaService.test.mjs src/app/test-media/page.tsx
+```
+
+Iniciar sesion con una cuenta de prueba y abrir /test-media. Si se usa el login normal, configurar NEXT_PUBLIC_API_URL al gateway operativo o IAM local (8081) antes de iniciar Next. En esta ejecucion se registro la cuenta contra IAM directamente desde el navegador y se guardo la cookie de prueba en memoria del navegador, sin modificar configuracion local. Seleccionar una imagen, subir y comprobar respuesta, imagen y Network. Repetir con texto .png y archivo mayor de 5 MiB. Para cancelar, usar el boton durante una solicitud pendiente; no asumir que elimina el asset.
+
+No se instalo ninguna dependencia ni se modifico el cliente global de autenticacion. El puerto 3000 estaba ocupado por Grafana; 3001 ya estaba permitido por Media. La entrega cubre el consumidor reutilizable y su comprobacion real, no el guardado definitivo del formulario de perfil.
+
+Resultado final: 11 pruebas de regresion aprobadas; TypeScript sin errores; ESLint de los tres archivos de codigo/pruebas sin diagnosticos; git diff --check sin errores (solo aviso de conversion LF/CRLF del documento). No se ejecuto build de produccion ni lint global del monorepo. Criterios locales de ALL-183 cubiertos: subida real consumible, boundary del navegador, tipos y errores disponibles para el formulario. Publicacion y enlace del PR pendientes; no se cerro Linear ni se realizo push automaticamente.
