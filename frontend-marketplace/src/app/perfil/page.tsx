@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/components/ui';
+import { mapPrivateProfile, mapProfileToUser } from '@/lib/mappers/auth';
+import { getPrivateProfile, updatePrivateProfile } from '@/services/authService';
 import {
   ProfilePersonalCard,
   ProfileReputationCard,
@@ -11,68 +13,87 @@ import {
 } from '@/components/shared';
 import type { UserProfileData, EditProfileFormData } from '@/types/profile';
 
-const FALLBACK_PROFILE: UserProfileData = {
-  id: 0,
-  firstName: 'Usuario',
-  lastName: 'Allin1',
-  email: 'usuario@ejemplo.com',
-  rut: '12.345.678-K',
-  phone: '+56 9 1234 5678',
-  city: 'Santiago',
-  region: 'Región Metropolitana',
-  bio: 'Bienvenido a tu perfil de Allin1.',
-  role: 'CLIENTE',
-  isVerified: true,
-};
+function subscribeToHydration(listener: () => void) {
+  const start = useAuthStore.persist.onHydrate(listener);
+  const finish = useAuthStore.persist.onFinishHydration(listener);
+  return () => {
+    start();
+    finish();
+  };
+}
 
 export default function PerfilPage() {
-  const storeUser = useAuthStore((state) => state.user);
-  const updateUser = useAuthStore((state) => state.updateUser);
-
-  const [editOverrides, setEditOverrides] = React.useState<Partial<EditProfileFormData> | null>(
-    null,
+  const userId = useAuthStore((state) => state.user?.id);
+  const token = useAuthStore((state) => state.token);
+  const hydrated = React.useSyncExternalStore(
+    subscribeToHydration,
+    () => useAuthStore.persist.hasHydrated(),
+    () => false,
   );
 
-  // Derivar el perfil reactivamente desde storeUser (hidratado desde localStorage) y posibles ediciones locales
-  const profile = React.useMemo<UserProfileData>(() => {
-    const nameParts = (storeUser?.name || 'Usuario').trim().split(/\s+/);
-    const firstName = editOverrides?.firstName ?? (nameParts[0] || 'Usuario');
-    const lastName = editOverrides?.lastName ?? (nameParts.slice(1).join(' ') || 'Allin1');
+  if (!hydrated) {
+    return (
+      <p role="status" className="p-8 text-content-muted">
+        Cargando perfil…
+      </p>
+    );
+  }
+  if (!token || !userId) {
+    return <p className="p-8 text-content-muted">Inicia sesión para ver tu perfil.</p>;
+  }
 
-    return {
-      ...FALLBACK_PROFILE,
-      id: storeUser?.id ?? 0,
-      firstName,
-      lastName,
-      email: storeUser?.email || FALLBACK_PROFILE.email,
-      phone: editOverrides?.phone ?? FALLBACK_PROFILE.phone,
-      city: editOverrides?.city ?? FALLBACK_PROFILE.city,
-      region: editOverrides?.region ?? FALLBACK_PROFILE.region,
-      bio: editOverrides?.bio ?? FALLBACK_PROFILE.bio,
-      role: storeUser?.role || 'CLIENTE',
-      isVerified: storeUser?.isVerified ?? true,
-      avatarUrl: storeUser?.avatarUrl,
-    };
-  }, [storeUser, editOverrides]);
+  return <PrivateProfile key={token} userId={userId} token={token} />;
+}
 
+function PrivateProfile({ userId, token }: { userId: number; token: string }) {
+  const [profile, setProfile] = React.useState<UserProfileData | null>(null);
+  const [loadError, setLoadError] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
 
-  const handleSaveProfile = (data: EditProfileFormData) => {
-    const updatedFullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
-    setEditOverrides({
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
-      phone: data.phone,
-      city: data.city,
-      region: data.region,
-      bio: data.bio,
-    });
+  React.useEffect(() => {
+    const controller = new AbortController();
+    void getPrivateProfile(controller.signal)
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        const loaded = mapPrivateProfile(response);
+        if (loaded.id !== userId) {
+          setLoadError(true);
+          return;
+        }
+        setProfile(loaded);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError(true);
+      });
+    return () => controller.abort();
+  }, [userId]);
 
-    // Sincroniza también en el store global para que el Navbar actualice el nombre de inmediato
-    if (storeUser) {
-      updateUser({ name: updatedFullName });
+  if (loadError) {
+    return (
+      <p role="alert" className="p-8 text-content-main">
+        No pudimos cargar tu perfil. Recarga la página para volver a intentarlo.
+      </p>
+    );
+  }
+  if (!profile) {
+    return (
+      <p role="status" className="p-8 text-content-muted">
+        Cargando perfil…
+      </p>
+    );
+  }
+
+  const handleSaveProfile = async (data: EditProfileFormData) => {
+    const response = await updatePrivateProfile(data, profile.habilidades);
+    const updated = mapPrivateProfile(response);
+    const session = useAuthStore.getState();
+
+    if (session.token !== token || session.user?.id !== userId || updated.id !== userId) {
+      throw new Error('La respuesta no coincide con la sesión activa.');
     }
 
+    setProfile(updated);
+    session.updateUser({ ...mapProfileToUser(response), isVerified: session.user.isVerified });
     toast.success('¡Tus datos de perfil se actualizaron correctamente!');
   };
 
@@ -88,7 +109,7 @@ export default function PerfilPage() {
 
           {/* Columna Derecha: Panel de Actividad y Publicaciones */}
           <div className="flex-1 min-w-0 w-full">
-            <ProfileActivityPanel userId={storeUser?.id} />
+            <ProfileActivityPanel userId={profile.id} />
           </div>
         </div>
       </div>
