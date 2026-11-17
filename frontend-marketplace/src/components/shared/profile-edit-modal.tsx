@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { isAxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,31 +10,46 @@ import type { EditProfileFormData, ProfileEditModalProps } from '@/types/profile
 export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: ProfileEditModalProps) {
   const [formData, setFormData] = React.useState<EditProfileFormData>(initialData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   // Cierre accesible con tecla Escape
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isSaving) return;
     const handleKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isSaving, onClose]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSaving) return;
+
     setIsSaving(true);
-    setTimeout(() => {
-      onSave(formData);
-      setIsSaving(false);
+    setSaveError(null);
+    try {
+      await onSave(formData);
       onClose();
-    }, 400);
+    } catch (error) {
+      const detail =
+        isAxiosError<{ message?: unknown }>(error) && error.response?.status === 400
+          ? error.response.data?.message
+          : undefined;
+      setSaveError(
+        typeof detail === 'string' && detail.trim()
+          ? detail
+          : 'No se pudieron guardar los cambios. Inténtalo de nuevo.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={isSaving ? undefined : onClose}
     >
       <div
         className="w-full max-w-xl bg-surface-main rounded-3xl border border-border-base shadow-2xl p-6 sm:p-8 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
@@ -43,12 +59,13 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
           <div>
             <h3 className="text-lg font-bold text-content-main">Editar Datos Personales</h3>
             <p className="text-xs text-content-muted mt-0.5">
-              Actualiza tu información pública de contacto y presentación
+              Actualiza tu teléfono, ubicación y presentación
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            disabled={isSaving}
             className="p-1.5 rounded-lg text-content-muted hover:text-content-main hover:bg-surface-base transition-colors"
             aria-label="Cerrar modal"
           >
@@ -59,19 +76,12 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           {/* Nombres y Apellidos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nombres"
-              placeholder="Tus nombres"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              required
-            />
+            <Input label="Nombres" placeholder="Tus nombres" value={formData.firstName} readOnly />
             <Input
               label="Apellidos"
               placeholder="Tus apellidos"
               value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              required
+              readOnly
             />
           </div>
 
@@ -100,6 +110,7 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
             label="Número Telefónico"
             placeholder="+56 9 1234 5678"
             value={formData.phone}
+            disabled={isSaving}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           />
 
@@ -109,12 +120,14 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
               label="Ciudad / Comuna"
               placeholder="Ej: Providencia, Temuco"
               value={formData.city}
+              disabled={isSaving}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
             <Input
               label="Región"
               placeholder="Ej: Región Metropolitana"
               value={formData.region}
+              disabled={isSaving}
               onChange={(e) => setFormData({ ...formData, region: e.target.value })}
             />
           </div>
@@ -124,9 +137,16 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
             label="Biografía / Presentación"
             placeholder="Describe tus oficios, servicios o intereses de intercambio..."
             value={formData.bio}
+            disabled={isSaving}
             onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
             rows={3}
           />
+
+          {saveError && (
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {saveError}
+            </p>
+          )}
 
           <div className="pt-4 border-t border-border-base flex items-center justify-end gap-3">
             <Button variant="ghost" size="sm" type="button" onClick={onClose} disabled={isSaving}>

@@ -3,11 +3,12 @@ export interface UserProfileData {
   firstName: string;
   lastName: string;
   email: string;
-  rut: string;
+  rut?: string;
   phone: string;
   city: string;
   region: string;
   bio: string;
+  habilidades: string;
   role: 'CLIENTE' | 'PROVEEDOR' | 'ADMIN';
   isVerified: boolean;
   avatarUrl?: string;
@@ -43,7 +44,7 @@ export interface ProfileEditModalProps {
   isOpen: boolean;
   initialData: EditProfileFormData;
   onClose: () => void;
-  onSave: (data: EditProfileFormData) => void;
+  onSave: (data: EditProfileFormData) => Promise<void>;
 }
 
 export const DEFAULT_ACTIVITIES: ProfileActivityItem[] = [

@@ -1,7 +1,21 @@
 import { apiClient } from '@/lib/apiClient';
 import { setAuthTokens } from '@/lib/authCookies';
 import { useAuthStore } from '@/store/useAuthStore';
-import { mapProfileToUser, type ProfileResponse } from '@/lib/mappers/auth';
+import { mapProfileToUser, mapProfileUpdate, type ProfileResponse } from '@/lib/mappers/auth';
+import type { EditProfileFormData } from '@/types/profile';
+
+export const getPrivateProfile = async (signal?: AbortSignal) => {
+  const { data } = await apiClient.get<ProfileResponse>('/v1/auth/profile', { signal });
+  return data;
+};
+
+export const updatePrivateProfile = async (form: EditProfileFormData, habilidades: string) => {
+  const { data } = await apiClient.put<ProfileResponse>(
+    '/v1/auth/profile',
+    mapProfileUpdate(form, habilidades),
+  );
+  return data;
+};
 
 export const loginUser = async (data: { email: string; password: string }) => {
   const response = await apiClient.post<{ token: string; message: string }>('/v1/auth/login', data);

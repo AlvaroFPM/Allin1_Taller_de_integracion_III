@@ -1,4 +1,5 @@
 import type { User } from '@/types/auth';
+import type { EditProfileFormData, UserProfileData } from '@/types/profile';
 
 // JSON crudo que devuelve GET /v1/auth/profile (soporta camelCase y snake_case)
 export interface ProfileResponse {
@@ -10,6 +11,12 @@ export interface ProfileResponse {
   lastName?: string;
   last_name?: string;
   email?: string;
+  bioExperiencia?: string;
+  bio_experiencia?: string;
+  telefono?: string;
+  habilidades?: string;
+  ciudad?: string;
+  region?: string;
   fotoPerfilUrl?: string;
   foto_perfil_url?: string;
   rol?: string;
@@ -31,5 +38,34 @@ export function mapProfileToUser(profile: ProfileResponse): User {
     role: VALID_ROLES.includes(rol) ? rol : 'CLIENTE',
     avatarUrl: foto || undefined,
     isVerified: true,
+  };
+}
+
+export function mapPrivateProfile(profile: ProfileResponse): UserProfileData {
+  const { id, email, role, avatarUrl } = mapProfileToUser(profile);
+
+  return {
+    id,
+    firstName: profile.firstName ?? profile.first_name ?? '',
+    lastName: profile.lastName ?? profile.last_name ?? '',
+    email,
+    phone: profile.telefono ?? '',
+    city: profile.ciudad ?? '',
+    region: profile.region ?? '',
+    bio: profile.bioExperiencia ?? profile.bio_experiencia ?? '',
+    habilidades: profile.habilidades ?? '',
+    role,
+    avatarUrl,
+    isVerified: false,
+  };
+}
+
+export function mapProfileUpdate(data: EditProfileFormData, habilidades: string) {
+  return {
+    telefono: data.phone,
+    ciudad: data.city,
+    region: data.region,
+    bioExperiencia: data.bio,
+    habilidades,
   };
 }

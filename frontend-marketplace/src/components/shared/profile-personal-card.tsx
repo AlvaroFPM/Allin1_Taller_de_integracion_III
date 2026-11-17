@@ -64,21 +64,21 @@ export function ProfilePersonalCard({ profile, onEditClick }: ProfilePersonalCar
           <p className="mt-0.5 font-medium text-content-main text-sm">{profile.lastName}</p>
         </div>
 
-        <div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
-            RUT
-          </span>
-          <div className="mt-0.5 flex items-center justify-between">
-            <p className="font-medium text-content-main text-sm">
-              {profile.rut || 'No registrado'}
-            </p>
-            {profile.isVerified && (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800">
-                Validado
-              </span>
-            )}
+        {profile.rut && (
+          <div>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+              RUT
+            </span>
+            <div className="mt-0.5 flex items-center justify-between">
+              <p className="font-medium text-content-main text-sm">{profile.rut}</p>
+              {profile.isVerified && (
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800">
+                  Validado
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
