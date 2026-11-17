@@ -1,63 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-const MEDIA_URL = 'http://localhost:8083';
+import { useEffect, useRef, useState } from 'react';
+import { uploadMedia, MediaUploadError, type MediaType } from '@/services/mediaService';
 
 export default function TestMedia() {
-  const [token, setToken] = useState('');
-  const [tipo, setTipo] = useState('PERFIL');
+  const [tipo, setTipo] = useState<MediaType>('PERFIL');
+  const controller = useRef<AbortController | null>(null);
+  const [pending, setPending] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState('');
   const [url, setUrl] = useState('');
   const [dims, setDims] = useState('');
 
-  useEffect(() => {
-    const m = document.cookie.match(/(?:^|; )auth_token=([^;]*)/);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (m) setToken(decodeURIComponent(m[1]));
-  }, []);
+  useEffect(() => () => controller.current?.abort(), []);
 
   async function subir() {
+    if (controller.current) return;
     setUrl('');
     setDims('');
     if (!file) {
       setResult('Elige un archivo');
       return;
     }
-    const fd = new FormData();
-    fd.append('tipo', tipo);
-    fd.append('file', file);
+    controller.current = new AbortController();
+    setPending(true);
     try {
-      const res = await fetch(`${MEDIA_URL}/v1/media/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      const text = await res.text();
-      setResult(`HTTP ${res.status}\n${text}`);
-      if (res.ok) setUrl(JSON.parse(text).url);
+      const data = await uploadMedia(file, tipo, controller.current.signal);
+      setResult(`HTTP 201\n${JSON.stringify(data, null, 2)}`);
+      setUrl(data.url);
     } catch (e) {
-      setResult(`Error de red/CORS: ${String(e)}`);
+      setResult(
+        e instanceof MediaUploadError
+          ? `${e.kind} (${e.status ?? '-'}): ${e.message}`
+          : 'Error inesperado',
+      );
+    } finally {
+      controller.current = null;
+      setPending(false);
     }
   }
 
   return (
     <div style={{ padding: 24, maxWidth: 700 }}>
       <h1>Prueba temporal de Media</h1>
-      <p>Token (se llena solo si iniciaste sesión; si no, pégalo):</p>
-      <input style={{ width: '100%' }} value={token} onChange={(e) => setToken(e.target.value)} />
+      <p>Inicia sesion en la aplicacion. Se utiliza el cliente autenticado, sin pegar tokens.</p>
       <p>
         Tipo:{' '}
-        <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+        <select
+          disabled={pending}
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value as MediaType)}
+        >
           <option>PERFIL</option>
           <option>PORTADA</option>
-          <option>OTRO</option>
         </select>
       </p>
-      <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <input
+        disabled={pending}
+        type="file"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      />
       <p>
-        <button onClick={subir}>Subir</button>
+        <button disabled={pending} onClick={subir}>
+          Subir
+        </button>
+        {pending && <button onClick={() => controller.current?.abort()}>Cancelar</button>}
       </p>
       <pre style={{ whiteSpace: 'pre-wrap' }}>{result}</pre>
       {url && (
