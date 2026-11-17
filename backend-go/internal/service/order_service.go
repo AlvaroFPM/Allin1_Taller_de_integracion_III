@@ -5,8 +5,11 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
+	publicationpb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
@@ -21,14 +24,28 @@ var transicionesValidas = map[string][]string{
 	models.EstadoOrdenCancelada:  {}, // Estado final: inmutable
 }
 
+// catalogCallTimeout limita la espera a Catálogo para no bloquear la creación de órdenes.
+const catalogCallTimeout = 3 * time.Second
+
+// PublicationGetter es el contrato mínimo que Órdenes necesita de Catálogo (ALL-141).
+// Lo satisface publicationpb.PublicationServiceClient.
+type PublicationGetter interface {
+	GetPublication(ctx context.Context, in *publicationpb.GetPublicationRequest, opts ...grpc.CallOption) (*publicationpb.GetPublicationResponse, error)
+}
+
 // OrderService encapsula la conexión a la base de datos para las operaciones de órdenes.
 type OrderService struct {
-	db *gorm.DB
+	db            *gorm.DB
+	catalogClient PublicationGetter
 }
 
 // NewOrderService crea una instancia del servicio de órdenes con la conexión recibida.
-func NewOrderService(db *gorm.DB) *OrderService {
-	return &OrderService{db: db}
+func NewOrderService(db *gorm.DB, catalogClient ...PublicationGetter) *OrderService {
+	svc := &OrderService{db: db}
+	if len(catalogClient) > 0 {
+		svc.catalogClient = catalogClient[0]
+	}
+	return svc
 }
 
 // CreateOrder valida y persiste una nueva orden en estado PENDIENTE (ALL-76).
@@ -40,6 +57,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, compradorID, vendedorID,
 
 	if s.db == nil {
 		return nil, status.Error(codes.Unavailable, "base de datos no disponible")
+	}
+
+	// Contrastar con la publicación real de Catálogo (ALL-141)
+	if err := s.verifyPublication(ctx, compradorID, vendedorID, publicacionID, precio); err != nil {
+		return nil, err
 	}
 
 	// Verificar que no exista una orden activa duplicada
@@ -137,6 +159,44 @@ func validateCreateOrder(compradorID, vendedorID, publicacionID uint, precio int
 	}
 	if precio <= 0 {
 		return status.Error(codes.InvalidArgument, "el precio debe ser un entero mayor a 0 (RN-23)")
+	}
+	return nil
+}
+
+// verifyPublication contrasta vendedor y precio del request con la publicación real de Catálogo.
+func (s *OrderService) verifyPublication(ctx context.Context, compradorID, vendedorID, publicacionID uint, precio int64) error {
+	if s.catalogClient == nil {
+		return status.Error(codes.Unavailable, "catálogo no disponible: cliente no configurado")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, catalogCallTimeout)
+	defer cancel()
+
+	resp, err := s.catalogClient.GetPublication(ctx, &publicationpb.GetPublicationRequest{IdPublicacion: uint32(publicacionID)})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return status.Error(codes.NotFound, "publicación no encontrada")
+		}
+		return status.Errorf(codes.Unavailable, "catálogo no disponible: %s", status.Code(err))
+	}
+
+	pub := resp.GetPublication()
+	if pub == nil {
+		return status.Error(codes.Unavailable, "respuesta inválida de catálogo")
+	}
+	if pub.GetEstado() != publicationpb.EstadoPublicacion_ACTIVO {
+		return status.Error(codes.FailedPrecondition, "la publicación no está disponible para contratar")
+	}
+
+	vendedorReal := uint(pub.GetIdUsuarioVendedor())
+	if compradorID == vendedorReal {
+		return status.Error(codes.InvalidArgument, "el comprador no puede ser el mismo vendedor (RN-21)")
+	}
+	if vendedorID != vendedorReal {
+		return status.Error(codes.InvalidArgument, "el vendedor indicado no coincide con el de la publicación")
+	}
+	if precio != pub.GetPrecioBase() {
+		return status.Error(codes.InvalidArgument, "el precio indicado no coincide con el de la publicación")
 	}
 	return nil
 }

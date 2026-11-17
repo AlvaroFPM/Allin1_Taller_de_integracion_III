@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	ordersapi "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/orders"
+	publicationpb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/database"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/middleware"
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
@@ -62,7 +63,19 @@ func main() {
 		grpc.UnaryInterceptor(middleware.UnaryAuthInterceptor()),
 	)
 
-	orderService := service.NewOrderService(db)
+	// Cliente gRPC hacia Catálogo (ALL-141). NewClient es perezoso: si Catálogo está caído
+	// el servicio arranca, y CreateOrder responde Unavailable al intentar validar.
+	catalogAddr := strings.TrimSpace(os.Getenv("CATALOG_GRPC_ADDR"))
+	if catalogAddr == "" {
+		catalogAddr = "localhost:50052"
+	}
+	catalogConn, err := grpc.NewClient(catalogAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Error crítico al crear el cliente de Catálogo (%s): %v", catalogAddr, err)
+	}
+	defer catalogConn.Close()
+
+	orderService := service.NewOrderService(db, publicationpb.NewPublicationServiceClient(catalogConn))
 	orderServer := service.NewOrderServiceServer(orderService)
 	ordersapi.RegisterGRPCRouter(grpcServer, orderServer)
 
