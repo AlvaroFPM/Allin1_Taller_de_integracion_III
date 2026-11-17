@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/models"
+	publicationpb "github.com/AlvaroFPM/Allin1_Taller_de_integracion_III/backend-go/internal/api/pb/publication"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/driver/postgres"
@@ -60,6 +62,47 @@ func setupOrderTestDB(t *testing.T) *gorm.DB {
 	})
 
 	return tx
+}
+
+// stubPublicationGetter simula el cliente gRPC de Catálogo para pruebas unitarias y de BD (ALL-141).
+type stubPublicationGetter struct {
+	publications map[uint32]*publicationpb.Publication
+	err          error
+	fn           func(ctx context.Context, in *publicationpb.GetPublicationRequest) (*publicationpb.GetPublicationResponse, error)
+}
+
+func (s *stubPublicationGetter) GetPublication(ctx context.Context, in *publicationpb.GetPublicationRequest, opts ...grpc.CallOption) (*publicationpb.GetPublicationResponse, error) {
+	if s.fn != nil {
+		return s.fn(ctx, in)
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.publications != nil {
+		if pub, ok := s.publications[in.GetIdPublicacion()]; ok {
+			return &publicationpb.GetPublicationResponse{Publication: pub}, nil
+		}
+	}
+	return nil, status.Error(codes.NotFound, "publicación no encontrada en stub de catálogo")
+}
+
+func newCatalogStub(pubs ...*publicationpb.Publication) *stubPublicationGetter {
+	m := make(map[uint32]*publicationpb.Publication)
+	for _, p := range pubs {
+		if p != nil {
+			m[p.GetIdPublicacion()] = p
+		}
+	}
+	return &stubPublicationGetter{publications: m}
+}
+
+func activePub(id uint32, vendedor uint32, precio int64) *publicationpb.Publication {
+	return &publicationpb.Publication{
+		IdPublicacion:     id,
+		IdUsuarioVendedor: vendedor,
+		PrecioBase:        precio,
+		Estado:            publicationpb.EstadoPublicacion_ACTIVO,
+	}
 }
 
 // ============================================================================
@@ -164,7 +207,8 @@ func TestValidateCreateOrder_PureValidation(t *testing.T) {
 
 func TestCreateOrder_Success(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(activePub(10, 3, 25000))
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	orden, err := svc.CreateOrder(ctx, 7, 3, 10, 25000)
@@ -183,7 +227,8 @@ func TestCreateOrder_Success(t *testing.T) {
 
 func TestCreateOrder_DuplicateActiveOrder_Rejected_RN22(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(activePub(10, 3, 10000))
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Primera orden de Ana (7) para la publicación 10 -> Debe funcionar
@@ -204,7 +249,8 @@ func TestCreateOrder_DuplicateActiveOrder_Rejected_RN22(t *testing.T) {
 
 func TestCreateOrder_AllowsNewOrderIfPreviousWasCancelledOrCompleted(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(activePub(10, 3, 12000))
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// Insertamos manualmente una orden antigua que ya fue CANCELADA
@@ -421,7 +467,8 @@ func TestValidateOrderPermissions_PureValidation(t *testing.T) {
 
 func TestPatchOrderStatus_SuccessCycle(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(activePub(5, 20, 30000))
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Crear orden inicial en PENDIENTE
@@ -442,7 +489,7 @@ func TestPatchOrderStatus_SuccessCycle(t *testing.T) {
 
 func TestPatchOrderStatus_FailsIfOrderNotFound(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	svc := NewOrderService(tx, newCatalogStub())
 	ctx := context.Background()
 
 	res, err := svc.PatchOrderStatus(ctx, 99999, 20, models.EstadoOrdenAceptada)
@@ -659,7 +706,12 @@ func TestListOrders_InvalidState_ReturnsInvalidArgument_Pure(t *testing.T) {
 
 func TestListOrders_AislamientoPorComprador(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(10, 201, 15000),
+		activePub(11, 202, 25000),
+		activePub(12, 201, 35000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Crear 2 órdenes para el comprador 101 (con diferentes publicaciones y vendedores)
@@ -696,7 +748,11 @@ func TestListOrders_AislamientoPorComprador(t *testing.T) {
 
 func TestListOrders_ComprasYVentasNoSeMezclan(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(20, 60, 10000),
+		activePub(21, 50, 20000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// Usuario 50 es COMPRADOR en ordenA (vendedor 60)
@@ -726,7 +782,12 @@ func TestListOrders_ComprasYVentasNoSeMezclan(t *testing.T) {
 
 func TestListOrders_FiltroPorEstado(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(31, 90, 10000),
+		activePub(32, 91, 20000),
+		activePub(33, 92, 30000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Crear 3 órdenes para el comprador 80
@@ -781,7 +842,12 @@ func TestListOrders_FiltroPorEstado(t *testing.T) {
 
 func TestListOrders_Paginacion(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(41, 101, 10000),
+		activePub(42, 102, 20000),
+		activePub(43, 103, 30000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// Crear 3 órdenes para el comprador 95
@@ -813,7 +879,11 @@ func TestListOrders_Paginacion(t *testing.T) {
 
 func TestListOrders_OrdenDescendenteFecha(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(51, 210, 10000),
+		activePub(52, 211, 20000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Crear orden antigua (tendrá id_orden menor)
@@ -848,7 +918,11 @@ func TestListOrders_OrdenDescendenteFecha(t *testing.T) {
 
 func TestListOrders_SoftDelete_OrdenEliminadaNoAparece(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	stub := newCatalogStub(
+		activePub(61, 220, 10000),
+		activePub(62, 221, 20000),
+	)
+	svc := NewOrderService(tx, stub)
 	ctx := context.Background()
 
 	// 1. Crear 2 órdenes para el comprador 120
@@ -879,7 +953,7 @@ func TestListOrders_SoftDelete_OrdenEliminadaNoAparece(t *testing.T) {
 
 func TestListOrders_UsuarioSinOrdenes_RetornaSliceVacioYTotalCero(t *testing.T) {
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	svc := NewOrderService(tx, newCatalogStub())
 	ctx := context.Background()
 
 	// Usuario 99999 que no tiene compras ni ventas
@@ -894,5 +968,195 @@ func TestListOrders_UsuarioSinOrdenes_RetornaSliceVacioYTotalCero(t *testing.T) 
 	assert.Equal(t, int64(0), totalVentas)
 	assert.NotNil(t, ventas, "el slice no debe ser nil para evitar TypeError en el frontend")
 	assert.Empty(t, ventas)
+}
+
+// ============================================================================
+// 7. TESTS DE VALIDACIÓN CON CATÁLOGO (ALL-141)
+// ============================================================================
+
+func TestCreateOrder_CatalogValidation_ALL141(t *testing.T) {
+	ctx := context.Background()
+	fakeDB := &gorm.DB{} // DB dummy no-nil para pruebas que no tocan PostgreSQL
+
+	t.Run("1. Publicacion inexistente retorna NotFound", func(t *testing.T) {
+		stub := &stubPublicationGetter{
+			err: status.Error(codes.NotFound, "publicación 999999 no encontrada"),
+		}
+		svc := NewOrderService(fakeDB, stub)
+		orden, err := svc.CreateOrder(ctx, 7, 3, 999999, 25000)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.NotFound, st.Code())
+		assert.Contains(t, st.Message(), "no encontrada")
+	})
+
+	t.Run("2. Catalogo no disponible (fallo de dependencia) retorna Unavailable", func(t *testing.T) {
+		casos := []struct {
+			name        string
+			stub        PublicationGetter
+			wantMsgPart string
+		}{
+			{
+				name: "Stub con error Unavailable",
+				stub: &stubPublicationGetter{
+					err: status.Error(codes.Unavailable, "conexión rechazada"),
+				},
+				wantMsgPart: "catálogo no disponible",
+			},
+			{
+				name: "Stub con DeadlineExceeded",
+				stub: &stubPublicationGetter{
+					err: status.Error(codes.DeadlineExceeded, "context deadline exceeded"),
+				},
+				wantMsgPart: "catálogo no disponible",
+			},
+			{
+				name:        "Cliente de Catálogo nil (no configurado)",
+				stub:        nil,
+				wantMsgPart: "cliente no configurado",
+			},
+		}
+
+		for _, tc := range casos {
+			t.Run(tc.name, func(t *testing.T) {
+				var svc *OrderService
+				if tc.stub != nil {
+					svc = NewOrderService(fakeDB, tc.stub)
+				} else {
+					svc = NewOrderService(fakeDB)
+				}
+				orden, err := svc.CreateOrder(ctx, 7, 3, 10, 25000)
+				assert.Nil(t, orden)
+				require.Error(t, err)
+
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				assert.Equal(t, codes.Unavailable, st.Code())
+				assert.Contains(t, st.Message(), tc.wantMsgPart)
+			})
+		}
+	})
+
+	t.Run("3. Respuesta invalida de Catalogo (nil publication) retorna Unavailable", func(t *testing.T) {
+		stub := &stubPublicationGetter{
+			fn: func(ctx context.Context, in *publicationpb.GetPublicationRequest) (*publicationpb.GetPublicationResponse, error) {
+				return &publicationpb.GetPublicationResponse{Publication: nil}, nil
+			},
+		}
+		svc := NewOrderService(fakeDB, stub)
+		orden, err := svc.CreateOrder(ctx, 7, 3, 10, 25000)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.Unavailable, st.Code())
+		assert.Contains(t, st.Message(), "respuesta inválida de catálogo")
+	})
+
+	t.Run("4. Publicacion no activa retorna FailedPrecondition", func(t *testing.T) {
+		estadosNoActivos := []struct {
+			name   string
+			estado publicationpb.EstadoPublicacion
+		}{
+			{"PAUSADO", publicationpb.EstadoPublicacion_PAUSADO},
+			{"COMPLETADO", publicationpb.EstadoPublicacion_COMPLETADO},
+			{"ELIMINADO", publicationpb.EstadoPublicacion_ELIMINADO},
+		}
+
+		for _, tc := range estadosNoActivos {
+			t.Run(tc.name, func(t *testing.T) {
+				pub := &publicationpb.Publication{
+					IdPublicacion:     10,
+					IdUsuarioVendedor: 3,
+					PrecioBase:        25000,
+					Estado:            tc.estado,
+				}
+				svc := NewOrderService(fakeDB, newCatalogStub(pub))
+				orden, err := svc.CreateOrder(ctx, 7, 3, 10, 25000)
+				assert.Nil(t, orden)
+				require.Error(t, err)
+
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				assert.Equal(t, codes.FailedPrecondition, st.Code())
+				assert.Contains(t, st.Message(), "no está disponible para contratar")
+			})
+		}
+	})
+
+	t.Run("5. Vendedor alterado en request es rechazado con InvalidArgument", func(t *testing.T) {
+		stub := newCatalogStub(activePub(10, 3, 25000))
+		svc := NewOrderService(fakeDB, stub)
+
+		// Request envía vendedorID 99, pero Catálogo indica que es 3
+		orden, err := svc.CreateOrder(ctx, 7, 99, 10, 25000)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "el vendedor indicado no coincide")
+	})
+
+	t.Run("6. Precio alterado en request es rechazado con InvalidArgument", func(t *testing.T) {
+		stub := newCatalogStub(activePub(10, 3, 25000))
+		svc := NewOrderService(fakeDB, stub)
+
+		// Request envía precio 100, pero Catálogo indica que es 25000
+		orden, err := svc.CreateOrder(ctx, 7, 3, 10, 100)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "el precio indicado no coincide")
+	})
+
+	t.Run("7. Autocontratacion contra el vendedor real (RN-21) es bloqueada con InvalidArgument", func(t *testing.T) {
+		stub := newCatalogStub(activePub(10, 3, 25000))
+		svc := NewOrderService(fakeDB, stub)
+
+		// Comprador es 3 (dueño real según Catálogo).
+		// En el request manda vendedorID 99 para evadir validateCreateOrder pura.
+		// verifyPublication detecta que compradorID (3) == vendedorReal (3) y bloquea.
+		orden, err := svc.CreateOrder(ctx, 3, 99, 10, 25000)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "RN-21")
+	})
+
+	t.Run("8. Caso nominal valido con tx real persiste en estado PENDIENTE", func(t *testing.T) {
+		tx := setupOrderTestDB(t)
+		stub := newCatalogStub(activePub(10, 3, 25000))
+		svc := NewOrderService(tx, stub)
+
+		orden, err := svc.CreateOrder(ctx, 7, 3, 10, 25000)
+		require.NoError(t, err)
+		require.NotNil(t, orden)
+
+		assert.NotZero(t, orden.IDOrden)
+		assert.Equal(t, uint(7), orden.IDUsuarioComprador)
+		assert.Equal(t, uint(3), orden.IDUsuarioVendedor)
+		assert.Equal(t, uint(10), orden.IDPublicacion)
+		assert.Equal(t, int64(25000), orden.Precio)
+		assert.Equal(t, models.EstadoOrdenPendiente, orden.Estado)
+
+		// Verificar persistencia en PostgreSQL
+		var ordenPersistida models.Orden
+		errDB := tx.First(&ordenPersistida, orden.IDOrden).Error
+		require.NoError(t, errDB)
+		assert.Equal(t, models.EstadoOrdenPendiente, ordenPersistida.Estado)
+		assert.Equal(t, int64(25000), ordenPersistida.Precio)
+	})
 }
 

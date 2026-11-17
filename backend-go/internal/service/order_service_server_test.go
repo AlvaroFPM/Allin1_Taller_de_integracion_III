@@ -137,7 +137,7 @@ func TestOrderServiceServer_CreateOrder_Validations(t *testing.T) {
 func TestOrderServiceServer_CreateOrder_DBIntegration(t *testing.T) {
 	t.Setenv("ORDERS_ENABLE_CREATION", "true")
 	tx := setupOrderTestDB(t)
-	svc := NewOrderService(tx)
+	svc := NewOrderService(tx, newCatalogStub(activePub(10, 3, 25000)))
 	server := NewOrderServiceServer(svc)
 
 	ctx := authenticatedContext(7) // Comprador autenticado: ID 7
