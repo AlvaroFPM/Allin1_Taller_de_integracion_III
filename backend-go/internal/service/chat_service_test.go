@@ -68,8 +68,10 @@ func TestValidateSendMessageRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateSendMessageRequest(tc.req)
+
 			if tc.expectError {
 				assert.Error(t, err)
+
 				st, ok := status.FromError(err)
 				assert.True(t, ok)
 				assert.Equal(t, codes.InvalidArgument, st.Code())
@@ -113,8 +115,10 @@ func TestValidateGetMessagesRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateGetMessagesRequest(tc.req)
+
 			if tc.expectError {
 				assert.Error(t, err)
+				assert.Equal(t, codes.InvalidArgument, status.Code(err))
 			} else {
 				assert.NoError(t, err)
 			}
@@ -167,8 +171,11 @@ func TestValidateGetOrCreateRoomRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateGetOrCreateRoomRequest(tc.req, tc.currentUserID)
+
 			if tc.expectError {
 				assert.Error(t, err)
+				assert.Equal(t, codes.InvalidArgument, status.Code(err))
+
 				if tc.expectedMsg != "" {
 					assert.Contains(t, err.Error(), tc.expectedMsg)
 				}
@@ -187,18 +194,15 @@ func TestChatService_SendMessage_Unauthenticated(t *testing.T) {
 		Contenido:      "Mensaje de prueba",
 	}
 
-	// Sin usuario en contexto
 	ctx := context.Background()
 	resp, err := svc.SendMessage(ctx, req)
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	st, ok := status.FromError(err)
-	assert.True(t, ok)
-	assert.Equal(t, codes.Unauthenticated, st.Code())
+	assert.Equal(t, codes.Unauthenticated, status.Code(err))
 }
 
-func TestChatService_SendMessage_Authenticated(t *testing.T) {
+func TestChatService_SendMessage_DatabaseUnavailable(t *testing.T) {
 	svc := NewChatServiceServer(nil)
 	req := &chatpb.SendMessageRequest{
 		SalaId:         1,
@@ -206,14 +210,15 @@ func TestChatService_SendMessage_Authenticated(t *testing.T) {
 		Contenido:      "Hola mundo",
 	}
 
-	// Con usuario autenticado en contexto (id = 7)
-	ctx := context.WithValue(context.Background(), middleware.UserIDKey, uint(7))
+	ctx := context.WithValue(
+		context.Background(),
+		middleware.UserIDKey,
+		uint(7),
+	)
+
 	resp, err := svc.SendMessage(ctx, req)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, uint32(1), resp.GetMensaje().GetSalaId())
-	assert.Equal(t, uint32(7), resp.GetMensaje().GetRemitenteId())
-	assert.Equal(t, uint32(2), resp.GetMensaje().GetDestinatarioId())
-	assert.Equal(t, "Hola mundo", resp.GetMensaje().GetContenido())
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, codes.Unavailable, status.Code(err))
 }

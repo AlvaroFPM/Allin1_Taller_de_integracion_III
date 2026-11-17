@@ -13,40 +13,58 @@ import (
 	"gorm.io/gorm"
 )
 
-// ChatServiceServer implementa el servicio gRPC ChatServiceServer
+// ChatServiceServer implementa el servicio gRPC de Chat.
 type ChatServiceServer struct {
 	chatpb.UnimplementedChatServiceServer
 	db *gorm.DB
 }
 
-// NewChatServiceServer inicializa el servidor del servicio de Chat
+// NewChatServiceServer inicializa el servidor del servicio de Chat.
 func NewChatServiceServer(db *gorm.DB) *ChatServiceServer {
 	return &ChatServiceServer{db: db}
 }
 
-// SendMessage almacena y despacha un nuevo mensaje dentro de una sala
-func (s *ChatServiceServer) SendMessage(ctx context.Context, req *chatpb.SendMessageRequest) (*chatpb.SendMessageResponse, error) {
+// SendMessage almacena un mensaje enviado al otro participante de la sala.
+func (s *ChatServiceServer) SendMessage(
+	ctx context.Context,
+	req *chatpb.SendMessageRequest,
+) (*chatpb.SendMessageResponse, error) {
 	if err := ValidateSendMessageRequest(req); err != nil {
 		return nil, err
 	}
 
+	sala, err := s.requireRoomParticipant(ctx, uint(req.GetSalaId()))
+	if err != nil {
+		return nil, err
+	}
+
 	remitenteID := extractUserID(ctx)
-	if remitenteID == 0 {
-		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado")
+	destinatarioID := sala.VendedorID
+	if remitenteID == sala.VendedorID {
+		destinatarioID = sala.CompradorID
+	}
+
+	if uint(req.GetDestinatarioId()) != destinatarioID {
+		return nil, status.Error(
+			codes.PermissionDenied,
+			"el destinatario debe ser el otro participante de la sala",
+		)
 	}
 
 	mensaje := models.ChatMensaje{
-		SalaID:         uint(req.GetSalaId()),
+		SalaID:         sala.IDSala,
 		RemitenteID:    remitenteID,
-		DestinatarioID: uint(req.GetDestinatarioId()),
+		DestinatarioID: destinatarioID,
 		Contenido:      strings.TrimSpace(req.GetContenido()),
 		Leido:          false,
 	}
 
-	if s.db != nil {
-		if err := s.db.WithContext(ctx).Create(&mensaje).Error; err != nil {
-			return nil, status.Errorf(codes.Internal, "error al guardar mensaje: %v", err)
-		}
+	if err := s.db.WithContext(ctx).Create(&mensaje).Error; err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"error al guardar mensaje: %v",
+			err,
+		)
 	}
 
 	return &chatpb.SendMessageResponse{
@@ -55,9 +73,16 @@ func (s *ChatServiceServer) SendMessage(ctx context.Context, req *chatpb.SendMes
 	}, nil
 }
 
-// GetMessages obtiene el historial paginado de mensajes de una conversación
-func (s *ChatServiceServer) GetMessages(ctx context.Context, req *chatpb.GetMessagesRequest) (*chatpb.GetMessagesResponse, error) {
+// GetMessages obtiene el historial paginado solo para participantes de la sala.
+func (s *ChatServiceServer) GetMessages(
+	ctx context.Context,
+	req *chatpb.GetMessagesRequest,
+) (*chatpb.GetMessagesResponse, error) {
 	if err := ValidateGetMessagesRequest(req); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.requireRoomParticipant(ctx, uint(req.GetSalaId())); err != nil {
 		return nil, err
 	}
 
@@ -65,6 +90,7 @@ func (s *ChatServiceServer) GetMessages(ctx context.Context, req *chatpb.GetMess
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+
 	offset := int(req.GetOffset())
 	if offset < 0 {
 		offset = 0
@@ -73,20 +99,35 @@ func (s *ChatServiceServer) GetMessages(ctx context.Context, req *chatpb.GetMess
 	var mensajes []models.ChatMensaje
 	var total int64
 
-	if s.db != nil {
-		query := s.db.WithContext(ctx).Model(&models.ChatMensaje{}).Where("sala_id = ?", req.GetSalaId())
-		if err := query.Count(&total).Error; err != nil {
-			return nil, status.Errorf(codes.Internal, "error al contar mensajes: %v", err)
-		}
+	query := s.db.WithContext(ctx).
+		Model(&models.ChatMensaje{}).
+		Where("sala_id = ?", req.GetSalaId())
 
-		if err := query.Order("created_at ASC").Limit(limit).Offset(offset).Find(&mensajes).Error; err != nil {
-			return nil, status.Errorf(codes.Internal, "error al obtener mensajes: %v", err)
-		}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"error al contar mensajes: %v",
+			err,
+		)
+	}
+
+	if err := query.Order("created_at ASC").
+		Limit(limit).
+		Offset(offset).
+		Find(&mensajes).Error; err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"error al obtener mensajes: %v",
+			err,
+		)
 	}
 
 	protoMensajes := make([]*chatpb.ChatMessage, 0, len(mensajes))
 	for i := range mensajes {
-		protoMensajes = append(protoMensajes, mapMensajeModelToProto(&mensajes[i]))
+		protoMensajes = append(
+			protoMensajes,
+			mapMensajeModelToProto(&mensajes[i]),
+		)
 	}
 
 	return &chatpb.GetMessagesResponse{
@@ -95,8 +136,11 @@ func (s *ChatServiceServer) GetMessages(ctx context.Context, req *chatpb.GetMess
 	}, nil
 }
 
-// GetOrCreateRoom busca o crea una sala de chat para un usuario con un vendedor
-func (s *ChatServiceServer) GetOrCreateRoom(ctx context.Context, req *chatpb.GetOrCreateRoomRequest) (*chatpb.GetOrCreateRoomResponse, error) {
+// GetOrCreateRoom busca o crea una sala para un usuario con un vendedor.
+func (s *ChatServiceServer) GetOrCreateRoom(
+	ctx context.Context,
+	req *chatpb.GetOrCreateRoomRequest,
+) (*chatpb.GetOrCreateRoomResponse, error) {
 	currentUserID := extractUserID(ctx)
 	if err := ValidateGetOrCreateRoomRequest(req, currentUserID); err != nil {
 		return nil, err
@@ -106,8 +150,12 @@ func (s *ChatServiceServer) GetOrCreateRoom(ctx context.Context, req *chatpb.Get
 	if s.db != nil {
 		query := s.db.WithContext(ctx).Where(
 			"((comprador_id = ? AND vendedor_id = ?) OR (comprador_id = ? AND vendedor_id = ?))",
-			currentUserID, req.GetVendedorId(), req.GetVendedorId(), currentUserID,
+			currentUserID,
+			req.GetVendedorId(),
+			req.GetVendedorId(),
+			currentUserID,
 		)
+
 		if req.PublicacionId != nil && *req.PublicacionId > 0 {
 			query = query.Where("publicacion_id = ?", *req.PublicacionId)
 		}
@@ -119,16 +167,26 @@ func (s *ChatServiceServer) GetOrCreateRoom(ctx context.Context, req *chatpb.Get
 				p := uint(*req.PublicacionId)
 				pubID = &p
 			}
+
 			sala = models.ChatSala{
 				CompradorID:   currentUserID,
 				VendedorID:    uint(req.GetVendedorId()),
 				PublicacionID: pubID,
 			}
+
 			if err := s.db.WithContext(ctx).Create(&sala).Error; err != nil {
-				return nil, status.Errorf(codes.Internal, "error al crear la sala de chat: %v", err)
+				return nil, status.Errorf(
+					codes.Internal,
+					"error al crear la sala de chat: %v",
+					err,
+				)
 			}
 		} else if err != nil {
-			return nil, status.Errorf(codes.Internal, "error al consultar sala: %v", err)
+			return nil, status.Errorf(
+				codes.Internal,
+				"error al consultar sala: %v",
+				err,
+			)
 		}
 	}
 
@@ -137,21 +195,35 @@ func (s *ChatServiceServer) GetOrCreateRoom(ctx context.Context, req *chatpb.Get
 	}, nil
 }
 
-// ListRooms lista todas las salas en las que participa el usuario autenticado
-func (s *ChatServiceServer) ListRooms(ctx context.Context, _ *chatpb.ListRoomsRequest) (*chatpb.ListRoomsResponse, error) {
+// ListRooms lista las salas en las que participa el usuario autenticado.
+func (s *ChatServiceServer) ListRooms(
+	ctx context.Context,
+	_ *chatpb.ListRoomsRequest,
+) (*chatpb.ListRoomsResponse, error) {
 	currentUserID := extractUserID(ctx)
 	if currentUserID == 0 {
-		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado")
+		return nil, status.Error(
+			codes.Unauthenticated,
+			"usuario no autenticado",
+		)
 	}
 
 	var salas []models.ChatSala
 	if s.db != nil {
 		err := s.db.WithContext(ctx).
-			Where("comprador_id = ? OR vendedor_id = ?", currentUserID, currentUserID).
+			Where(
+				"comprador_id = ? OR vendedor_id = ?",
+				currentUserID,
+				currentUserID,
+			).
 			Order("updated_at DESC").
 			Find(&salas).Error
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "error al listar salas: %v", err)
+			return nil, status.Errorf(
+				codes.Internal,
+				"error al listar salas: %v",
+				err,
+			)
 		}
 	}
 
@@ -165,20 +237,37 @@ func (s *ChatServiceServer) ListRooms(ctx context.Context, _ *chatpb.ListRoomsRe
 	}, nil
 }
 
-// MarkAsRead marca los mensajes recibidos de una sala como leídos
-func (s *ChatServiceServer) MarkAsRead(ctx context.Context, req *chatpb.MarkAsReadRequest) (*chatpb.MarkAsReadResponse, error) {
+// MarkAsRead marca únicamente los mensajes recibidos por el participante actual.
+func (s *ChatServiceServer) MarkAsRead(
+	ctx context.Context,
+	req *chatpb.MarkAsReadRequest,
+) (*chatpb.MarkAsReadResponse, error) {
 	if req.GetSalaId() == 0 {
-		return nil, status.Error(codes.InvalidArgument, "el id de la sala es obligatorio")
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"el id de la sala es obligatorio",
+		)
+	}
+
+	if _, err := s.requireRoomParticipant(ctx, uint(req.GetSalaId())); err != nil {
+		return nil, err
 	}
 
 	currentUserID := extractUserID(ctx)
-	if s.db != nil && currentUserID > 0 {
-		err := s.db.WithContext(ctx).Model(&models.ChatMensaje{}).
-			Where("sala_id = ? AND destinatario_id = ? AND leido = false", req.GetSalaId(), currentUserID).
-			Update("leido", true).Error
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "error al marcar mensajes leídos: %v", err)
-		}
+	err := s.db.WithContext(ctx).
+		Model(&models.ChatMensaje{}).
+		Where(
+			"sala_id = ? AND destinatario_id = ? AND leido = false",
+			req.GetSalaId(),
+			currentUserID,
+		).
+		Update("leido", true).Error
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"error al marcar mensajes leídos: %v",
+			err,
+		)
 	}
 
 	return &chatpb.MarkAsReadResponse{
@@ -187,8 +276,11 @@ func (s *ChatServiceServer) MarkAsRead(ctx context.Context, req *chatpb.MarkAsRe
 	}, nil
 }
 
-// GetUnreadCount retorna el total de mensajes no leídos dirigidos al usuario actual
-func (s *ChatServiceServer) GetUnreadCount(ctx context.Context, _ *chatpb.GetUnreadCountRequest) (*chatpb.GetUnreadCountResponse, error) {
+// GetUnreadCount retorna los mensajes no leídos dirigidos al usuario actual.
+func (s *ChatServiceServer) GetUnreadCount(
+	ctx context.Context,
+	_ *chatpb.GetUnreadCountRequest,
+) (*chatpb.GetUnreadCountResponse, error) {
 	currentUserID := extractUserID(ctx)
 	if currentUserID == 0 {
 		return &chatpb.GetUnreadCountResponse{UnreadCount: 0}, nil
@@ -196,11 +288,19 @@ func (s *ChatServiceServer) GetUnreadCount(ctx context.Context, _ *chatpb.GetUnr
 
 	var count int64
 	if s.db != nil {
-		err := s.db.WithContext(ctx).Model(&models.ChatMensaje{}).
-			Where("destinatario_id = ? AND leido = false", currentUserID).
+		err := s.db.WithContext(ctx).
+			Model(&models.ChatMensaje{}).
+			Where(
+				"destinatario_id = ? AND leido = false",
+				currentUserID,
+			).
 			Count(&count).Error
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "error al consultar mensajes no leídos: %v", err)
+			return nil, status.Errorf(
+				codes.Internal,
+				"error al consultar mensajes no leídos: %v",
+				err,
+			)
 		}
 	}
 
@@ -209,45 +309,65 @@ func (s *ChatServiceServer) GetUnreadCount(ctx context.Context, _ *chatpb.GetUnr
 	}, nil
 }
 
-// ==========================================
-// Funciones de Validación Puras (Testeables)
-// ==========================================
-
+// ValidateSendMessageRequest valida los datos del mensaje.
 func ValidateSendMessageRequest(req *chatpb.SendMessageRequest) error {
 	if req == nil {
 		return status.Error(codes.InvalidArgument, "request vacío")
 	}
 	if req.GetSalaId() == 0 {
-		return status.Error(codes.InvalidArgument, "el id de sala es obligatorio")
+		return status.Error(
+			codes.InvalidArgument,
+			"el id de sala es obligatorio",
+		)
 	}
 	if req.GetDestinatarioId() == 0 {
-		return status.Error(codes.InvalidArgument, "el id del destinatario es obligatorio")
+		return status.Error(
+			codes.InvalidArgument,
+			"el id del destinatario es obligatorio",
+		)
 	}
 	if strings.TrimSpace(req.GetContenido()) == "" {
-		return status.Error(codes.InvalidArgument, "el contenido del mensaje no puede estar vacío")
+		return status.Error(
+			codes.InvalidArgument,
+			"el contenido del mensaje no puede estar vacío",
+		)
 	}
 	return nil
 }
 
+// ValidateGetMessagesRequest valida la solicitud de historial.
 func ValidateGetMessagesRequest(req *chatpb.GetMessagesRequest) error {
 	if req == nil {
 		return status.Error(codes.InvalidArgument, "request vacío")
 	}
 	if req.GetSalaId() == 0 {
-		return status.Error(codes.InvalidArgument, "el id de sala es obligatorio")
+		return status.Error(
+			codes.InvalidArgument,
+			"el id de sala es obligatorio",
+		)
 	}
 	return nil
 }
 
-func ValidateGetOrCreateRoomRequest(req *chatpb.GetOrCreateRoomRequest, currentUserID uint) error {
+// ValidateGetOrCreateRoomRequest valida la solicitud de sala.
+func ValidateGetOrCreateRoomRequest(
+	req *chatpb.GetOrCreateRoomRequest,
+	currentUserID uint,
+) error {
 	if req == nil {
 		return status.Error(codes.InvalidArgument, "request vacío")
 	}
 	if req.GetVendedorId() == 0 {
-		return status.Error(codes.InvalidArgument, "el id del vendedor es obligatorio")
+		return status.Error(
+			codes.InvalidArgument,
+			"el id del vendedor es obligatorio",
+		)
 	}
 	if currentUserID > 0 && currentUserID == uint(req.GetVendedorId()) {
-		return status.Error(codes.InvalidArgument, "no puedes iniciar un chat contigo mismo")
+		return status.Error(
+			codes.InvalidArgument,
+			"no puedes iniciar un chat contigo mismo",
+		)
 	}
 	return nil
 }
@@ -277,6 +397,7 @@ func mapSalaModelToProto(s *models.ChatSala) *chatpb.ChatRoom {
 		p := uint32(*s.PublicacionID)
 		pubID = &p
 	}
+
 	return &chatpb.ChatRoom{
 		IdSala:        uint32(s.IDSala),
 		CompradorId:   uint32(s.CompradorID),
