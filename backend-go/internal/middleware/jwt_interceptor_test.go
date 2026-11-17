@@ -114,10 +114,17 @@ func TestUnaryAuthInterceptor_RutasProtegidas(t *testing.T) {
 		{"sin header", ctxConAuth(""), "token de autorización no proporcionado"},
 		{"formato invalido", ctxConAuth("Basic abc"), "formato de token inválido"},
 		{"token basura", ctxConAuth("Bearer token-basura"), "token inválido o expirado"},
+		{"token expirado", ctxConAuth("Bearer " + tokenFirmado(t, 7, testSecret, -time.Hour)), "token inválido o expirado"},
+		{"firma inválida", ctxConAuth("Bearer " + tokenFirmado(t, 7, "otra-clave", time.Hour)), "token inválido o expirado"},
+		{"user_id cero", ctxConAuth("Bearer " + tokenFirmado(t, 0, testSecret, time.Hour)), "user_id inválido en el token"},
+		{"user_id negativo", ctxConAuth("Bearer " + tokenFirmado(t, -7, testSecret, time.Hour)), "user_id inválido en el token"},
+		{"user_id fraccionario", ctxConAuth("Bearer " + tokenFirmado(t, 7.5, testSecret, time.Hour)), "user_id inválido en el token"},
+		{"user_id fuera de rango", ctxConAuth("Bearer " + tokenFirmado(t, 1<<64, testSecret, time.Hour)), "user_id inválido en el token"},
 	}
 	for _, c := range casos {
 		t.Run("rechaza: "+c.nombre, func(t *testing.T) {
-			_, err := invocar(c.ctx, rutaProtegida)
+			got, err := invocar(c.ctx, rutaProtegida)
+			require.Nil(t, got)
 			require.Error(t, err)
 			st, ok := status.FromError(err)
 			require.True(t, ok)
