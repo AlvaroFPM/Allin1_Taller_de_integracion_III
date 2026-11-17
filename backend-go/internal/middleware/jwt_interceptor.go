@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -91,7 +93,7 @@ func userIDFromToken(ctx context.Context) (uint, error) {
 			return nil, fmt.Errorf("método de firma inesperado")
 		}
 		return []byte(secretKey), nil
-	})
+	}, jwt.WithJSONNumber())
 
 	if err != nil || !token.Valid {
 		return 0, status.Error(codes.Unauthenticated, "token inválido o expirado")
@@ -102,10 +104,14 @@ func userIDFromToken(ctx context.Context) (uint, error) {
 		return 0, status.Error(codes.Unauthenticated, "claims inválidos")
 	}
 
-	userIDFloat, ok := claims["user_id"].(float64)
+	userIDClaim, ok := claims["user_id"].(json.Number)
 	if !ok {
 		return 0, status.Error(codes.Unauthenticated, "user_id no encontrado en el token")
 	}
 
-	return uint(userIDFloat), nil
+	userID, err := strconv.ParseUint(userIDClaim.String(), 10, strconv.IntSize)
+	if err != nil || userID == 0 {
+		return 0, status.Error(codes.Unauthenticated, "user_id inválido en el token")
+	}
+	return uint(userID), nil
 }
