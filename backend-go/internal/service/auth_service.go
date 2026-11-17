@@ -283,7 +283,7 @@ func userIDFromContext(ctx context.Context) (uint, error) {
 
 // validateUpdateProfileRequest valida los campos del formulario de perfil.
 func validateUpdateProfileRequest(req *auth.UpdateProfileRequest) error {
-	if tel := strings.TrimSpace(req.GetTelefono()); tel != "" && !telefonoRegex.MatchString(tel) {
+	if tel := strings.TrimSpace(req.GetTelefono()); tel != "" && (len(tel) > 20 || !telefonoRegex.MatchString(tel)) {
 		return status.Error(codes.InvalidArgument, "el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis")
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(req.GetCiudad())) > 100 {
