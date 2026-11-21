@@ -131,9 +131,26 @@ func (s *OrderServiceServer) PatchOrderStatus(ctx context.Context, req *orderspb
 	}, nil
 }
 
-// GetOrder registra expresamente la operación como pendiente para sprints posteriores (ALL-149).
+// GetOrder consulta el detalle de una orden persistida autorizando únicamente al comprador o vendedor (ALL-149).
 func (s *OrderServiceServer) GetOrder(ctx context.Context, req *orderspb.GetOrderRequest) (*orderspb.GetOrderResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "operación GetOrder no implementada en esta fase (registrada para sprint posterior ALL-149)")
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "la solicitud de consulta de orden es requerida")
+	}
+
+	usuarioID := extractUserID(ctx)
+	if usuarioID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado o token inválido")
+	}
+
+	ordenID := uint(req.GetIdOrden())
+	orden, err := s.orderService.GetOrder(ctx, ordenID, usuarioID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderspb.GetOrderResponse{
+		Order: ModelToProtoOrder(orden),
+	}, nil
 }
 
 // ListMyPurchases adapta la petición gRPC para consultar las compras del usuario autenticado.
