@@ -31,6 +31,7 @@ export interface ProfileActivityItem {
 }
 
 export interface EditProfileFormData {
+  avatarUrl?: string;
   firstName: string;
   lastName: string;
   email: string;
