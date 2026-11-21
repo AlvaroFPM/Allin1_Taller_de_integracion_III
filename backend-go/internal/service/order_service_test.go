@@ -1159,4 +1159,167 @@ func TestCreateOrder_CatalogValidation_ALL141(t *testing.T) {
 		assert.Equal(t, int64(25000), ordenPersistida.Precio)
 	})
 }
+
+// ============================================================================
+// 8. TESTS DE DETALLE AUTORIZADO GetOrder (ALL-149)
+// ============================================================================
+
+func TestValidateOrderReadAccess_PureValidation(t *testing.T) {
+	ordenBase := models.Orden{
+		IDOrden:            42,
+		IDUsuarioComprador: 10,
+		IDUsuarioVendedor:  20,
+		IDPublicacion:      5,
+		Estado:             models.EstadoOrdenPendiente,
+		Precio:             35000,
+	}
+
+	tests := []struct {
+		name        string
+		orden       *models.Orden
+		usuarioID   uint
+		wantCode    codes.Code
+		wantErrPart string
+	}{
+		{
+			name:      "Éxito: Comprador puede consultar la orden",
+			orden:     &ordenBase,
+			usuarioID: 10,
+			wantCode:  codes.OK,
+		},
+		{
+			name:      "Éxito: Vendedor puede consultar la orden",
+			orden:     &ordenBase,
+			usuarioID: 20,
+			wantCode:  codes.OK,
+		},
+		{
+			name:        "Falla: Tercero ajeno recibe PermissionDenied",
+			orden:       &ordenBase,
+			usuarioID:   99,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "no tienes autorización",
+		},
+		{
+			name:        "Falla: Orden nil retorna NotFound",
+			orden:       nil,
+			usuarioID:   10,
+			wantCode:    codes.NotFound,
+			wantErrPart: "orden no encontrada",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOrderReadAccess(tc.orden, tc.usuarioID)
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantCode, st.Code())
+			assert.Contains(t, st.Message(), tc.wantErrPart)
+		})
+	}
+}
+
+func TestGetOrder_InputValidations_Pure(t *testing.T) {
+	svc := NewOrderService(nil)
+	ctx := context.Background()
+
+	t.Run("usuarioID cero retorna Unauthenticated", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 1, 0)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+		assert.Contains(t, err.Error(), "usuario no autenticado")
+	})
+
+	t.Run("ordenID cero retorna InvalidArgument", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 0, 10)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "el id de la orden es obligatorio")
+	})
+
+	t.Run("base de datos nil retorna Unavailable", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 1, 10)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.Unavailable, status.Code(err))
+	})
+}
+
+func TestGetOrder_DBIntegration(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	stub := newCatalogStub(
+		activePub(70, 200, 9007199254740993),
+		activePub(71, 200, 18000),
+	)
+	svc := NewOrderService(tx, stub)
+	ctx := context.Background()
+
+	// Crear una orden activa con precio int64 grande para validar precisión y timestamps
+	ordenActiva, err := svc.CreateOrder(ctx, 100, 200, 70, 9007199254740993)
+	require.NoError(t, err)
+
+	// Crear y eliminar lógicamente (soft-delete) una segunda orden
+	ordenBorrada, err := svc.CreateOrder(ctx, 100, 200, 71, 18000)
+	require.NoError(t, err)
+	require.NoError(t, tx.Delete(&ordenBorrada).Error)
+
+	t.Run("comprador obtiene la orden real con todos sus campos y timestamps", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 100)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, ordenActiva.IDOrden, got.IDOrden)
+		assert.Equal(t, uint(100), got.IDUsuarioComprador)
+		assert.Equal(t, uint(200), got.IDUsuarioVendedor)
+		assert.Equal(t, uint(70), got.IDPublicacion)
+		assert.Equal(t, models.EstadoOrdenPendiente, got.Estado)
+		assert.Equal(t, int64(9007199254740993), got.Precio)
+		assert.False(t, got.CreatedAt.IsZero())
+		assert.False(t, got.UpdatedAt.IsZero())
+	})
+
+	t.Run("vendedor obtiene la orden real", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 200)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, ordenActiva.IDOrden, got.IDOrden)
+		assert.Equal(t, uint(100), got.IDUsuarioComprador)
+		assert.Equal(t, uint(200), got.IDUsuarioVendedor)
+	})
+
+	t.Run("tercero ajeno recibe PermissionDenied", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 300)
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+		assert.Contains(t, err.Error(), "no tienes autorización")
+	})
+
+	t.Run("orden inexistente recibe NotFound", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, 9999999, 100)
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("orden con soft-delete recibe NotFound incluso para sus participantes", func(t *testing.T) {
+		gotComprador, errComprador := svc.GetOrder(ctx, ordenBorrada.IDOrden, 100)
+		assert.Nil(t, gotComprador)
+		require.Error(t, errComprador)
+		assert.Equal(t, codes.NotFound, status.Code(errComprador))
+
+		gotVendedor, errVendedor := svc.GetOrder(ctx, ordenBorrada.IDOrden, 200)
+		assert.Nil(t, gotVendedor)
+		require.Error(t, errVendedor)
+		assert.Equal(t, codes.NotFound, status.Code(errVendedor))
+	})
+}
 
