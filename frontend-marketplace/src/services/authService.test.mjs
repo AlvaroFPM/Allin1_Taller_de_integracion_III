@@ -41,6 +41,29 @@ const form = {
   bio: '',
 };
 
+test('envia la URL de Media a IAM y recupera el avatar confirmado', async () => {
+  const avatarUrl = 'https://example.invalid/media/perfil/test.jpg';
+  const service = setup({
+    put: async (url, body) => {
+      assert.equal(url, '/v1/auth/profile');
+      assert.equal(body.fotoPerfilUrl, avatarUrl);
+      assert.equal(Object.hasOwn(body, 'portadaUrl'), false);
+      assert.equal(Object.hasOwn(body, 'userId'), false);
+      return { data: { userId: '23', fotoPerfilUrl: avatarUrl } };
+    },
+  });
+  const response = await service.updatePrivateProfile({ ...form, avatarUrl }, '');
+  assert.equal(mapper.mapPrivateProfile(response).avatarUrl, avatarUrl);
+});
+
+test('sin foto nueva no envia una referencia vacia ni modifica portada', () => {
+  for (const avatarUrl of [undefined, '']) {
+    const body = mapper.mapProfileUpdate({ ...form, avatarUrl }, '');
+    assert.equal(Object.hasOwn(body, 'fotoPerfilUrl'), false);
+    assert.equal(Object.hasOwn(body, 'portadaUrl'), false);
+  }
+});
+
 test('lee el perfil privado y conserva los campos vacíos devueltos por IAM', async () => {
   const controller = new AbortController();
   const response = {
