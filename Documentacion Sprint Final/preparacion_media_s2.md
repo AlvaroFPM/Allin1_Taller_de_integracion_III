@@ -395,3 +395,28 @@ Iniciar sesion con una cuenta de prueba y abrir /test-media. Si se usa el login 
 No se instalo ninguna dependencia ni se modifico el cliente global de autenticacion. El puerto 3000 estaba ocupado por Grafana; 3001 ya estaba permitido por Media. La entrega cubre el consumidor reutilizable y su comprobacion real, no el guardado definitivo del formulario de perfil.
 
 Resultado final: 11 pruebas de regresion aprobadas; TypeScript sin errores; ESLint de los tres archivos de codigo/pruebas sin diagnosticos; git diff --check sin errores (solo aviso de conversion LF/CRLF del documento). No se ejecuto build de produccion ni lint global del monorepo. Criterios locales de ALL-183 cubiertos: subida real consumible, boundary del navegador, tipos y errores disponibles para el formulario. Publicacion y enlace del PR pendientes; no se cerro Linear ni se realizo push automaticamente.
+
+## ALL-157: foto de perfil con Media e IAM (semana 3)
+
+Inicio: 20/11/2026. Base `develop` en `9f81985`, limpia tras finalizar el pull. Rama `ALL-157-perfil-foto-persistente`. La base incorpora ALL-139 (PR #347), ALL-146 (PR #346) y ALL-183 (PR #348), ademas de ALL-145. Esta comprobacion de codigo integrado no acredita disponibilidad del entorno ni cambia estados en Linear.
+
+### Implementacion
+
+- [profile-edit-modal.tsx](../frontend-marketplace/src/components/shared/profile-edit-modal.tsx): selector de foto; subida PERFIL con el cliente existente; estados separados de subida y guardado; errores de Media separados de IAM. No sustituye la imagen visible con una vista previa. Retiene la URL subida mientras el modal siga abierto para reintentar solo IAM; seleccionar otro archivo descarta esa URL pendiente. Bloquea envios duplicados y cierre durante el procesamiento.
+- [profile.ts](../frontend-marketplace/src/types/profile.ts) y [mappers/auth.ts](../frontend-marketplace/src/lib/mappers/auth.ts): URL opcional en el formulario y campo fotoPerfilUrl en el PUT existente, solo cuando hay valor. Sin URL nueva no envia referencia vacia ni modifica portada. IAM ya conserva foto/portada cuando esos campos llegan vacios.
+- [perfil/page.tsx](../frontend-marketplace/src/app/perfil/page.tsx): comprueba sesion antes del PUT y despues de la respuesta, y exige coincidencia de la foto solicitada con la devuelta antes de actualizar estado/avatar y anunciar exito.
+- [authService.test.mjs](../frontend-marketplace/src/services/authService.test.mjs): dos regresiones adicionales sobre envio de URL, recuperacion del avatar y omision de foto/portada cuando no se cambian. Se reutiliza el archivo existente.
+
+Portada NO implementada ni acreditada. Sin cambios de backend, protobuf, almacenamiento, autenticacion global ni Kubernetes. La vista publica ya consume fotoPerfilUrl; sus datos de ejemplo en otras secciones siguen siendo una limitacion ajena al guardado de foto y no sirven como evidencia real.
+
+### Comprobaciones y pendientes
+
+Desde frontend-marketplace: `node --test src/services/authService.test.mjs src/services/mediaService.test.mjs`: 16 pruebas aprobadas. `node node_modules/typescript/bin/tsc --noEmit --incremental false`: codigo 0. Estas comprobaciones son sinteticas/estaticas y NO acreditan persistencia real. `git diff --check`: sin errores.
+
+El bloqueo inicial por Docker Desktop no disponible fue resuelto por el usuario. El 21/11/2026 el agente comprobo IAM y Media activos, ambas BD saludables y CORS de IAM permitido desde localhost:3001. La validacion funcional posterior fue realizada manualmente por el usuario, no por el agente.
+
+El usuario confirmo expresamente en el chat que la URL coincide en Media e IAM para el mismo usuario, que la foto permanece al recargar el perfil propio y publico, y que un archivo invalido se rechaza conservando la foto anterior. Entorno local Docker, IAM 8081, Media 8083 y frontend indicado en 3001. Se registra como resultado manual reportado, no como captura automatizada. No se proporcionaron identificador de cuenta, archivo exacto, URLs, capturas ni trazas HTTP de esa ejecucion; esos detalles no se inventan. Para trazabilidad completa de la cuenta y ambas etapas conviene adjuntar evidencia anonimizada al PR. No se reutilizan los resultados de ALL-183 como prueba de este recorrido.
+
+Procedimiento reproducible: iniciar Docker y servicios Media/IAM con sus BD, comprobar que la imagen IAM incorpora ALL-139, iniciar frontend con URL de IAM/gateway operativo, entrar con cuenta de prueba, abrir edicion de perfil, seleccionar PNG valido y guardar. Resultado esperado: POST Media 201 seguido de PUT IAM satisfactorio con la misma URL; comprobar la fila IAM y recargar perfil propio y publico. Repetir rechazo de archivo conservando una foto ya guardada. La confirmacion manual anterior cubre los resultados funcionales, no documenta los status HTTP individuales. Fallos controlados adicionales corresponden a ALL-158; dos cuentas y reinicio a ALL-189. No se acreditan portada, build de produccion ni Kubernetes.
+
+Riesgo residual: Media puede guardar un archivo aunque falle IAM; no existe compensacion automatica. Dentro del modal se puede reintentar Guardar sin otra subida; al cerrarlo o recargar se pierde la URL pendiente y puede quedar un asset sin asociar. Ante perdida de respuesta, recargar primero permite consultar si IAM alcanzo a guardar. No se afirma que un error de red revierta persistencia ni se borran assets automaticamente.
