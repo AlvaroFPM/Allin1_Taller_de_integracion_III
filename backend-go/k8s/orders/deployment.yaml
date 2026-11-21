@@ -104,6 +104,15 @@ spec:
                   name: iam-db-secret
                   key: JWT_SECRET
 
+            # ---------------------------------------------------------------
+            # Validación cruzada contra Catálogo (ALL-141 / ALL-150)
+            # Coordinación con @Am4ro-aaa: requiere puerto gRPC 50052 en Service/catalog
+            # ---------------------------------------------------------------
+            - name: CATALOG_GRPC_ADDR
+              value: "catalog.student-aalarcon.svc.cluster.local:50052"
+            - name: ORDERS_ENABLE_CREATION
+              value: "true"
+
           resources:
             requests:
               cpu: "100m"       # >= 25m requerido por LimitRange

@@ -100,6 +100,7 @@ func activePub(id uint32, vendedor uint32, precio int64) *publicationpb.Publicat
 	return &publicationpb.Publication{
 		IdPublicacion:     id,
 		IdUsuarioVendedor: vendedor,
+		TipoServicio:      publicationpb.TipoServicio_OFERTA,
 		PrecioBase:        precio,
 		Estado:            publicationpb.EstadoPublicacion_ACTIVO,
 	}
@@ -1321,5 +1322,112 @@ func TestGetOrder_DBIntegration(t *testing.T) {
 		require.Error(t, errVendedor)
 		assert.Equal(t, codes.NotFound, status.Code(errVendedor))
 	})
+}
+
+// ============================================================================
+// 9. TESTS DE BLOQUEO DE DEMANDA Y CONTROL OPTIMISTA DE ESTADOS (ALL-150)
+// ============================================================================
+
+func TestCreateOrder_RejectsNonOferta_ALL150(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	ctx := context.Background()
+
+	casos := []struct {
+		name         string
+		pubID        uint32
+		tipoServicio publicationpb.TipoServicio
+	}{
+		{
+			name:         "publicacion activa de tipo DEMANDA es rechazada sin persistir",
+			pubID:        881,
+			tipoServicio: publicationpb.TipoServicio_DEMANDA,
+		},
+		{
+			name:         "publicacion activa con tipo no especificado es rechazada sin persistir",
+			pubID:        882,
+			tipoServicio: publicationpb.TipoServicio_TIPO_SERVICIO_UNSPECIFIED,
+		},
+	}
+
+	for _, tc := range casos {
+		t.Run(tc.name, func(t *testing.T) {
+			pub := &publicationpb.Publication{
+				IdPublicacion:     tc.pubID,
+				IdUsuarioVendedor: 30,
+				TipoServicio:      tc.tipoServicio,
+				PrecioBase:        20000,
+				Estado:            publicationpb.EstadoPublicacion_ACTIVO,
+			}
+			svc := NewOrderService(tx, newCatalogStub(pub))
+
+			orden, err := svc.CreateOrder(ctx, 15, 30, uint(tc.pubID), 20000)
+			assert.Nil(t, orden)
+			require.Error(t, err)
+			assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+			assert.Contains(t, err.Error(), "OFERTA")
+
+			var count int64
+			require.NoError(t, tx.Model(&models.Orden{}).
+				Where("id_usuario_comprador = ? AND id_publicacion = ?", 15, tc.pubID).
+				Count(&count).Error)
+			assert.Zero(t, count, "el rechazo no debe persistir ninguna orden")
+		})
+	}
+}
+
+func TestPatchOrderStatus_OptimisticLockAndUpdatedAt(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx, newCatalogStub(activePub(910, 40, 45000)))
+	ctx := context.Background()
+
+	orden, err := svc.CreateOrder(ctx, 20, 40, 910, 45000)
+	require.NoError(t, err)
+	require.Equal(t, models.EstadoOrdenPendiente, orden.Estado)
+
+	time.Sleep(15 * time.Millisecond)
+
+	// 1. Transición válida PENDIENTE -> ACEPTADA actualiza estado y fecha_actualizacion en BD
+	aceptada, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 40, models.EstadoOrdenAceptada)
+	require.NoError(t, err)
+	assert.Equal(t, models.EstadoOrdenAceptada, aceptada.Estado)
+	assert.True(t, aceptada.UpdatedAt.After(orden.UpdatedAt), "fecha_actualizacion debe avanzar tras el PATCH")
+
+	var enBD models.Orden
+	require.NoError(t, tx.First(&enBD, orden.IDOrden).Error)
+	assert.Equal(t, models.EstadoOrdenAceptada, enBD.Estado)
+	assert.True(t, enBD.UpdatedAt.After(orden.UpdatedAt))
+
+	// 2. Control condicionado por estado previo (Where("estado = ?", estadoAnterior)):
+	// si otra operación cambia el estado en BD justo antes del UPDATE, PatchOrderStatus debe retornar codes.Aborted.
+	const callbackName = "test:all150_concurrent_state_race"
+	var raceTriggered bool
+	require.NoError(t, tx.Callback().Update().Before("gorm:update").Register(callbackName, func(scope *gorm.DB) {
+		if raceTriggered || scope.Statement.Table != "ordenes" {
+			return
+		}
+		raceTriggered = true
+		_, execErr := scope.Statement.ConnPool.ExecContext(
+			ctx,
+			"UPDATE ordenes SET estado = $1 WHERE id_orden = $2",
+			models.EstadoOrdenCancelada,
+			orden.IDOrden,
+		)
+		require.NoError(t, execErr)
+	}))
+	defer func() {
+		_ = tx.Callback().Update().Remove(callbackName)
+	}()
+
+	res, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 20, models.EstadoOrdenCompletada)
+	assert.Nil(t, res)
+	require.Error(t, err)
+	assert.Equal(t, codes.Aborted, status.Code(err))
+	assert.Contains(t, err.Error(), "conflicto de concurrencia")
+	assert.True(t, raceTriggered, "el callback de carrera debió ejecutarse")
+
+	// Confirmar que se preservó el estado concurrente CANCELADA y no se sobrescribió con COMPLETADA
+	var trasConflicto models.Orden
+	require.NoError(t, tx.First(&trasConflicto, orden.IDOrden).Error)
+	assert.Equal(t, models.EstadoOrdenCancelada, trasConflicto.Estado)
 }
 
