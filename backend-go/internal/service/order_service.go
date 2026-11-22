@@ -187,6 +187,9 @@ func (s *OrderService) verifyPublication(ctx context.Context, compradorID, vende
 	if pub.GetEstado() != publicationpb.EstadoPublicacion_ACTIVO {
 		return status.Error(codes.FailedPrecondition, "la publicación no está disponible para contratar")
 	}
+	if pub.GetTipoServicio() != publicationpb.TipoServicio_OFERTA {
+		return status.Error(codes.FailedPrecondition, "solo se permite contratar publicaciones de tipo OFERTA (DEMANDA no habilitada)")
+	}
 
 	vendedorReal := uint(pub.GetIdUsuarioVendedor())
 	if compradorID == vendedorReal {

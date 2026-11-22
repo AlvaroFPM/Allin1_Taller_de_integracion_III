@@ -186,10 +186,9 @@ services:
   # ==========================================
   # Servicios bajo perfiles (orders, chat)
   # ==========================================
-  # Estos microservicios aún no tienen código Go implementado
-  # (no existen backend-go/cmd/orders ni backend-go/cmd/chat).
   # Se colocan bajo perfiles de Compose para no romper `docker compose up` normal.
   # Levantar con: docker compose --profile orders --profile chat up -d --build
+  # Nota: orders requiere el servicio `catalog` para validar publicaciones (ALL-141/ALL-150).
 
   # ---------- Bases de datos (Orders, Chat) ----------
 
@@ -247,6 +246,8 @@ services:
     depends_on:
       postgres_orders:
         condition: service_healthy
+      catalog:
+        condition: service_started
     environment:
       DB_HOST: postgres_orders
       DB_PORT: "5432"
@@ -257,6 +258,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       GRPC_PORT: "50053"
       HTTP_PORT: "8084"
+      CATALOG_GRPC_ADDR: catalog:50051
+      ORDERS_ENABLE_CREATION: ${ORDERS_ENABLE_CREATION:-true}
     ports:
       - "8084:8084"
     networks:
