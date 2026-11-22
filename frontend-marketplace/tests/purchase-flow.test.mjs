@@ -195,6 +195,10 @@ test('confirmación: payload correcto, un solo envío y éxito', async () => {
   const app = await setup({ submit: () => pending });
   byType(app.render(), 'Sidebar').props.onAction();
   const modal = byType(app.render(), 'PurchaseModal');
+  const ordersLink = (tree) =>
+    find(tree, (node) => node.type === 'Link' && node.props?.href === '/ordenes');
+
+  assert.equal(ordersLink(app.render()), undefined);
 
   const first = modal.props.onConfirm();
   const second = modal.props.onConfirm();
@@ -210,6 +214,7 @@ test('confirmación: payload correcto, un solo envío y éxito', async () => {
 
   assert.equal(byType(app.render(), 'PurchaseModal'), undefined);
   assert.ok(find(app.render(), (node) => node.props?.role === 'status'));
+  assert.equal(ordersLink(app.render())?.props.children, 'Ver mis compras');
   assert.equal(byType(app.render(), 'Sidebar').props.onAction, undefined);
 });
 
@@ -230,6 +235,10 @@ for (const status of [400, 401, 403, 409, 500]) {
     assert.equal(modal.props.isLoading, false);
     assert.equal(
       find(app.render(), (node) => node.props?.role === 'status'),
+      undefined,
+    );
+    assert.equal(
+      find(app.render(), (node) => node.type === 'Link' && node.props?.href === '/ordenes'),
       undefined,
     );
   });
