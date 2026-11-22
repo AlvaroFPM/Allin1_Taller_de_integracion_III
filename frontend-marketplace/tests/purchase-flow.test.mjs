@@ -19,6 +19,7 @@ async function setup(options = {}) {
     createdAtRelative: '',
     ...options.publication,
   };
+  const routeId = options.id ?? String(publication.id);
 
   let calls = 0;
   const slots = [];
@@ -52,7 +53,7 @@ async function setup(options = {}) {
     },
   };
 
-  const element = (type, props) => ({ type, props });
+  const element = (type, props, key) => ({ type, props, key });
   const mocks = {
     react,
     'react/jsx-runtime': {
@@ -61,7 +62,7 @@ async function setup(options = {}) {
       Fragment: 'Fragment',
     },
     'next/link': { __esModule: true, default: 'Link' },
-    'next/navigation': { useParams: () => ({ id: '10' }) },
+    'next/navigation': { useParams: () => ({ id: routeId }) },
     '@/components/shared': {
       PublicationDetailHero: 'Hero',
       PublicationDetailContact: 'Contact',
@@ -72,7 +73,10 @@ async function setup(options = {}) {
     },
     '@/services/publicationService': {
       publicationService: {
-        getPublicationById: async () => publication,
+        getPublicationById: async (id) => {
+          assert.equal(id, routeId);
+          return publication;
+        },
       },
     },
     '@/store/useAuthStore': {
@@ -91,9 +95,9 @@ async function setup(options = {}) {
         createOrder: async (payload) => {
           calls++;
           assert.deepEqual(payload, {
-            idUsuarioVendedor: 1,
-            idPublicacion: 10,
-            precio: '30000',
+            idUsuarioVendedor: publication.sellerId,
+            idPublicacion: publication.id,
+            precio: String(publication.price),
           });
           return options.submit ? options.submit() : { order: { idOrden: 90 } };
         },
@@ -127,7 +131,7 @@ async function setup(options = {}) {
 
   function render() {
     cursor = 0;
-    return moduleObject.exports.TestDetail({ id: '10' });
+    return moduleObject.exports.TestDetail({ id: routeId });
   }
 
   render();
@@ -135,7 +139,11 @@ async function setup(options = {}) {
   await Promise.resolve();
   await Promise.resolve();
 
-  return { render, calls: () => calls };
+  return {
+    render,
+    renderPage: () => moduleObject.exports.default(),
+    calls: () => calls,
+  };
 }
 
 function find(node, predicate) {
@@ -211,6 +219,44 @@ test('confirmación: payload correcto, un solo envío y éxito', async () => {
   assert.equal(byType(app.render(), 'PurchaseModal'), undefined);
   assert.ok(find(app.render(), (node) => node.props?.role === 'status'));
   assert.equal(byType(app.render(), 'Sidebar').props.onAction, undefined);
+});
+
+test('navegar durante una confirmación mantiene aislados publicación y resultado', async () => {
+  let finishFirst;
+  const firstPending = new Promise((resolve) => {
+    finishFirst = resolve;
+  });
+  const first = await setup({ submit: () => firstPending });
+  assert.equal(first.renderPage().key, '10');
+  byType(first.render(), 'Sidebar').props.onAction();
+  const oldRequest = byType(first.render(), 'PurchaseModal').props.onConfirm();
+
+  // Un cambio de ID remonta PublicationDetail gracias al key de la ruta.
+  const second = await setup({
+    publication: { id: 11, sellerId: 3, price: 45000, title: 'Otra oferta' },
+    submit: async () => ({ order: { idOrden: 91 } }),
+  });
+  assert.equal(second.renderPage().key, '11');
+  assert.equal(byType(second.render(), 'Sidebar').props.onAction !== undefined, true);
+  byType(second.render(), 'Sidebar').props.onAction();
+  const currentModal = byType(second.render(), 'PurchaseModal');
+  assert.equal(currentModal.props.item.id, 11);
+  assert.equal(currentModal.props.item.seller.id, 3);
+  assert.equal(currentModal.props.item.price, 45000);
+  await currentModal.props.onConfirm();
+  assert.equal(second.calls(), 1);
+  assert.match(
+    find(second.render(), (node) => node.props?.role === 'status').props.children.join(''),
+    /91/,
+  );
+
+  finishFirst({ order: { idOrden: 90 } });
+  await oldRequest;
+  assert.equal(first.calls(), 1);
+  assert.match(
+    find(second.render(), (node) => node.props?.role === 'status').props.children.join(''),
+    /91/,
+  );
 });
 
 for (const status of [400, 401, 403, 409, 500]) {
