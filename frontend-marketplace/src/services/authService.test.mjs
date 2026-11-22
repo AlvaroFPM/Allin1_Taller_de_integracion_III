@@ -92,12 +92,13 @@ function modalHarness(uploadMedia, onSave) {
     return visit(tree);
   }
   return {
-    select: () =>
+    select: (file = new File(['x'], 'test.png')) =>
       find((n) => n.props?.id === 'profile-photo').props.onChange({
-        target: { files: [new File(['x'], 'test.png')] },
+        target: { files: [file] },
       }),
     submit: () => find((n) => n.type === 'form').props.onSubmit({ preventDefault() {} }),
     error: () => find((n) => n.props?.role === 'alert')?.props.children,
+    filename: () => find((n) => n.props?.id === 'profile-photo-name')?.props.children,
     closed: () => closed,
   };
 }
@@ -130,13 +131,20 @@ test('modal: IAM rechaza; reintento reutiliza URL y solo cierra al confirmar', a
       if (++saves === 1)
         throw {
           isAxiosError: true,
-          response: { status: 400, data: { message: 'Telefono invalido' } },
+          response: {
+            status: 400,
+            data: {
+              message:
+                'el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis',
+            },
+          },
         };
     },
   );
   modal.select();
   await modal.submit();
-  assert.match(modal.error(), /No se pudo guardar el perfil en IAM/);
+  assert.match(modal.error(), /Revisa el teléfono/);
+  assert.doesNotMatch(modal.error(), /IAM/);
   assert.equal(modal.closed(), 0);
   await modal.submit();
   assert.equal(uploads, 1);
@@ -154,7 +162,29 @@ test('modal: fallo de red al guardar no confirma exito', async () => {
   modal.select();
   await modal.submit();
   assert.equal(modal.closed(), 0);
-  assert.match(modal.error(), /No se pudo confirmar el guardado en IAM/);
+  assert.match(modal.error(), /No se pudo confirmar el guardado del perfil/);
+});
+
+test('modal: errores de imagen legibles sin filtrar detalles internos y nombre separado', async () => {
+  for (const [content, kind, expected] of [
+    ['', 'format', /archivo está vacío/],
+    ['texto', 'format', /formato.*no es válido/],
+    ['x', 'size', /demasiado grande/],
+  ]) {
+    const modal = modalHarness(
+      async () => {
+        throw Object.assign(new Error('media: 0 bytes, detalle interno'), { kind });
+      },
+      async () => {
+        assert.fail('No debe guardar');
+      },
+    );
+    modal.select(new File([content], 'foto.png'));
+    assert.equal(modal.filename(), 'foto.png');
+    await modal.submit();
+    assert.match(modal.error(), expected);
+    assert.doesNotMatch(modal.error(), /media:|bytes|detalle interno|IAM/);
+  }
 });
 
 test('envia la URL de Media a IAM y recupera el avatar confirmado', async () => {

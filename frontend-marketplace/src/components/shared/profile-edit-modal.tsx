@@ -16,6 +16,7 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
   const [uploadedUrl, setUploadedUrl] = React.useState<string | undefined>();
   const [stage, setStage] = React.useState<'upload' | 'save' | null>(null);
   const busy = React.useRef(false);
+  const photoInput = React.useRef<HTMLInputElement>(null);
 
   // Cierre accesible con tecla Escape
   React.useEffect(() => {
@@ -50,8 +51,17 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
       onClose();
     } catch (error) {
       if (uploading) {
+        const kind = error instanceof MediaUploadError ? error.kind : undefined;
         setSaveError(
-          `No se pudo subir la foto. ${error instanceof MediaUploadError ? error.message : 'Intenta nuevamente.'} Tu perfil no se ha actualizado.`,
+          photo?.size === 0
+            ? 'El archivo está vacío. Selecciona una imagen válida.'
+            : kind === 'format'
+              ? 'El formato de la imagen no es válido. Selecciona una foto JPG, PNG, WebP o AVIF.'
+              : kind === 'size'
+                ? 'La imagen es demasiado grande. Selecciona una de hasta 5 MiB.'
+                : kind === 'session'
+                  ? 'Inicia sesión nuevamente para subir tu foto.'
+                  : 'No se pudo subir la foto. Comprueba tu conexión e inténtalo nuevamente. Tu foto actual se conserva.',
         );
         return;
       }
@@ -59,10 +69,21 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
         isAxiosError<{ message?: unknown }>(error) && error.response?.status === 400
           ? error.response.data?.message
           : undefined;
+      const validationMessages: Record<string, string> = {
+        'el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis':
+          'Revisa el teléfono: usa entre 7 y 20 caracteres, con números, espacios, +, - o paréntesis. También puedes dejarlo vacío.',
+        'la ciudad no puede superar los 100 caracteres':
+          'La ciudad debe tener como máximo 100 caracteres.',
+        'la región no puede superar los 100 caracteres':
+          'La región debe tener como máximo 100 caracteres.',
+      };
       setSaveError(
-        typeof detail === 'string' && detail.trim()
-          ? `No se pudo guardar el perfil en IAM: ${detail}`
-          : 'No se pudo confirmar el guardado en IAM. La imagen mostrada no cambia. Puedes reintentar Guardar sin volver a subir la foto, o recargar para consultar el estado real.',
+        (typeof detail === 'string' && Object.hasOwn(validationMessages, detail)
+          ? validationMessages[detail]
+          : undefined) ??
+          (isAxiosError(error) && error.response?.status === 400
+            ? 'No se pudo guardar el perfil. Revisa los datos del formulario e inténtalo nuevamente.'
+            : 'No se pudo confirmar el guardado del perfil. La foto mostrada no cambia. Recarga para comprobar si se guardó antes de reintentar.'),
       );
     } finally {
       setIsSaving(false);
@@ -99,12 +120,13 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
-          <div>
-            <label htmlFor="profile-photo" className="text-sm font-semibold">
-              Foto de perfil
-            </label>
+          <div className="space-y-3 rounded-xl border border-border-base bg-surface-base p-4">
+            <p className="text-sm font-semibold text-content-main">Foto de perfil</p>
             <input
+              ref={photoInput}
               id="profile-photo"
+              aria-label="Foto de perfil"
+              hidden
               type="file"
               accept="image/jpeg,image/png,image/webp,image/avif"
               disabled={isSaving}
@@ -114,9 +136,27 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
                 setSaveError(null);
               }}
             />
-            <p className="text-xs text-content-muted">
-              Hasta 5 MiB. La foto actual se conserva hasta confirmar el guardado.
-              {uploadedUrl && ' Foto subida; falta confirmar el guardado en IAM.'}
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={isSaving}
+              onClick={() => photoInput.current?.click()}
+              aria-describedby="profile-photo-name profile-photo-help"
+            >
+              {photo ? 'Cambiar imagen' : 'Seleccionar imagen'}
+            </Button>
+            <p
+              id="profile-photo-name"
+              aria-live="polite"
+              className="break-all text-sm text-content-main"
+            >
+              {photo ? photo.name : 'Ninguna imagen seleccionada'}
+            </p>
+            <p id="profile-photo-help" className="text-xs text-content-muted">
+              JPG, PNG, WebP o AVIF. Hasta 5 MiB. La foto actual se conserva hasta guardar los
+              cambios.
+              {uploadedUrl && ' Imagen subida; pendiente de guardar en tu perfil.'}
             </p>
           </div>
           {/* Nombres y Apellidos */}
@@ -193,9 +233,7 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
             </p>
           )}
           {stage && (
-            <p role="status">
-              {stage === 'upload' ? 'Subiendo foto a Media…' : 'Guardando perfil en IAM…'}
-            </p>
+            <p role="status">{stage === 'upload' ? 'Subiendo foto…' : 'Guardando perfil…'}</p>
           )}
 
           <div className="pt-4 border-t border-border-base flex items-center justify-end gap-3">
