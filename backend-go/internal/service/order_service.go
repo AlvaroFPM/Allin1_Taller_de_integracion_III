@@ -193,6 +193,9 @@ func (s *OrderService) verifyPublication(ctx context.Context, compradorID, vende
 	if pub.GetEstado() != publicationpb.EstadoPublicacion_ACTIVO {
 		return status.Error(codes.FailedPrecondition, "la publicación no está disponible para contratar")
 	}
+	if pub.GetTipoServicio() != publicationpb.TipoServicio_OFERTA {
+		return status.Error(codes.FailedPrecondition, "solo se permite contratar publicaciones de tipo OFERTA (DEMANDA no habilitada)")
+	}
 
 	vendedorReal := uint(pub.GetIdUsuarioVendedor())
 	if compradorID == vendedorReal {
@@ -346,6 +349,45 @@ func validateOrderFilterState(estado string) error {
 	}
 	if _, ok := transicionesValidas[estado]; !ok {
 		return status.Errorf(codes.InvalidArgument, "estado de orden inválido: %s", estado)
+	}
+	return nil
+}
+
+// GetOrder carga una orden persistida por su ID verificando que el solicitante sea comprador o vendedor (ALL-149).
+func (s *OrderService) GetOrder(ctx context.Context, ordenID, usuarioID uint) (*models.Orden, error) {
+	if usuarioID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "usuario no autenticado o ID inválido")
+	}
+	if ordenID == 0 {
+		return nil, status.Error(codes.InvalidArgument, "el id de la orden es obligatorio")
+	}
+
+	if s.db == nil {
+		return nil, status.Error(codes.Unavailable, "base de datos no disponible")
+	}
+
+	var orden models.Orden
+	if err := s.db.WithContext(ctx).First(&orden, ordenID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, status.Error(codes.NotFound, "orden no encontrada")
+		}
+		return nil, status.Errorf(codes.Internal, "error al buscar la orden: %v", err)
+	}
+
+	if err := validateOrderReadAccess(&orden, usuarioID); err != nil {
+		return nil, err
+	}
+
+	return &orden, nil
+}
+
+// validateOrderReadAccess verifica que el usuario solicitante sea el comprador o el vendedor de la orden.
+func validateOrderReadAccess(orden *models.Orden, usuarioID uint) error {
+	if orden == nil {
+		return status.Error(codes.NotFound, "orden no encontrada")
+	}
+	if orden.IDUsuarioComprador != usuarioID && orden.IDUsuarioVendedor != usuarioID {
+		return status.Error(codes.PermissionDenied, "no tienes autorización para consultar esta orden")
 	}
 	return nil
 }

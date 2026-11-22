@@ -100,6 +100,7 @@ func activePub(id uint32, vendedor uint32, precio int64) *publicationpb.Publicat
 	return &publicationpb.Publication{
 		IdPublicacion:     id,
 		IdUsuarioVendedor: vendedor,
+		TipoServicio:      publicationpb.TipoServicio_OFERTA,
 		PrecioBase:        precio,
 		Estado:            publicationpb.EstadoPublicacion_ACTIVO,
 	}
@@ -1158,5 +1159,275 @@ func TestCreateOrder_CatalogValidation_ALL141(t *testing.T) {
 		assert.Equal(t, models.EstadoOrdenPendiente, ordenPersistida.Estado)
 		assert.Equal(t, int64(25000), ordenPersistida.Precio)
 	})
+}
+
+// ============================================================================
+// 8. TESTS DE DETALLE AUTORIZADO GetOrder (ALL-149)
+// ============================================================================
+
+func TestValidateOrderReadAccess_PureValidation(t *testing.T) {
+	ordenBase := models.Orden{
+		IDOrden:            42,
+		IDUsuarioComprador: 10,
+		IDUsuarioVendedor:  20,
+		IDPublicacion:      5,
+		Estado:             models.EstadoOrdenPendiente,
+		Precio:             35000,
+	}
+
+	tests := []struct {
+		name        string
+		orden       *models.Orden
+		usuarioID   uint
+		wantCode    codes.Code
+		wantErrPart string
+	}{
+		{
+			name:      "Éxito: Comprador puede consultar la orden",
+			orden:     &ordenBase,
+			usuarioID: 10,
+			wantCode:  codes.OK,
+		},
+		{
+			name:      "Éxito: Vendedor puede consultar la orden",
+			orden:     &ordenBase,
+			usuarioID: 20,
+			wantCode:  codes.OK,
+		},
+		{
+			name:        "Falla: Tercero ajeno recibe PermissionDenied",
+			orden:       &ordenBase,
+			usuarioID:   99,
+			wantCode:    codes.PermissionDenied,
+			wantErrPart: "no tienes autorización",
+		},
+		{
+			name:        "Falla: Orden nil retorna NotFound",
+			orden:       nil,
+			usuarioID:   10,
+			wantCode:    codes.NotFound,
+			wantErrPart: "orden no encontrada",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOrderReadAccess(tc.orden, tc.usuarioID)
+			if tc.wantCode == codes.OK {
+				assert.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantCode, st.Code())
+			assert.Contains(t, st.Message(), tc.wantErrPart)
+		})
+	}
+}
+
+func TestGetOrder_InputValidations_Pure(t *testing.T) {
+	svc := NewOrderService(nil)
+	ctx := context.Background()
+
+	t.Run("usuarioID cero retorna Unauthenticated", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 1, 0)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+		assert.Contains(t, err.Error(), "usuario no autenticado")
+	})
+
+	t.Run("ordenID cero retorna InvalidArgument", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 0, 10)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "el id de la orden es obligatorio")
+	})
+
+	t.Run("base de datos nil retorna Unavailable", func(t *testing.T) {
+		orden, err := svc.GetOrder(ctx, 1, 10)
+		assert.Nil(t, orden)
+		require.Error(t, err)
+		assert.Equal(t, codes.Unavailable, status.Code(err))
+	})
+}
+
+func TestGetOrder_DBIntegration(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	stub := newCatalogStub(
+		activePub(70, 200, 9007199254740993),
+		activePub(71, 200, 18000),
+	)
+	svc := NewOrderService(tx, stub)
+	ctx := context.Background()
+
+	// Crear una orden activa con precio int64 grande para validar precisión y timestamps
+	ordenActiva, err := svc.CreateOrder(ctx, 100, 200, 70, 9007199254740993)
+	require.NoError(t, err)
+
+	// Crear y eliminar lógicamente (soft-delete) una segunda orden
+	ordenBorrada, err := svc.CreateOrder(ctx, 100, 200, 71, 18000)
+	require.NoError(t, err)
+	require.NoError(t, tx.Delete(&ordenBorrada).Error)
+
+	t.Run("comprador obtiene la orden real con todos sus campos y timestamps", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 100)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, ordenActiva.IDOrden, got.IDOrden)
+		assert.Equal(t, uint(100), got.IDUsuarioComprador)
+		assert.Equal(t, uint(200), got.IDUsuarioVendedor)
+		assert.Equal(t, uint(70), got.IDPublicacion)
+		assert.Equal(t, models.EstadoOrdenPendiente, got.Estado)
+		assert.Equal(t, int64(9007199254740993), got.Precio)
+		assert.False(t, got.CreatedAt.IsZero())
+		assert.False(t, got.UpdatedAt.IsZero())
+	})
+
+	t.Run("vendedor obtiene la orden real", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 200)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, ordenActiva.IDOrden, got.IDOrden)
+		assert.Equal(t, uint(100), got.IDUsuarioComprador)
+		assert.Equal(t, uint(200), got.IDUsuarioVendedor)
+	})
+
+	t.Run("tercero ajeno recibe PermissionDenied", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, ordenActiva.IDOrden, 300)
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+		assert.Contains(t, err.Error(), "no tienes autorización")
+	})
+
+	t.Run("orden inexistente recibe NotFound", func(t *testing.T) {
+		got, err := svc.GetOrder(ctx, 9999999, 100)
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("orden con soft-delete recibe NotFound incluso para sus participantes", func(t *testing.T) {
+		gotComprador, errComprador := svc.GetOrder(ctx, ordenBorrada.IDOrden, 100)
+		assert.Nil(t, gotComprador)
+		require.Error(t, errComprador)
+		assert.Equal(t, codes.NotFound, status.Code(errComprador))
+
+		gotVendedor, errVendedor := svc.GetOrder(ctx, ordenBorrada.IDOrden, 200)
+		assert.Nil(t, gotVendedor)
+		require.Error(t, errVendedor)
+		assert.Equal(t, codes.NotFound, status.Code(errVendedor))
+	})
+}
+
+// ============================================================================
+// 9. TESTS DE BLOQUEO DE DEMANDA Y CONTROL OPTIMISTA DE ESTADOS (ALL-150)
+// ============================================================================
+
+func TestCreateOrder_RejectsNonOferta_ALL150(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	ctx := context.Background()
+
+	casos := []struct {
+		name         string
+		pubID        uint32
+		tipoServicio publicationpb.TipoServicio
+	}{
+		{
+			name:         "publicacion activa de tipo DEMANDA es rechazada sin persistir",
+			pubID:        881,
+			tipoServicio: publicationpb.TipoServicio_DEMANDA,
+		},
+		{
+			name:         "publicacion activa con tipo no especificado es rechazada sin persistir",
+			pubID:        882,
+			tipoServicio: publicationpb.TipoServicio_TIPO_SERVICIO_UNSPECIFIED,
+		},
+	}
+
+	for _, tc := range casos {
+		t.Run(tc.name, func(t *testing.T) {
+			pub := &publicationpb.Publication{
+				IdPublicacion:     tc.pubID,
+				IdUsuarioVendedor: 30,
+				TipoServicio:      tc.tipoServicio,
+				PrecioBase:        20000,
+				Estado:            publicationpb.EstadoPublicacion_ACTIVO,
+			}
+			svc := NewOrderService(tx, newCatalogStub(pub))
+
+			orden, err := svc.CreateOrder(ctx, 15, 30, uint(tc.pubID), 20000)
+			assert.Nil(t, orden)
+			require.Error(t, err)
+			assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+			assert.Contains(t, err.Error(), "OFERTA")
+
+			var count int64
+			require.NoError(t, tx.Model(&models.Orden{}).
+				Where("id_usuario_comprador = ? AND id_publicacion = ?", 15, tc.pubID).
+				Count(&count).Error)
+			assert.Zero(t, count, "el rechazo no debe persistir ninguna orden")
+		})
+	}
+}
+
+func TestPatchOrderStatus_OptimisticLockAndUpdatedAt(t *testing.T) {
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx, newCatalogStub(activePub(910, 40, 45000)))
+	ctx := context.Background()
+
+	orden, err := svc.CreateOrder(ctx, 20, 40, 910, 45000)
+	require.NoError(t, err)
+	require.Equal(t, models.EstadoOrdenPendiente, orden.Estado)
+
+	time.Sleep(15 * time.Millisecond)
+
+	// 1. Transición válida PENDIENTE -> ACEPTADA actualiza estado y fecha_actualizacion en BD
+	aceptada, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 40, models.EstadoOrdenAceptada)
+	require.NoError(t, err)
+	assert.Equal(t, models.EstadoOrdenAceptada, aceptada.Estado)
+	assert.True(t, aceptada.UpdatedAt.After(orden.UpdatedAt), "fecha_actualizacion debe avanzar tras el PATCH")
+
+	var enBD models.Orden
+	require.NoError(t, tx.First(&enBD, orden.IDOrden).Error)
+	assert.Equal(t, models.EstadoOrdenAceptada, enBD.Estado)
+	assert.True(t, enBD.UpdatedAt.After(orden.UpdatedAt))
+
+	// 2. Control condicionado por estado previo (Where("estado = ?", estadoAnterior)):
+	// si otra operación cambia el estado en BD justo antes del UPDATE, PatchOrderStatus debe retornar codes.Aborted.
+	const callbackName = "test:all150_concurrent_state_race"
+	var raceTriggered bool
+	require.NoError(t, tx.Callback().Update().Before("gorm:update").Register(callbackName, func(scope *gorm.DB) {
+		if raceTriggered || scope.Statement.Table != "ordenes" {
+			return
+		}
+		raceTriggered = true
+		_, execErr := scope.Statement.ConnPool.ExecContext(
+			ctx,
+			"UPDATE ordenes SET estado = $1 WHERE id_orden = $2",
+			models.EstadoOrdenCancelada,
+			orden.IDOrden,
+		)
+		require.NoError(t, execErr)
+	}))
+	defer func() {
+		_ = tx.Callback().Update().Remove(callbackName)
+	}()
+
+	res, err := svc.PatchOrderStatus(ctx, orden.IDOrden, 20, models.EstadoOrdenCompletada)
+	assert.Nil(t, res)
+	require.Error(t, err)
+	assert.Equal(t, codes.Aborted, status.Code(err))
+	assert.Contains(t, err.Error(), "conflicto de concurrencia")
+	assert.True(t, raceTriggered, "el callback de carrera debió ejecutarse")
+
+	// Confirmar que se preservó el estado concurrente CANCELADA y no se sobrescribió con COMPLETADA
+	var trasConflicto models.Orden
+	require.NoError(t, tx.First(&trasConflicto, orden.IDOrden).Error)
+	assert.Equal(t, models.EstadoOrdenCancelada, trasConflicto.Estado)
 }
 

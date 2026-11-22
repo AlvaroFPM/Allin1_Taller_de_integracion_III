@@ -91,10 +91,14 @@ func setupIamTestDB(t *testing.T) *gorm.DB {
 		require.NoError(t, err, "¿está levantado docker-compose up -d postgres_iam?")
 	}
 
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
 	require.NoError(t, db.AutoMigrate(&models.Usuario{}))
 	require.NoError(t, db.AutoMigrate(&models.Perfil{}))
 
 	tx := db.Begin()
+	require.NoError(t, tx.Error)
 	t.Cleanup(func() { tx.Rollback() })
 	return tx
 }

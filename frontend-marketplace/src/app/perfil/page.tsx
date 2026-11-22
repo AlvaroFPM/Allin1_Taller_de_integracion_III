@@ -84,8 +84,15 @@ function PrivateProfile({ userId, token }: { userId: number; token: string }) {
   }
 
   const handleSaveProfile = async (data: EditProfileFormData) => {
+    const active = useAuthStore.getState();
+    if (active.token !== token || active.user?.id !== userId) {
+      throw new Error('La sesion cambio. Recarga el perfil antes de guardar.');
+    }
     const response = await updatePrivateProfile(data, profile.habilidades);
     const updated = mapPrivateProfile(response);
+    if (data.avatarUrl && updated.avatarUrl !== data.avatarUrl) {
+      throw new Error('IAM no confirmo la foto solicitada. Recarga antes de reintentar.');
+    }
     const session = useAuthStore.getState();
 
     if (session.token !== token || session.user?.id !== userId || updated.id !== userId) {

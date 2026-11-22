@@ -226,16 +226,222 @@ func TestOrderServiceServer_PatchOrderStatus_Validations(t *testing.T) {
 	})
 }
 
-func TestOrderServiceServer_GetOrder_Unimplemented_ALL149(t *testing.T) {
+func TestOrderServiceServer_GetOrder_Validations(t *testing.T) {
 	svc := NewOrderService(nil)
 	server := NewOrderServiceServer(svc)
 
-	// Registra expresamente la operación como pendiente para ALL-149
-	resp, err := server.GetOrder(context.Background(), &orderspb.GetOrderRequest{IdOrden: 1})
-	require.Error(t, err)
-	assert.Nil(t, resp)
-	assert.Equal(t, codes.Unimplemented, status.Code(err))
-	assert.Contains(t, err.Error(), "ALL-149")
+	t.Run("nil request retorna InvalidArgument", func(t *testing.T) {
+		resp, err := server.GetOrder(context.Background(), nil)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	})
+
+	t.Run("sin usuario autenticado retorna Unauthenticated", func(t *testing.T) {
+		resp, err := server.GetOrder(context.Background(), &orderspb.GetOrderRequest{IdOrden: 1})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("id_orden en cero retorna InvalidArgument", func(t *testing.T) {
+		ctx := authenticatedContext(10)
+		resp, err := server.GetOrder(ctx, &orderspb.GetOrderRequest{IdOrden: 0})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	})
+
+	t.Run("db nil con id valido retorna Unavailable", func(t *testing.T) {
+		ctx := authenticatedContext(10)
+		resp, err := server.GetOrder(ctx, &orderspb.GetOrderRequest{IdOrden: 1})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.Unavailable, status.Code(err))
+	})
+}
+
+func TestOrderServiceServer_GetOrder_DBIntegration(t *testing.T) {
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx, newCatalogStub(
+		activePub(80, 21, 9007199254740993),
+		activePub(81, 21, 12000),
+	))
+	server := NewOrderServiceServer(svc)
+
+	ctxComprador := authenticatedContext(11)
+	ctxVendedor := authenticatedContext(21)
+	ctxTercero := authenticatedContext(31)
+
+	creada, err := server.CreateOrder(ctxComprador, &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 21,
+		IdPublicacion:     80,
+		Precio:            9007199254740993,
+	})
+	require.NoError(t, err)
+	ordenID := creada.GetOrder().GetIdOrden()
+
+	// Orden con soft-delete no debe ser accesible
+	borrada, err := server.CreateOrder(ctxComprador, &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 21,
+		IdPublicacion:     81,
+		Precio:            12000,
+	})
+	require.NoError(t, err)
+	require.NoError(t, tx.Delete(&models.Orden{}, borrada.GetOrder().GetIdOrden()).Error)
+
+	t.Run("comprador obtiene detalle completo mapeado a protobuf", func(t *testing.T) {
+		resp, err := server.GetOrder(ctxComprador, &orderspb.GetOrderRequest{IdOrden: ordenID})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.GetOrder())
+		assert.Equal(t, ordenID, resp.GetOrder().GetIdOrden())
+		assert.Equal(t, uint32(11), resp.GetOrder().GetIdUsuarioComprador())
+		assert.Equal(t, uint32(21), resp.GetOrder().GetIdUsuarioVendedor())
+		assert.Equal(t, uint32(80), resp.GetOrder().GetIdPublicacion())
+		assert.Equal(t, orderspb.EstadoOrden_PENDIENTE, resp.GetOrder().GetEstado())
+		assert.Equal(t, models.EstadoOrdenPendiente, resp.GetOrder().GetEstadoStr())
+		assert.Equal(t, int64(9007199254740993), resp.GetOrder().GetPrecio())
+		require.NotNil(t, resp.GetOrder().GetCreatedAt())
+		require.NotNil(t, resp.GetOrder().GetUpdatedAt())
+		assert.True(t, resp.GetOrder().GetCreatedAt().IsValid())
+		assert.True(t, resp.GetOrder().GetUpdatedAt().IsValid())
+	})
+
+	t.Run("vendedor obtiene el mismo detalle", func(t *testing.T) {
+		resp, err := server.GetOrder(ctxVendedor, &orderspb.GetOrderRequest{IdOrden: ordenID})
+		require.NoError(t, err)
+		require.NotNil(t, resp.GetOrder())
+		assert.Equal(t, ordenID, resp.GetOrder().GetIdOrden())
+		assert.Equal(t, int64(9007199254740993), resp.GetOrder().GetPrecio())
+	})
+
+	t.Run("cuenta ajena es rechazada con PermissionDenied", func(t *testing.T) {
+		resp, err := server.GetOrder(ctxTercero, &orderspb.GetOrderRequest{IdOrden: ordenID})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	})
+
+	t.Run("recurso inexistente es rechazado con NotFound", func(t *testing.T) {
+		resp, err := server.GetOrder(ctxComprador, &orderspb.GetOrderRequest{IdOrden: 9999999})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("orden eliminada (soft-delete) es rechazada con NotFound", func(t *testing.T) {
+		resp, err := server.GetOrder(ctxComprador, &orderspb.GetOrderRequest{IdOrden: borrada.GetOrder().GetIdOrden()})
+		assert.Nil(t, resp)
+		require.Error(t, err)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+}
+
+func TestOrderServiceServer_ListOrders_DBIntegration(t *testing.T) {
+	t.Setenv("ORDERS_ENABLE_CREATION", "true")
+	tx := setupOrderTestDB(t)
+	svc := NewOrderService(tx, newCatalogStub(
+		activePub(91, 202, 10000),
+		activePub(92, 203, 20000),
+		activePub(93, 101, 30000),
+	))
+	server := NewOrderServiceServer(svc)
+
+	ctx101 := authenticatedContext(101)
+	ctx202 := authenticatedContext(202)
+	ctx204 := authenticatedContext(204)
+	ctxSinOrdenes := authenticatedContext(999999)
+
+	// Usuario 101 es comprador en oCompra1 (PENDIENTE) y oCompra2 (ACEPTADA)
+	oCompra1, err := server.CreateOrder(ctx101, &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 202,
+		IdPublicacion:     91,
+		Precio:            10000,
+	})
+	require.NoError(t, err)
+
+	oCompra2, err := server.CreateOrder(ctx101, &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 203,
+		IdPublicacion:     92,
+		Precio:            20000,
+	})
+	require.NoError(t, err)
+	_, err = server.PatchOrderStatus(authenticatedContext(203), &orderspb.PatchOrderStatusRequest{
+		IdOrden:     oCompra2.GetOrder().GetIdOrden(),
+		NuevoEstado: models.EstadoOrdenAceptada,
+	})
+	require.NoError(t, err)
+
+	// Usuario 101 es vendedor en oVenta (comprador 204)
+	oVenta, err := server.CreateOrder(ctx204, &orderspb.CreateOrderRequest{
+		IdUsuarioVendedor: 101,
+		IdPublicacion:     93,
+		Precio:            30000,
+	})
+	require.NoError(t, err)
+
+	t.Run("ListMyPurchases retorna solo compras del usuario con PaginationMeta real", func(t *testing.T) {
+		resp, err := server.ListMyPurchases(ctx101, &orderspb.ListMyPurchasesRequest{Page: 1, Limit: 1})
+		require.NoError(t, err)
+		require.Len(t, resp.GetOrders(), 1)
+		assert.Equal(t, oCompra2.GetOrder().GetIdOrden(), resp.GetOrders()[0].GetIdOrden())
+		assert.Equal(t, uint32(101), resp.GetOrders()[0].GetIdUsuarioComprador())
+		require.NotNil(t, resp.GetMeta())
+		assert.Equal(t, int64(2), resp.GetMeta().GetTotalRecords())
+		assert.Equal(t, int32(1), resp.GetMeta().GetCurrentPage())
+		assert.Equal(t, int32(2), resp.GetMeta().GetTotalPages())
+		assert.Equal(t, int32(1), resp.GetMeta().GetLimit())
+
+		// Página 2
+		respP2, err := server.ListMyPurchases(ctx101, &orderspb.ListMyPurchasesRequest{Page: 2, Limit: 1})
+		require.NoError(t, err)
+		require.Len(t, respP2.GetOrders(), 1)
+		assert.Equal(t, oCompra1.GetOrder().GetIdOrden(), respP2.GetOrders()[0].GetIdOrden())
+		assert.Equal(t, int32(2), respP2.GetMeta().GetCurrentPage())
+	})
+
+	t.Run("ListMyPurchases filtra por estado y actualiza metadatos", func(t *testing.T) {
+		estado := models.EstadoOrdenAceptada
+		resp, err := server.ListMyPurchases(ctx101, &orderspb.ListMyPurchasesRequest{
+			Page:   1,
+			Limit:  10,
+			Estado: &estado,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.GetOrders(), 1)
+		assert.Equal(t, oCompra2.GetOrder().GetIdOrden(), resp.GetOrders()[0].GetIdOrden())
+		assert.Equal(t, orderspb.EstadoOrden_ACEPTADA, resp.GetOrders()[0].GetEstado())
+		assert.Equal(t, int64(1), resp.GetMeta().GetTotalRecords())
+		assert.Equal(t, int32(1), resp.GetMeta().GetTotalPages())
+	})
+
+	t.Run("ListMySales retorna solo ventas del usuario y aisla otros vendedores", func(t *testing.T) {
+		resp101, err := server.ListMySales(ctx101, &orderspb.ListMySalesRequest{Page: 1, Limit: 10})
+		require.NoError(t, err)
+		require.Len(t, resp101.GetOrders(), 1)
+		assert.Equal(t, oVenta.GetOrder().GetIdOrden(), resp101.GetOrders()[0].GetIdOrden())
+		assert.Equal(t, uint32(101), resp101.GetOrders()[0].GetIdUsuarioVendedor())
+		assert.Equal(t, int64(1), resp101.GetMeta().GetTotalRecords())
+
+		resp202, err := server.ListMySales(ctx202, &orderspb.ListMySalesRequest{Page: 1, Limit: 10})
+		require.NoError(t, err)
+		require.Len(t, resp202.GetOrders(), 1)
+		assert.Equal(t, oCompra1.GetOrder().GetIdOrden(), resp202.GetOrders()[0].GetIdOrden())
+		assert.Equal(t, uint32(202), resp202.GetOrders()[0].GetIdUsuarioVendedor())
+	})
+
+	t.Run("usuario sin ordenes obtiene lista vacia y meta consistente", func(t *testing.T) {
+		resp, err := server.ListMyPurchases(ctxSinOrdenes, &orderspb.ListMyPurchasesRequest{Page: 1, Limit: 10})
+		require.NoError(t, err)
+		assert.Empty(t, resp.GetOrders())
+		require.NotNil(t, resp.GetMeta())
+		assert.Equal(t, int64(0), resp.GetMeta().GetTotalRecords())
+		assert.Equal(t, int32(1), resp.GetMeta().GetCurrentPage())
+		assert.Equal(t, int32(0), resp.GetMeta().GetTotalPages())
+		assert.Equal(t, int32(10), resp.GetMeta().GetLimit())
+	})
 }
 
 func TestOrderServiceServer_ListOrders_Validations(t *testing.T) {

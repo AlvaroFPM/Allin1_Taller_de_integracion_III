@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { isAxiosError } from 'axios';
+import { uploadMedia, MediaUploadError } from '@/services/mediaService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +12,10 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
   const [formData, setFormData] = React.useState<EditProfileFormData>(initialData);
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [photo, setPhoto] = React.useState<File | null>(null);
+  const [uploadedUrl, setUploadedUrl] = React.useState<string | undefined>();
+  const [stage, setStage] = React.useState<'upload' | 'save' | null>(null);
+  const busy = React.useRef(false);
 
   // Cierre accesible con tecla Escape
   React.useEffect(() => {
@@ -24,25 +29,45 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isSaving) return;
+    if (busy.current) return;
 
+    busy.current = true;
     setIsSaving(true);
     setSaveError(null);
+    let uploading = false;
     try {
-      await onSave(formData);
+      let photoUrl = uploadedUrl;
+      if (photo && !photoUrl) {
+        uploading = true;
+        setStage('upload');
+        const media = await uploadMedia(photo, 'PERFIL');
+        photoUrl = media.url;
+        setUploadedUrl(photoUrl);
+      }
+      uploading = false;
+      setStage('save');
+      await onSave({ ...formData, ...(photoUrl ? { avatarUrl: photoUrl } : {}) });
       onClose();
     } catch (error) {
+      if (uploading) {
+        setSaveError(
+          `No se pudo subir la foto. ${error instanceof MediaUploadError ? error.message : 'Intenta nuevamente.'} Tu perfil no se ha actualizado.`,
+        );
+        return;
+      }
       const detail =
         isAxiosError<{ message?: unknown }>(error) && error.response?.status === 400
           ? error.response.data?.message
           : undefined;
       setSaveError(
         typeof detail === 'string' && detail.trim()
-          ? detail
-          : 'No se pudieron guardar los cambios. Inténtalo de nuevo.',
+          ? `No se pudo guardar el perfil en IAM: ${detail}`
+          : 'No se pudo confirmar el guardado en IAM. La imagen mostrada no cambia. Puedes reintentar Guardar sin volver a subir la foto, o recargar para consultar el estado real.',
       );
     } finally {
       setIsSaving(false);
+      setStage(null);
+      busy.current = false;
     }
   };
 
@@ -74,6 +99,26 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
+          <div>
+            <label htmlFor="profile-photo" className="text-sm font-semibold">
+              Foto de perfil
+            </label>
+            <input
+              id="profile-photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              disabled={isSaving}
+              onChange={(e) => {
+                setPhoto(e.target.files?.[0] ?? null);
+                setUploadedUrl(undefined);
+                setSaveError(null);
+              }}
+            />
+            <p className="text-xs text-content-muted">
+              Hasta 5 MiB. La foto actual se conserva hasta confirmar el guardado.
+              {uploadedUrl && ' Foto subida; falta confirmar el guardado en IAM.'}
+            </p>
+          </div>
           {/* Nombres y Apellidos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Nombres" placeholder="Tus nombres" value={formData.firstName} readOnly />
@@ -145,6 +190,11 @@ export function ProfileEditModal({ isOpen, initialData, onClose, onSave }: Profi
           {saveError && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">
               {saveError}
+            </p>
+          )}
+          {stage && (
+            <p role="status">
+              {stage === 'upload' ? 'Subiendo foto a Media…' : 'Guardando perfil en IAM…'}
             </p>
           )}
 

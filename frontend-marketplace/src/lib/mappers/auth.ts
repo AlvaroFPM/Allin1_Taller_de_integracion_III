@@ -62,6 +62,7 @@ export function mapPrivateProfile(profile: ProfileResponse): UserProfileData {
 
 export function mapProfileUpdate(data: EditProfileFormData, habilidades: string) {
   return {
+    ...(data.avatarUrl ? { fotoPerfilUrl: data.avatarUrl } : {}),
     telefono: data.phone,
     ciudad: data.city,
     region: data.region,
