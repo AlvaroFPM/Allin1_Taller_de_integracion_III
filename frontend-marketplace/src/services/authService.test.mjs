@@ -7,7 +7,11 @@ import ts from 'typescript';
 function loadModule(file, dependencies = {}) {
   const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
   const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
   }).outputText;
   const compiledModule = { exports: {} };
   const run = vm.runInThisContext(`(function(require, module, exports) { ${compiled}\n})`);
@@ -40,6 +44,118 @@ const form = {
   region: 'Araucanía',
   bio: '',
 };
+
+// Pruebas de logica del modal con hooks simulados, no pruebas de navegador.
+function modalHarness(uploadMedia, onSave) {
+  const slots = [];
+  let cursor = 0;
+  let closed = 0;
+  const react = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [
+        slots[index],
+        (value) => {
+          slots[index] = value;
+        },
+      ];
+    },
+    useRef(initial) {
+      return this.useState({ current: initial })[0];
+    },
+    useEffect() {},
+  };
+  const jsx = (type, props) => ({ type, props });
+  const { ProfileEditModal } = loadModule('../components/shared/profile-edit-modal.tsx', {
+    react,
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    axios: { isAxiosError: (error) => error.isAxiosError === true },
+    '@/services/mediaService': { uploadMedia, MediaUploadError: Error },
+    '@/components/ui/button': { Button: 'button' },
+    '@/components/ui/input': { Input: 'input' },
+    '@/components/ui/textarea': { Textarea: 'textarea' },
+  });
+  function find(predicate) {
+    cursor = 0;
+    const tree = ProfileEditModal({
+      isOpen: true,
+      initialData: form,
+      onSave,
+      onClose: () => closed++,
+    });
+    function visit(node) {
+      if (!node || typeof node !== 'object') return undefined;
+      if (predicate(node)) return node;
+      return [node.props?.children].flat(Infinity).map(visit).find(Boolean);
+    }
+    return visit(tree);
+  }
+  return {
+    select: () =>
+      find((n) => n.props?.id === 'profile-photo').props.onChange({
+        target: { files: [new File(['x'], 'test.png')] },
+      }),
+    submit: () => find((n) => n.type === 'form').props.onSubmit({ preventDefault() {} }),
+    error: () => find((n) => n.props?.role === 'alert')?.props.children,
+    closed: () => closed,
+  };
+}
+
+test('modal: rechazo de subida no guarda IAM ni cierra como exito', async () => {
+  let saves = 0;
+  const modal = modalHarness(
+    async () => {
+      throw new Error('Formato invalido');
+    },
+    async () => saves++,
+  );
+  modal.select();
+  await modal.submit();
+  assert.equal(saves, 0);
+  assert.equal(modal.closed(), 0);
+  assert.match(modal.error(), /No se pudo subir la foto/);
+});
+
+test('modal: IAM rechaza; reintento reutiliza URL y solo cierra al confirmar', async () => {
+  let uploads = 0;
+  let saves = 0;
+  const modal = modalHarness(
+    async () => {
+      uploads++;
+      return { url: 'https://example.invalid/foto.jpg' };
+    },
+    async (data) => {
+      assert.equal(data.avatarUrl, 'https://example.invalid/foto.jpg');
+      if (++saves === 1)
+        throw {
+          isAxiosError: true,
+          response: { status: 400, data: { message: 'Telefono invalido' } },
+        };
+    },
+  );
+  modal.select();
+  await modal.submit();
+  assert.match(modal.error(), /No se pudo guardar el perfil en IAM/);
+  assert.equal(modal.closed(), 0);
+  await modal.submit();
+  assert.equal(uploads, 1);
+  assert.equal(saves, 2);
+  assert.equal(modal.closed(), 1);
+});
+
+test('modal: fallo de red al guardar no confirma exito', async () => {
+  const modal = modalHarness(
+    async () => ({ url: 'https://example.invalid/foto.jpg' }),
+    async () => {
+      throw new Error('Network error');
+    },
+  );
+  modal.select();
+  await modal.submit();
+  assert.equal(modal.closed(), 0);
+  assert.match(modal.error(), /No se pudo confirmar el guardado en IAM/);
+});
 
 test('envia la URL de Media a IAM y recupera el avatar confirmado', async () => {
   const avatarUrl = 'https://example.invalid/media/perfil/test.jpg';
