@@ -27,12 +27,18 @@ function loadModule(file, dependencies = {}) {
 }
 
 const mapper = loadModule('../lib/mappers/auth.ts');
+const axiosMock = {
+  isCancel: (e) => Boolean(e?.isCancel),
+};
+axiosMock.default = axiosMock;
+
 const setup = (apiClient) =>
   loadModule('authService.ts', {
     '@/lib/apiClient': { apiClient },
     '@/lib/authCookies': {},
     '@/store/useAuthStore': {},
     '@/lib/mappers/auth': mapper,
+    axios: axiosMock,
   });
 
 const form = {
@@ -268,4 +274,108 @@ test('propaga el rechazo de IAM al formulario', async () => {
     service.updatePrivateProfile(form, 'Cerámica'),
     (actual) => actual === error,
   );
+});
+
+test('getPublicProfile reenvía AbortSignal a la llamada de red', async () => {
+  const controller = new AbortController();
+  let receivedSignal;
+  const service = setup({
+    get: async (url, options) => {
+      assert.equal(url, '/v1/auth/profile/52');
+      receivedSignal = options?.signal;
+      return { data: { userId: 52, firstName: 'Elena', lastName: 'Ríos' } };
+    },
+  });
+
+  const profile = await service.getPublicProfile(52, controller.signal);
+  assert.equal(receivedSignal, controller.signal);
+  assert.equal(profile?.userId, 52);
+  assert.equal(profile?.firstName, 'Elena');
+  assert.equal(profile?.lastName, 'Ríos');
+});
+
+test('getPublicProfile mapea dos vendedores distintos sin mezclar identidades', async () => {
+  const database = {
+    1: { userId: 1, firstName: 'Vendedor', lastName: 'Alfa', ciudad: 'Santiago' },
+    2: { userId: 2, firstName: 'Vendedor', lastName: 'Beta', ciudad: 'Valparaíso' },
+  };
+
+  const service = setup({
+    get: async (url) => {
+      const match = url.match(/\/v1\/auth\/profile\/(\d+)/);
+      const id = match ? Number(match[1]) : 0;
+      return { data: database[id] };
+    },
+  });
+
+  const seller1 = await service.getPublicProfile(1);
+  const seller2 = await service.getPublicProfile(2);
+
+  assert.equal(seller1?.userId, 1);
+  assert.equal(seller1?.firstName, 'Vendedor');
+  assert.equal(seller1?.lastName, 'Alfa');
+  assert.equal(seller1?.ciudad, 'Santiago');
+
+  assert.equal(seller2?.userId, 2);
+  assert.equal(seller2?.firstName, 'Vendedor');
+  assert.equal(seller2?.lastName, 'Beta');
+  assert.equal(seller2?.ciudad, 'Valparaíso');
+});
+
+test('getPublicProfile no expone email ni telefono de los usuarios', async () => {
+  const service = setup({
+    get: async () => ({
+      data: {
+        userId: 10,
+        firstName: 'Seguro',
+        lastName: 'Privado',
+        email: 'secreto@example.com',
+        telefono: '+56911223344',
+      },
+    }),
+  });
+
+  const profile = await service.getPublicProfile(10);
+  assert.equal(profile?.userId, 10);
+  assert.equal(profile?.firstName, 'Seguro');
+  assert.equal(profile?.lastName, 'Privado');
+  assert.equal(Object.hasOwn(profile ?? {}, 'email'), false);
+  assert.equal(Object.hasOwn(profile ?? {}, 'telefono'), false);
+  assert.equal(profile?.email, undefined);
+  assert.equal(profile?.telefono, undefined);
+});
+
+test('getPublicProfile ante cancelación retorna null de forma controlada', async () => {
+  const service = setup({
+    get: async () => {
+      const err = new Error('canceled');
+      err.isCancel = true;
+      throw err;
+    },
+  });
+
+  const profile = await service.getPublicProfile(99);
+  assert.equal(profile, null);
+});
+
+test('getPublicProfile ante error 404 retorna null y conserva nombres vacíos sin inventar Usuario', async () => {
+  const error404 = new Error('Not found');
+  error404.response = { status: 404 };
+
+  const service = setup({
+    get: async (url) => {
+      if (url.includes('404')) {
+        throw error404;
+      }
+      return { data: { userId: 5, firstName: '', lastName: '' } };
+    },
+  });
+
+  const notFound = await service.getPublicProfile(404);
+  assert.equal(notFound, null);
+
+  const emptyUser = await service.getPublicProfile(5);
+  assert.equal(emptyUser?.userId, 5);
+  assert.equal(emptyUser?.firstName, '');
+  assert.notEqual(emptyUser?.firstName, 'Usuario');
 });

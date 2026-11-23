@@ -14,6 +14,7 @@ import {
   PublicationDetailSidebar,
 } from '@/components/shared';
 import { publicationService, type CatalogPublication } from '@/services/publicationService';
+import { getPublicProfile } from '@/services/authService';
 
 type DetailState =
   | { status: 'loading' }
@@ -43,8 +44,44 @@ function PublicationDetail({ id }: { id: string }) {
       try {
         const publication = await publicationService.getPublicationById(id, controller.signal);
 
-        if (!controller.signal.aborted) {
-          setState({ status: 'success', publication });
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        // Renderizar la publicación de inmediato sin bloquear por latencia de IAM
+        setState({
+          status: 'success',
+          publication: {
+            ...publication,
+            sellerName: undefined,
+          },
+        });
+
+        if (Number.isInteger(publication.sellerId) && publication.sellerId > 0) {
+          try {
+            const profile = await getPublicProfile(publication.sellerId, controller.signal);
+            if (!controller.signal.aborted && profile && profile.userId === publication.sellerId) {
+              const fullName = [profile.firstName, profile.lastName]
+                .filter(Boolean)
+                .join(' ')
+                .trim();
+              if (fullName.length > 0) {
+                setState((prev) =>
+                  prev.status === 'success' && prev.publication.id === publication.id
+                    ? {
+                        status: 'success',
+                        publication: {
+                          ...prev.publication,
+                          sellerName: fullName,
+                        },
+                      }
+                    : prev,
+                );
+              }
+            }
+          } catch {
+            // Degradación segura ante ausencia o fallo de IAM
+          }
         }
       } catch (error: unknown) {
         if (controller.signal.aborted || axios.isCancel(error)) {
