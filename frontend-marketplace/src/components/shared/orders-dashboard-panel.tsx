@@ -321,6 +321,13 @@ export function OrdersDashboardPanel() {
                     ? () => void changeStatus(id, 'COMPLETADA')
                     : undefined
                 }
+                onCancel={
+                  sessionReady &&
+                  (isBuyer || isSeller) &&
+                  (dto?.estado === 'PENDIENTE' || dto?.estado === 'ACEPTADA')
+                    ? () => void changeStatus(id, 'CANCELADA')
+                    : undefined
+                }
               />
             );
           })}

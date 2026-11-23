@@ -9,6 +9,7 @@ export interface OrderCardProps {
   order: DashboardOrder;
   onAccept?: (order: DashboardOrder) => void;
   onComplete?: (order: DashboardOrder) => void;
+  onCancel?: (order: DashboardOrder) => void;
   actionPending?: boolean;
   actionError?: string | null;
   onConfirmReceipt?: (order: DashboardOrder) => void;
@@ -54,6 +55,7 @@ export function OrderCard({
   order,
   onAccept,
   onComplete,
+  onCancel,
   actionPending = false,
   actionError,
   onContact,
@@ -230,6 +232,19 @@ export function OrderCard({
               className="text-xs font-bold"
             >
               {actionPending ? 'Procesando...' : 'Completar'}
+            </Button>
+          )}
+
+          {onCancel && (order.status === 'PENDIENTE' || order.status === 'ACEPTADA') && (
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              disabled={actionPending}
+              onClick={() => onCancel?.(order)}
+              className="text-xs font-bold"
+            >
+              {actionPending ? 'Procesando...' : 'Cancelar'}
             </Button>
           )}
           {order.role === 'COMPRA' && order.status === 'COMPLETADA' && (

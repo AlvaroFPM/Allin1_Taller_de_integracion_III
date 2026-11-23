@@ -246,8 +246,8 @@ function PublicationDetail({ id }: { id: string }) {
             )}
 
             {createdOrderId !== null && (
-              <div role="status" className="space-y-1 text-sm text-content-main">
-                <p>Orden {createdOrderId} creada correctamente.</p>
+              <div className="space-y-1 text-sm text-content-main">
+                <p role="status">Orden {createdOrderId} creada correctamente.</p>
                 <Link href="/ordenes" className="inline-block font-semibold text-brand underline">
                   Ver mis compras
                 </Link>

@@ -94,6 +94,10 @@ for (const scenario of [
   { name: 'vendedor acepta', userId: 20, estado: 'PENDIENTE', next: 'ACEPTADA' },
   { name: 'vendedor completa', userId: 20, estado: 'ACEPTADA', next: 'COMPLETADA' },
   { name: 'comprador completa', userId: 10, estado: 'ACEPTADA', next: 'COMPLETADA' },
+  { name: 'vendedor cancela en pendiente', userId: 20, estado: 'PENDIENTE', next: 'CANCELADA' },
+  { name: 'comprador cancela en pendiente', userId: 10, estado: 'PENDIENTE', next: 'CANCELADA' },
+  { name: 'vendedor cancela en aceptada', userId: 20, estado: 'ACEPTADA', next: 'CANCELADA' },
+  { name: 'comprador cancela en aceptada', userId: 10, estado: 'ACEPTADA', next: 'CANCELADA' },
 ]) {
   test(`sintetico: ${scenario.name}`, async () => {
     const ctx = setup(scenario);
@@ -118,7 +122,11 @@ test('sintetico: rechaza permisos y transiciones invalidas sin PATCH', async () 
     { userId: 20, estado: 'PENDIENTE', next: 'COMPLETADA' },
     { userId: 20, estado: 'COMPLETADA', next: 'ACEPTADA' },
     { userId: 20, estado: 'CANCELADA', next: 'ACEPTADA' },
-    { userId: 20, estado: 'ACEPTADA', next: 'CANCELADA' },
+    { userId: 99, estado: 'PENDIENTE', next: 'CANCELADA' },
+    { userId: 99, estado: 'ACEPTADA', next: 'CANCELADA' },
+    { userId: 20, estado: 'COMPLETADA', next: 'CANCELADA' },
+    { userId: 10, estado: 'COMPLETADA', next: 'CANCELADA' },
+    { userId: 20, estado: 'CANCELADA', next: 'CANCELADA' },
   ]) {
     const ctx = setup(scenario);
     await ctx.store.getState().changeStatus(901, scenario.next);
