@@ -420,3 +420,80 @@ El usuario confirmo expresamente en el chat que la URL coincide en Media e IAM p
 Procedimiento reproducible: iniciar Docker y servicios Media/IAM con sus BD, comprobar que la imagen IAM incorpora ALL-139, iniciar frontend con URL de IAM/gateway operativo, entrar con cuenta de prueba, abrir edicion de perfil, seleccionar PNG valido y guardar. Resultado esperado: POST Media 201 seguido de PUT IAM satisfactorio con la misma URL; comprobar la fila IAM y recargar perfil propio y publico. Repetir rechazo de archivo conservando una foto ya guardada. La confirmacion manual anterior cubre los resultados funcionales, no documenta los status HTTP individuales. Fallos controlados adicionales corresponden a ALL-158; dos cuentas y reinicio a ALL-189. No se acreditan portada, build de produccion ni Kubernetes.
 
 Riesgo residual: Media puede guardar un archivo aunque falle IAM; no existe compensacion automatica. Dentro del modal se puede reintentar Guardar sin otra subida; al cerrarlo o recargar se pierde la URL pendiente y puede quedar un asset sin asociar. Ante perdida de respuesta, recargar primero permite consultar si IAM alcanzo a guardar. No se afirma que un error de red revierta persistencia ni se borran assets automaticamente.
+
+## ALL-158: fallos de subida y conservacion de referencias
+
+Fecha: 21/11/2026 (America/Santiago). Rama `ALL-158-media-fallos-referencias`, base `7e44a81` de origin/develop. ALL-157 ya incorporada mediante PR #351. [Ticket ALL-158](https://linear.app/allin1/issue/ALL-158/sprint-final-s3-media-mvp-comprobar-fallos-de-subida-y-conservar).
+
+### Analisis y alcance ejecutado
+
+El modal de ALL-157 ya separa uploadMedia y onSave, retiene la URL subida en memoria y no cierra en caso de error. El padre solo actualiza la foto visible despues de validar la respuesta de IAM y la sesion. No se detecto una inconsistencia que requiriera modificar codigo de aplicacion. Se amplio [authService.test.mjs](../frontend-marketplace/src/services/authService.test.mjs) con tres pruebas de logica del modal usando hooks simulados y su fuente real: rechazo de subida sin llamar a IAM, rechazo de IAM seguido de reintento sin segunda subida, y fallo de red sin confirmacion de exito. No equivalen a pruebas visuales de navegador.
+
+Para la integracion real se eligio un fallo controlado de validacion de IAM (telefono INVALIDO), no una caida de BD/proveedor. Es suficiente para comprobar el caso de archivo aceptado por Media seguido de guardado rechazado, sin detener servicios ni alterar datos de otros usuarios. No se implementaron colas, limpieza ni compensaciones.
+
+### Entorno y evidencia real
+
+Docker local, IAM en 8081, Media en 8083, postgres_iam/iam_db y postgres_media/media_db. Se iniciaron los contenedores detenidos con `docker compose up -d iam media`, sin eliminar volumenes. Advertencia preexistente: POSTGRES_PASSWORD_ORDERS no configurada; no se cambio por esta tarea. Imagen IAM `sha256:3e742f8ce1cc3b5816b5723eeb32944c6ca85ced47a3a2b664597185a37b116f`; Media `sha256:694f910612fe9e417b31be0994898e2ca75374fd60d25bafc87103c20001cf40`. No se reconstruyeron imagenes en esta ejecucion ni se certifica correspondencia binaria con todo HEAD; el contrato usado se comprobo en las solicitudes reales.
+
+Cuenta sintetica creada en IAM: id_usuario **32**, nombre de prueba, correo aleatorio example.invalid. Credenciales y token mantenidos solo en memoria del proceso. PNG RGB sintetico 2x2 generado en memoria; sin datos personales. Cliente HTTP Node fetch/FormData contra servicios reales, sin interceptar ni simular respuestas. Se compararon GET privado antes/despues y consultas SQL limitadas a esa cuenta.
+
+| Paso | Resultado esperado | Observado |
+|---|---|---|
+| Subir imagen A y asignarla al perfil | Media 201 e IAM 200; URL coincidente | Referencia Media 16; IAM y SQL contienen URL A |
+| Subir texto `texto` (5 bytes), nombre all158.png, MIME declarado image/png | 415 y perfil sin cambios | 415; GET privado identico, SQL IAM conserva A y conteo Media del usuario sigue en 1 |
+| Subir imagen B | 201, aun sin cambiar IAM | Referencia Media 17; segunda fila de Media |
+| PUT perfil con URL B y telefono INVALIDO | IAM 400; conserva A | 400 code=3; GET privado identico al anterior; SQL IAM conserva A; Media conserva sus dos filas |
+| Reintentar PUT con URL B y telefono vacio | 200 sin otra subida | 200; GET privado y SQL IAM contienen B; conteo Media sigue en 2 |
+
+URL A: https://res.cloudinary.com/rstk3bky/image/upload/v1795315198/media/perfil/xtvowdybhxcljsy9xpuo.jpg
+
+URL B: https://res.cloudinary.com/rstk3bky/image/upload/v1795315202/media/perfil/bqtldlvikdznlusoeozd.jpg
+
+Son assets sinteticos publicos de prueba, no valores para codificar en el frontend. En esta ejecucion no se verificaron descarga/dimensiones de salida; corresponden a ALL-189. Se conservaron una cuenta y dos referencias/assets nuevos. No se borraron registros ni archivos remotos.
+
+Respuestas reales de rechazo:
+
+```json
+{"error":"\"all158.png\" (text/plain; charset=utf-8, 5 bytes): media: el contenido real del archivo no es una imagen soportada"}
+```
+
+```json
+{"code":3,"message":"el teléfono debe tener entre 7 y 20 caracteres y solo dígitos, espacios, +, - o paréntesis","details":[]}
+```
+
+### Pasos reproducibles y reintento
+
+1. Iniciar servicios locales y registrar/iniciar sesion con una cuenta exclusiva de prueba. No utilizar produccion.
+2. Subir un PNG valido como `file`, `tipo=PERFIL`, a POST /v1/media/upload con Bearer. Guardar su URL mediante PUT /v1/auth/profile y consultar GET del mismo endpoint. Esta es la foto A vigente.
+3. Repetir la subida con texto disfrazado de PNG. Comparar GET del perfil y conteo Media antes/despues; esperar 415, ninguna nueva referencia y foto A intacta.
+4. Subir otro PNG B y guardar su URL con telefono INVALIDO, campos ciudad/region/bioExperiencia/habilidades vacios. Esperar 400 de IAM y consultar de nuevo: foto A permanece, aunque B ya existe en Media.
+5. Reenviar solo PUT IAM con la misma URL B y telefono vacio/valido. Esperar 200 y recuperar B con GET/SQL; no llamar de nuevo a Media.
+
+Consultas de evidencia de esta ejecucion (sustituir 32 por la cuenta propia al reproducir):
+
+```powershell
+docker exec postgres_media psql -U postgres -d media_db -c "SELECT id_media,id_usuario,tipo,url FROM media WHERE id_usuario=32 ORDER BY id_media;"
+docker exec postgres_iam psql -U postgres -d iam_db -c "SELECT id_usuario,foto_perfil_url FROM perfiles WHERE id_usuario=32;"
+```
+
+En la UI existente, corregir el telefono y pulsar Guardar de nuevo con el mismo modal abierto reutiliza la URL B. La logica de ese comportamiento se comprobo sinteticamente. Seleccionar otro archivo, cerrar el modal o recargar descarta la URL pendiente; no limpia Cloudinary. Ante error de red de resultado desconocido, consultar primero el perfil antes de reintentar. Nunca afirmar que cancelar o perder conexion revierte un guardado.
+
+### Resultados, limites y estado
+
+`node --test src/services/authService.test.mjs src/services/mediaService.test.mjs`: **19 pruebas aprobadas**. La integracion HTTP/SQL real anterior es evidencia separada, no depende de mocks.
+
+ESLint del archivo de pruebas modificado: sin diagnosticos. TypeScript (`tsc --noEmit --incremental false`): codigo 0. Diagnosticos del editor y `git diff --check`: sin errores. No se ejecuto build de produccion ni lint global.
+
+No se logro abrir/leer el navegador integrado: la comprobacion visual de mensajes, foto conservada y reintento desde el formulario NO se ejecutó en esta tarea. Se inicio el frontend en 3001, pero la evidencia de esta entrega es HTTP/BD real y logica del modal con hooks simulados. No se declara una nueva validacion visual end-to-end; puede completarse manualmente con los pasos anteriores.
+
+Riesgo residual demostrado: despues del 400, la imagen B ya estaba registrada en Media pero no asociada al perfil IAM. El reintento la asocio; la imagen A permanece como subida historica. No hay compensacion ni limpieza automatica. No se provocaron caidas de Cloudinary, fallos de escritura de BD ni fallos sobre produccion. Portada, dos cuentas y reinicio quedan fuera de ALL-158. No se cerraron tickets ni se hizo push automaticamente.
+
+### Ajuste de mensajes y selector tras prueba manual (22/11/2026)
+
+El usuario consiguio probar el formulario en su navegador y reporto un rechazo de archivo vacio renombrado .png y un rechazo por telefono invalido. Confirmo que borrar el telefono invalido y volver a guardar funciona. Esto complementa la evidencia HTTP previa; no se afirma que el agente haya ejecutado esa prueba visual ni que un archivo vacio demuestre deteccion de contenido no admitido.
+
+A peticion del usuario, [profile-edit-modal.tsx](../frontend-marketplace/src/components/shared/profile-edit-modal.tsx) ahora presenta un boton del sistema de diseno para seleccionar/cambiar imagen y el nombre completo en una linea aparte con ajuste de texto. Distingue seleccion, subida pendiente de guardado y confirmacion; no presenta la seleccion como guardado exitoso. El input nativo queda oculto y se abre desde un boton accesible por teclado, bloqueado durante el procesamiento.
+
+Los avisos del formulario ya no muestran nombres de microservicios, detalles internos, nombres de archivo ni conteos de bytes del backend. Archivo vacio: seleccionar una imagen valida; formato rechazado: formatos admitidos; peso: limite de 5 MiB. Los errores de validacion conocidos del perfil se traducen a instrucciones; los desconocidos usan un mensaje generico y no reflejan texto interno. El error de telefono explica como corregirlo o dejarlo vacio. Los estados visibles son "Subiendo foto" y "Guardando perfil". Contratos HTTP y validaciones del servidor permanecen intactos.
+
+Se actualizaron las regresiones existentes, sin crear otro archivo, para comprobar mensajes sin detalles internos, nombre separado y reintento con la misma URL. Resultado: 20 pruebas aprobadas. La apariencia final y la apertura del selector nativo siguen pendientes de confirmacion visual del usuario; la herramienta del navegador del agente no logro leer la pagina compartida en este intento. No se atribuye esa limitacion a las BD.
