@@ -30,7 +30,7 @@ function setup(patch) {
   return moduleObject.exports.ordersMutationService;
 }
 
-for (const estado of ['ACEPTADA', 'COMPLETADA']) {
+for (const estado of ['ACEPTADA', 'COMPLETADA', 'CANCELADA']) {
   test(`sintetico: envia PATCH ${estado} y devuelve la orden validada`, async () => {
     const order = { idOrden: 901, estado, precio: '9007199254740993' };
     const controller = new AbortController();
@@ -61,12 +61,12 @@ test('sintetico: rechaza IDs invalidos sin llamar a Axios', async () => {
   assert.equal(calls, 0);
 });
 
-test('sintetico: no permite cancelacion ni otros estados', async () => {
+test('sintetico: no permite estados no autorizados para mutacion directa', async () => {
   let calls = 0;
   const service = setup(async () => {
     calls++;
   });
-  for (const estado of ['CANCELADA', 'PENDIENTE', 'EN_PROCESO', '', null]) {
+  for (const estado of ['PENDIENTE', 'EN_PROCESO', 'PAGO_CUSTODIADO', '', null]) {
     await assert.rejects(service.patchStatus(901, estado), /Accion/);
   }
   assert.equal(calls, 0);

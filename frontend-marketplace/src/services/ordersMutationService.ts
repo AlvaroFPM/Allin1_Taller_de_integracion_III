@@ -1,7 +1,7 @@
 import api from '@/lib/axios';
 import type { OrderDto, PatchOrderStatusResponseDto } from '@/types/dto/orders';
 
-export type OrderActionState = 'ACEPTADA' | 'COMPLETADA';
+export type OrderActionState = 'ACEPTADA' | 'COMPLETADA' | 'CANCELADA';
 
 const ORDERS_API_URL = process.env.NEXT_PUBLIC_ORDERS_API_URL || 'http://localhost:8084';
 
@@ -15,8 +15,7 @@ export const ordersMutationService = {
       throw new Error('Identificador de orden invalido.');
     }
 
-    // Validacion en ejecucion: tampoco admite cancelacion desde JavaScript.
-    if (nuevoEstado !== 'ACEPTADA' && nuevoEstado !== 'COMPLETADA') {
+    if (nuevoEstado !== 'ACEPTADA' && nuevoEstado !== 'COMPLETADA' && nuevoEstado !== 'CANCELADA') {
       throw new Error('Accion de orden no permitida.');
     }
 

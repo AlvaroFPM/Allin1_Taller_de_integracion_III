@@ -58,9 +58,13 @@ export const useOrderActionsStore = create<OrderActionsState>()((set, get) => ({
 
     const isBuyer = order.idUsuarioComprador === userId;
     const isSeller = order.idUsuarioVendedor === userId;
+    const isParticipant = isBuyer || isSeller;
     const allowed =
       (next === 'ACEPTADA' && order.estado === 'PENDIENTE' && isSeller) ||
-      (next === 'COMPLETADA' && order.estado === 'ACEPTADA' && (isBuyer || isSeller));
+      (next === 'COMPLETADA' && order.estado === 'ACEPTADA' && isParticipant) ||
+      (next === 'CANCELADA' &&
+        (order.estado === 'PENDIENTE' || order.estado === 'ACEPTADA') &&
+        isParticipant);
 
     if (!allowed) {
       fail('No tienes permiso para esa transicion de estado.');
