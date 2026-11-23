@@ -8,7 +8,8 @@ import { LoginCard } from '@/components/shared';
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionExpired = searchParams.get('expired') === 'true';
+  const sessionExpired =
+    searchParams.get('session') === 'expired' || searchParams.get('expired') === 'true';
   const from = searchParams.get('from');
 
   const handleSuccess = () => {
