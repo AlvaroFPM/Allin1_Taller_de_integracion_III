@@ -192,7 +192,7 @@ Backend distribuido implementado bajo principios de Clean Architecture. Combina 
 - **`cmd/catalog/main.go`**: Microservicio de Catálogo y Publicaciones. Escucha en el puerto gRPC `50052` y expone el gateway REST en el puerto `8080` (en contenedor/local mapeado a `8082`). Maneja listado paginado, filtros y creación de publicaciones.
 - **`cmd/media/main.go`**: Microservicio de procesamiento multimedia y subida a Cloudinary. Expone API REST en el puerto `8083` (sin gRPC), con endpoints protegidos por middleware de autenticación HTTP.
 - **`cmd/chat/main.go`**: Microservicio de Chat y Mensajería. Escucha en el puerto gRPC `50054` y expone el gateway REST en el puerto `8085` (según propuesta de puertos de Dockerfile.chat). Maneja salas de chat y mensajes con persistencia en PostgreSQL (`chat_salas`, `chat_mensajes`).
-- *(Nota)*: `cmd/orders/` aún no cuenta con entrypoint en Go (`main.go` pendiente de implementar; infraestructura Dockerfile y K8s preparada).
+- **`cmd/orders/main.go`**: Microservicio de órdenes. Usa PostgreSQL, expone gRPC en `50053` y HTTP en `8084` por defecto y consulta Catálogo mediante `CATALOG_GRPC_ADDR`.
 - **`catalog.exe`**: Binario compilado localmente en Windows para pruebas de ejecución rápida.
 
 ### Esquemas de Interfaz y Contratos (`api/`)
