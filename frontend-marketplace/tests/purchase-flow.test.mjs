@@ -79,6 +79,14 @@ async function setup(options = {}) {
         },
       },
     },
+    '@/services/authService': {
+      getPublicProfile: async (userId, signal) => {
+        if (typeof options.getPublicProfile === 'function') {
+          return options.getPublicProfile(userId, signal);
+        }
+        return null;
+      },
+    },
     '@/store/useAuthStore': {
       useAuthStore: {
         getState: () => ({
@@ -136,8 +144,7 @@ async function setup(options = {}) {
 
   render();
   for (const effect of effects) effect();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 10; i++) await Promise.resolve();
 
   return {
     render,
@@ -309,4 +316,90 @@ test('DEMANDA: bloqueo explicito sin modal ni POST', async () => {
   assert.match(alert(app.render()).props.children, /DEMANDA/);
   assert.equal(byType(app.render(), 'PurchaseModal'), undefined);
   assert.equal(app.calls(), 0);
+});
+
+test('identidad del vendedor: resuelve nombre real con IAM y mantiene enlace correcto', async () => {
+  const app = await setup({
+    publication: { id: 10, sellerId: 1 },
+    getPublicProfile: async (userId) => {
+      assert.equal(userId, 1);
+      return {
+        userId: 1,
+        firstName: 'Francisco',
+        lastName: 'Vendedor',
+      };
+    },
+  });
+
+  const contact = byType(app.render(), 'Contact');
+  assert.equal(contact.props.sellerId, 1);
+  assert.equal(contact.props.sellerName, 'Francisco Vendedor');
+
+  byType(app.render(), 'Sidebar').props.onAction();
+  const modal = byType(app.render(), 'PurchaseModal');
+  assert.equal(modal.props.item.seller.id, 1);
+  assert.equal(modal.props.item.seller.name, 'Francisco Vendedor');
+});
+
+test('identidad del vendedor: degradación segura ante 404 o fallo de IAM conserva sellerId y no inventa identidad', async () => {
+  const app = await setup({
+    publication: { id: 10, sellerId: 7 },
+    getPublicProfile: async () => null,
+  });
+
+  const contact = byType(app.render(), 'Contact');
+  assert.equal(contact.props.sellerId, 7);
+  assert.equal(contact.props.sellerName, undefined);
+
+  byType(app.render(), 'Sidebar').props.onAction();
+  const modal = byType(app.render(), 'PurchaseModal');
+  assert.equal(modal.props.item.seller.id, 7);
+  assert.equal(modal.props.item.seller.name, 'Nombre no disponible');
+});
+
+test('identidad del vendedor: userId no coincidente no asigna nombre ajeno y conserva sellerId real', async () => {
+  const app = await setup({
+    publication: { id: 10, sellerId: 3 },
+    getPublicProfile: async () => ({
+      userId: 99,
+      firstName: 'Impostor',
+      lastName: 'Invalido',
+    }),
+  });
+
+  const contact = byType(app.render(), 'Contact');
+  assert.equal(contact.props.sellerId, 3);
+  assert.equal(contact.props.sellerName, undefined);
+
+  byType(app.render(), 'Sidebar').props.onAction();
+  const modal = byType(app.render(), 'PurchaseModal');
+  assert.equal(modal.props.item.seller.id, 3);
+  assert.equal(modal.props.item.seller.name, 'Nombre no disponible');
+});
+
+test('identidad del vendedor: dos publicaciones distintas con dos vendedores no mezclan identidades', async () => {
+  const appA = await setup({
+    publication: { id: 20, sellerId: 101 },
+    getPublicProfile: async (userId) => {
+      assert.equal(userId, 101);
+      return { userId: 101, firstName: 'Vendedor', lastName: 'A' };
+    },
+  });
+
+  const appB = await setup({
+    publication: { id: 21, sellerId: 102 },
+    getPublicProfile: async (userId) => {
+      assert.equal(userId, 102);
+      return { userId: 102, firstName: 'Vendedor', lastName: 'B' };
+    },
+  });
+
+  const contactA = byType(appA.render(), 'Contact');
+  const contactB = byType(appB.render(), 'Contact');
+
+  assert.equal(contactA.props.sellerId, 101);
+  assert.equal(contactA.props.sellerName, 'Vendedor A');
+
+  assert.equal(contactB.props.sellerId, 102);
+  assert.equal(contactB.props.sellerName, 'Vendedor B');
 });

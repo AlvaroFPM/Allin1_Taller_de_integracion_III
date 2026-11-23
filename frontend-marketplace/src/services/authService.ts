@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { apiClient } from '@/lib/apiClient';
 import { setAuthTokens } from '@/lib/authCookies';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -65,15 +66,25 @@ export interface PublicProfileData {
   rol?: string;
 }
 
-export const getPublicProfile = async (userId: number): Promise<PublicProfileData | null> => {
+export const getPublicProfile = async (
+  userId: number,
+  signal?: AbortSignal,
+): Promise<PublicProfileData | null> => {
   try {
-    const response = await apiClient.get<Record<string, unknown>>(`/v1/auth/profile/${userId}`);
+    const response = await apiClient.get<Record<string, unknown>>(`/v1/auth/profile/${userId}`, {
+      signal,
+      timeout: 3000,
+    });
     const data = response.data;
     if (!data) return null;
 
+    const rawId = data.userId ?? data.user_id ?? userId;
+    const resolvedUserId = Number(rawId);
+    if (!Number.isFinite(resolvedUserId)) return null;
+
     return {
-      userId: Number(data.userId ?? data.user_id ?? userId),
-      firstName: String(data.firstName ?? data.first_name ?? 'Usuario'),
+      userId: resolvedUserId,
+      firstName: String(data.firstName ?? data.first_name ?? ''),
       lastName: String(data.lastName ?? data.last_name ?? ''),
       bioExperiencia: (data.bioExperiencia ?? data.bio_experiencia ?? '') as string,
       habilidades: (data.habilidades ?? '') as string,
@@ -83,7 +94,10 @@ export const getPublicProfile = async (userId: number): Promise<PublicProfileDat
       portadaUrl: (data.portadaUrl ?? data.portada_url ?? '') as string,
       rol: (data.rol ?? 'PROVEEDOR') as string,
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    if (Boolean(axios.isCancel?.(error)) || signal?.aborted) {
+      return null;
+    }
     console.error(`Error al consultar perfil público del usuario ${userId}:`, error);
     return null;
   }
