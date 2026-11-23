@@ -227,9 +227,34 @@ func (s *ChatServiceServer) ListRooms(
 		}
 	}
 
+	unreadByRoom := make(map[uint]uint32, len(salas))
+	if len(salas) > 0 {
+		roomIDs := make([]uint, 0, len(salas))
+		for _, sala := range salas {
+			roomIDs = append(roomIDs, sala.IDSala)
+		}
+		var counts []struct {
+			SalaID uint
+			Total  uint32
+		}
+		err := s.db.WithContext(ctx).Model(&models.ChatMensaje{}).
+			Select("sala_id, COUNT(*) AS total").
+			Where("sala_id IN ? AND destinatario_id = ? AND leido = ?", roomIDs, currentUserID, false).
+			Group("sala_id").
+			Scan(&counts).Error
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "error al contar mensajes no leídos: %v", err)
+		}
+		for _, count := range counts {
+			unreadByRoom[count.SalaID] = count.Total
+		}
+	}
+
 	protoSalas := make([]*chatpb.ChatRoom, 0, len(salas))
 	for i := range salas {
-		protoSalas = append(protoSalas, mapSalaModelToProto(&salas[i]))
+		room := mapSalaModelToProto(&salas[i])
+		room.MensajesNoLeidos = unreadByRoom[salas[i].IDSala]
+		protoSalas = append(protoSalas, room)
 	}
 
 	return &chatpb.ListRoomsResponse{

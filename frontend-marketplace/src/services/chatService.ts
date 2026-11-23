@@ -5,6 +5,8 @@ import type {
   GetOrCreateRoomRequestDto,
   GetOrCreateRoomResponseDto,
   ListRoomsResponseDto,
+  MarkAsReadBodyDto,
+  MarkAsReadResponseDto,
   SendMessageRequestDto,
   SendMessageResponseDto,
 } from '@/types/dto/chat';
@@ -42,6 +44,18 @@ export const chatService = {
     }
 
     return response.data;
+  },
+
+  markAsRead: async (salaId: number, signal?: AbortSignal): Promise<void> => {
+    const body: MarkAsReadBodyDto = {};
+    const { data } = await api.patch<MarkAsReadResponseDto>(
+      `${CHAT_API_URL}/v1/chat/rooms/${salaId}/read`,
+      body,
+      { signal },
+    );
+    if (data?.success !== true) {
+      throw new Error('Chat no confirmó la lectura de los mensajes.');
+    }
   },
 
   sendMessage: async (

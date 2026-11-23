@@ -177,12 +177,29 @@ func TestChatAuthorization_Postgres(t *testing.T) {
 		Count(&leidos).Error)
 	require.Zero(t, leidos)
 
+	unreadInRoom := func(ctx context.Context) uint32 {
+		t.Helper()
+		result, err := svc.ListRooms(ctx, &chatpb.ListRoomsRequest{})
+		require.NoError(t, err)
+		for _, room := range result.GetSalas() {
+			if room.GetIdSala() == uint32(sala.IDSala) {
+				return room.GetMensajesNoLeidos()
+			}
+		}
+		t.Fatal("la sala no apareció para su participante")
+		return 0
+	}
+	require.Equal(t, uint32(1), unreadInRoom(ctxA))
+	require.Equal(t, uint32(1), unreadInRoom(ctxB))
+
 	// A solo puede marcar el mensaje que recibió de B.
 	lectura, err := svc.MarkAsRead(ctxA, &chatpb.MarkAsReadRequest{
 		SalaId: uint32(sala.IDSala),
 	})
 	require.NoError(t, err)
 	require.True(t, lectura.GetSuccess())
+	require.Zero(t, unreadInRoom(ctxA))
+	require.Equal(t, uint32(1), unreadInRoom(ctxB))
 
 	var guardadoA, guardadoB models.ChatMensaje
 	require.NoError(t, tx.First(
