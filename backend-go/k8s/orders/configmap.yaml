@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders-db-config
+  namespace: student-aalarcon
+data:
+  DB_HOST: postgres-orders
+  DB_PORT: "5432"
+  GRPC_PORT: "50053"
+  HTTP_PORT: "8084"

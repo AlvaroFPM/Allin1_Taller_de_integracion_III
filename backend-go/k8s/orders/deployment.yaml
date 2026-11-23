@@ -4,7 +4,7 @@
 # Despliega el microservicio Orders (Órdenes) en Go.
 # Expone gRPC en el puerto 50053 y la API REST vía gRPC-Gateway en el puerto 8084.
 #
-# DEPENDENCIAS PENDIENTES (otros tickets):
+# DEPENDENCIAS (ALL-151):
 #   - ConfigMap orders-db-config (DB_HOST=postgres-orders, DB_PORT=5432,
 #     GRPC_PORT=50053, HTTP_PORT=8084)
 #   - Secret orders-db-secret (DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE)
@@ -109,7 +109,7 @@ spec:
             # Coordinación con @Am4ro-aaa: requiere puerto gRPC 50052 en Service/catalog
             # ---------------------------------------------------------------
             - name: CATALOG_GRPC_ADDR
-              value: "catalog.student-aalarcon.svc.cluster.local:50052"
+              value: "catalog:50052"
             - name: ORDERS_ENABLE_CREATION
               value: "true"
 

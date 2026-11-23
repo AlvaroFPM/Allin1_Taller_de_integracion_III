@@ -46,13 +46,14 @@ services:
       retries: 5
 
   postgres_media:
+    profiles: [ "media" ]
     image: postgres:16-alpine
     container_name: postgres_media
     ports:
       - "127.0.0.1:5435:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MEDIA:?Define POSTGRES_PASSWORD_MEDIA en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MEDIA:-}
       POSTGRES_DB: media_db
     volumes:
       - media_db_data:/var/lib/postgresql/data
@@ -88,7 +89,8 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD_IAM}
       DB_NAME: iam_db
       DB_SSLMODE: disable
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       GRPC_PORT: "50051"
       HTTP_PORT: "8080"
     ports:
@@ -125,6 +127,7 @@ services:
     # La imagen scratch no contiene wget. Comprobar HTTP desde el host.
 
   media:
+    profiles: [ "media" ]
     build:
       context: ./backend-go
       dockerfile: Dockerfile
@@ -144,14 +147,14 @@ services:
       DB_HOST: postgres_media
       DB_PORT: "5432"
       DB_USER: postgres
-      DB_PASSWORD: ${POSTGRES_PASSWORD_MEDIA:?Define POSTGRES_PASSWORD_MEDIA en .env}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_MEDIA:-}
       DB_NAME: media_db
       DB_SSLMODE: disable
       MEDIA_PORT: "8083"
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:?Define CLOUDINARY_CLOUD_NAME en .env}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?Define CLOUDINARY_API_KEY en .env}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?Define CLOUDINARY_API_SECRET en .env}
-      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "127.0.0.1:8083:8083"
     networks:
@@ -175,6 +178,8 @@ services:
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8081
         NEXT_PUBLIC_CATALOG_API_URL: http://localhost:8082
+        NEXT_PUBLIC_ORDERS_API_URL: http://localhost:8084
+        NEXT_PUBLIC_MEDIA_API_URL: http://localhost:8083
     container_name: frontend-marketplace
     environment:
       CATALOG_INTERNAL_URL: http://catalog:8080

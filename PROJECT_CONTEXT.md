@@ -69,8 +69,8 @@ El backend sigue Clean Architecture dentro de un monorepo Go:
 | IAM      | 50051      | 8080                 | Autenticación (register, login, profile) |
 | Catalog  | 50052      | 8082                 | Publicaciones del marketplace |
 | Media    | —          | 8083                 | Gestión de imágenes y subida a Cloudinary (`cmd/media`) |
-| Orders   | 50053      | 8084                 | Gestión de órdenes y contrataciones (`cmd/orders` pendiente de implementar; manifiestos K8s listos) |
-| Chat     | 50054      | 8085                 | Mensajería entre usuarios (`cmd/chat` implementado; puertos propuestos según Dockerfile.chat; manifiestos K8s en `k8s/chat/`, aún no aplicados) |
+| Orders   | 50053      | 8084                 | Gestión de órdenes y contrataciones (`cmd/orders/main.go`; despliegue del MVP en ALL-151/ALL-186) |
+| Chat     | 50054      | 8085                 | Mensajería entre usuarios (`cmd/chat/main.go`; complemento para el MVP) |
 | Gateway  | —          | 8080                 | Reverse proxy Nginx, único punto de entrada externo |
 | Frontend | —          | 3000                 | Next.js (standalone), marketplace UI |
 
