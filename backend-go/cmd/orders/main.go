@@ -42,6 +42,12 @@ func main() {
 	}
 	fmt.Println("Migración exitosa: Tabla 'ordenes' sincronizada.")
 
+	// 2b. Índice único parcial para RN-22 (impide órdenes activas duplicadas)
+	if err := service.EnsureActiveOrderUniqueIndex(db); err != nil {
+		log.Fatalf("Error crítico al crear el índice de órdenes activas: %v", err)
+	}
+	fmt.Println("Índice de órdenes activas verificado.")
+
 	// 3. Configuración de puertos de comunicación (alineados con Compose y K8s)
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {

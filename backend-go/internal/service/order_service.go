@@ -27,6 +27,9 @@ var transicionesValidas = map[string][]string{
 // catalogCallTimeout limita la espera a Catálogo para no bloquear la creación de órdenes.
 const catalogCallTimeout = 3 * time.Second
 
+// mensajeOrdenActivaDuplicada es el mensaje de error unificado para RN-22 (orden activa duplicada).
+const mensajeOrdenActivaDuplicada = "ya tienes una orden en curso para esta publicación (RN-22)"
+
 // PublicationGetter es el contrato mínimo que Órdenes necesita de Catálogo (ALL-141).
 // Lo satisface publicationpb.PublicationServiceClient.
 type PublicationGetter interface {
@@ -74,7 +77,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, compradorID, vendedorID,
 		return nil, status.Errorf(codes.Internal, "error al verificar órdenes existentes: %v", err)
 	}
 	if count > 0 {
-		return nil, status.Error(codes.AlreadyExists, "ya tienes una orden en curso para esta publicación (RN-22)")
+		return nil, status.Error(codes.AlreadyExists, mensajeOrdenActivaDuplicada)
 	}
 
 	// Armar la orden con estado inicial explícito
@@ -88,13 +91,16 @@ func (s *OrderService) CreateOrder(ctx context.Context, compradorID, vendedorID,
 
 	// Guardar en la base de datos
 	if err := s.db.WithContext(ctx).Create(&nuevaOrden).Error; err != nil {
+		if isUniqueConstraintViolation(err) {
+			return nil, status.Error(codes.AlreadyExists, mensajeOrdenActivaDuplicada)
+		}
 		return nil, status.Errorf(codes.Internal, "error al guardar la orden: %v", err)
 	}
 
 	return &nuevaOrden, nil
 }
 
-// PatchOrderStatus actualiza el estado de una orden aplicando autorización y validación de FSM 
+// PatchOrderStatus actualiza el estado de una orden aplicando autorización y validación de FSM
 func (s *OrderService) PatchOrderStatus(ctx context.Context, ordenID, usuarioID uint, nuevoEstado string) (*models.Orden, error) {
 	// Validar que los IDs no vengan en cero (validación barata en memoria)
 	if ordenID == 0 {
