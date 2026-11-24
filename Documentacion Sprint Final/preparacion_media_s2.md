@@ -497,3 +497,106 @@ A peticion del usuario, [profile-edit-modal.tsx](../frontend-marketplace/src/com
 Los avisos del formulario ya no muestran nombres de microservicios, detalles internos, nombres de archivo ni conteos de bytes del backend. Archivo vacio: seleccionar una imagen valida; formato rechazado: formatos admitidos; peso: limite de 5 MiB. Los errores de validacion conocidos del perfil se traducen a instrucciones; los desconocidos usan un mensaje generico y no reflejan texto interno. El error de telefono explica como corregirlo o dejarlo vacio. Los estados visibles son "Subiendo foto" y "Guardando perfil". Contratos HTTP y validaciones del servidor permanecen intactos.
 
 Se actualizaron las regresiones existentes, sin crear otro archivo, para comprobar mensajes sin detalles internos, nombre separado y reintento con la misma URL. Resultado: 20 pruebas aprobadas. La apariencia final y la apertura del selector nativo siguen pendientes de confirmacion visual del usuario; la herramienta del navegador del agente no logro leer la pagina compartida en este intento. No se atribuye esa limitacion a las BD.
+
+## ALL-189: validacion de imagen persistida, limites y privacidad
+
+[Ticket ALL-189](https://linear.app/allin1/issue/ALL-189/sprint-final-s3-validacion-media-mvp-verificar-imagen-persistida). Ejecucion local del 23/11/2026, America/Santiago. Rama `ALL-189-media-validacion-mvp`, base limpia `b7bbf8187698613df2e2d9e5a7e7310d70b515cc` de origin/develop. Incluye ALL-157 (PR #351), ALL-158 (PR #358) y los cambios posteriores de otros integrantes, incluido ALL-187. No se modifico codigo funcional, contratos, pruebas ni configuracion; esta entrega agrega evidencia al documento existente.
+
+### Alcance y version ejecutada
+
+Se verifico foto PERFIL con dos cuentas sinteticas, proveedor Cloudinary real, HTTP real y ambas bases PostgreSQL locales. Inicialmente no habia contenedores activos. Se ejecuto `docker compose up -d iam media`, que inicio tambien postgres_iam y postgres_media, sin eliminar volumenes. IAM: localhost:8081; Media: localhost:8083. No se inicio Catalog, Orders ni Kubernetes. Compose advirtio POSTGRES_PASSWORD_ORDERS ausente; no impidio este recorrido y no se cambio esa configuracion.
+
+Imagenes ejecutadas: IAM `sha256:0a2193aa5d8d2c53b5d9cf907017e9fc7ffa00517bb82fbb164d13ae1c018f7c`; Media `sha256:cab9f1459ed8db661f35a2031f445dbdc00914e53999c26d0e9bae423bb103bb`. No se reconstruyeron en esta tarea: estos identificadores documentan lo realmente probado, no certifican que los binarios se hayan construido desde HEAD. No hay diferencias entre 7e44a81 y HEAD en los directorios cmd/iam, cmd/media, internal/api/media, internal/service/media ni en internal/service/auth_service.go. Esto tampoco reemplaza una trazabilidad de build.
+
+Las solicitudes se ejecutaron con Node fetch/FormData, sin mocks, con credenciales aleatorias exclusivamente en memoria. Se generaron dos PNG RGB de 2000x1000 en memoria con colores distintos. Se descargaron las URLs devueltas y se leyeron las dimensiones del JPEG resultante. El script temporal se ejecuto por entrada estandar, sin agregar otro archivo al repositorio. No se publican correos, contrasenas ni tokens.
+
+### Resultados reales
+
+| Caso | Esperado | Observado |
+|---|---|---|
+| Cuenta 33: subir PNG y guardar URL | POST Media 201, PUT IAM 200, misma referencia | Aprobado; id_media 23, tipo PERFIL |
+| Cuenta 34: repetir con imagen distinta | Referencia propia, sin mezclar cuentas | Aprobado; id_media 24, tipo PERFIL; URL distinta de cuenta 33 |
+| Descargar ambas URLs | HTTP 200, imagen procesada recuperable | Aprobado; ambas JPEG 512x256, entrada PNG 2000x1000 |
+| Consultar perfil autenticado y publico de ambas cuentas | Identidad y URL correctas en nuevas consultas | Aprobado; GET 200 en los cuatro casos, id publico correspondiente |
+| Privacidad de ambos perfiles publicos | Solo campos del contrato publico | Aprobado; lista permitida comprobada, sin email, telefono, rut, password ni token |
+| Texto de 5 bytes, llamado all189.png y MIME declarado image/png | Rechazo de contenido sin nueva referencia ni cambio de perfil | 415 en ambas cuentas; GET privado completo identico y SQL sin nuevas referencias |
+| Archivo de 5 MiB + 1 byte (5.242.881 bytes) | Rechazo por limite de archivo | 413 en ambas cuentas; mismos perfiles y referencias |
+| Reiniciar solo iam y media | Referencias conservadas | Aprobado; GET privados/publicos y SQL de ambas BD siguen conteniendo las mismas URLs |
+
+El caso sobredimensionado contenia ceros: demuestra rechazo por peso antes de inspeccionar el contenido, no procesamiento de una imagen valida de ese peso. No se probo el borde exacto de 5 MiB ni el limite HTTP total de 6 MiB.
+
+URL cuenta 33 / referencia 23:
+https://res.cloudinary.com/rstk3bky/image/upload/v1795487573/media/perfil/mel2fbj3oytt7z7cr1hf.jpg
+
+URL cuenta 34 / referencia 24:
+https://res.cloudinary.com/rstk3bky/image/upload/v1795487581/media/perfil/pfq15ldxfq6wxcu8dmdd.jpg
+
+Son imagenes sinteticas publicas, no datos personales ni valores para incorporar al frontend. Se conservaron las dos cuentas y sus dos assets/referencias. No se borraron registros ni archivos remotos.
+
+### Contraste con codigo y privacidad
+
+- [validator.go](../backend-go/internal/service/media/validator.go): limite por archivo 5 MiB, deteccion por contenido; renombrar texto a PNG no permite subirlo.
+- [media_service.go](../backend-go/internal/service/media/media_service.go): politica PERFIL de 512 pixeles para el lado mayor. [processor.go](../backend-go/internal/service/media/processor.go): proporcion conservada, JPEG calidad configurada 82 para formatos transcodificados. El resultado real 512x256 coincide con esa politica; no con el valor generico de 1920 usado por otros recorridos.
+- [auth.proto](../backend-go/api/proto/auth.proto) y [auth_service.go](../backend-go/internal/service/auth_service.go): contrato publico separado del privado. Se comprobo que las claves de cada respuesta publica pertenecen a `userId, firstName, lastName, bioExperiencia, habilidades, ciudad, region, fotoPerfilUrl, portadaUrl, rol`. Las cuentas tenian correo de prueba y telefono no vacio en el perfil privado; esos campos no aparecen en el publico.
+- [perfil/[id]/page.tsx](../frontend-marketplace/src/app/perfil/[id]/page.tsx) consume getPublicProfile y fotoPerfilUrl. La inspeccion de codigo y las pruebas de mapeo no sustituyen una comprobacion visual en navegador.
+
+Las consultas SQL exigieron coincidencia exacta de foto_perfil_url en IAM y de la unica URL de Media de cada cuenta, antes/despues de rechazos y reinicio. Esto comprueba que no aparecieron filas adicionales para esas cuentas. No constituye una auditoria general de privacidad o autorizacion de toda la plataforma.
+
+### Reproduccion
+
+1. Iniciar Docker y ejecutar `docker compose up -d iam media`. Usar exclusivamente cuentas sinteticas locales; no produccion.
+2. Registrar dos cuentas distintas mediante POST /v1/auth/register. Mantener cada token separado y fuera de capturas/documentacion.
+3. Para cada cuenta, enviar POST localhost:8083/v1/media/upload con Bearer, FormData `tipo=PERFIL` y `file` con PNG RGB de 2000x1000. No fijar manualmente el boundary multipart. Esperar 201 y conservar la URL de esa respuesta.
+4. Descargar la URL: esperar HTTP 200 y JPEG 512x256. Enviar PUT localhost:8081/v1/auth/profile autenticado con `fotoPerfilUrl` igual a esa URL, telefono valido y campos ciudad, region, bioExperiencia y habilidades vacios. Esperar 200.
+5. Hacer nuevos GET /v1/auth/profile autenticados y GET /v1/auth/profile/{id} sin autenticacion. Comparar id y URL, comprobar lista de campos publicos y consultas SQL indicadas abajo.
+6. Guardar el perfil completo como estado anterior. Repetir POST de subida con texto `texto` (5 bytes) bajo nombre PNG y con archivo de 5.242.881 bytes. Esperar 415 y 413 respectivamente. Reconsultar ambos perfiles y sus filas Media: ninguna modificacion ni nueva referencia.
+7. Ejecutar `docker restart iam media`, esperar disponibilidad y repetir GET privados, publicos y SQL. No reiniciar PostgreSQL ni destruir volumenes para reproducir esta evidencia.
+
+```powershell
+docker exec postgres_media psql -U postgres -d media_db -c "SELECT id_media,id_usuario,tipo,url FROM media WHERE id_usuario IN (33,34) ORDER BY id_media;"
+docker exec postgres_iam psql -U postgres -d iam_db -c "SELECT id_usuario,foto_perfil_url FROM perfiles WHERE id_usuario IN (33,34) ORDER BY id_usuario;"
+```
+
+Al repetir con otras cuentas, sustituir los IDs por los registrados en esa ejecucion. Los tokens de esta prueba no se guardaron y no pueden reutilizarse desde el documento.
+
+### Comprobaciones existentes y limites de cierre
+
+- Desde backend-go: `go test ./internal/api/media ./internal/service/media`: ambos paquetes aprobados (19.726 s y 23.703 s). No se ejecuto el test con build tag integration del recorrido de subida multiple; la evidencia real de esta tarea corresponde al endpoint autenticado de PERFIL.
+- Desde frontend-marketplace: `node --test src/services/authService.test.mjs src/services/mediaService.test.mjs`: **25 aprobadas, 0 fallidas, 0 omitidas**. Incluye las regresiones de identidad publica incorporadas por ALL-187. El log de error 404 forma parte de una prueba negativa aprobada, no de un fallo del servicio real.
+- No se agregaron tests simulados ni dependencias. No se ejecuto build de produccion ni lint global.
+- En el primer intento fallo la apertura del navegador integrado en localhost:3001/login. El pendiente visual de ese intento se completo el 24/11/2026, segun la evidencia complementaria siguiente. No se atribuye el fallo anterior a las BD ni se conoce su causa exacta.
+- Solo se reiniciaron procesos IAM y Media; no las BD, Docker Desktop ni el equipo. No se afirma durabilidad tras perdida de volumen ni disponibilidad continua del proveedor.
+- Portada, JPEG/WebP/AVIF como entradas reales, borde exacto del limite, sesion invalida en esta version y fallos del proveedor no se probaron aqui. AVIF conserva el tratamiento existente sin transcodificacion; no se generaliza el resultado 512x256 a ese formato.
+- El riesgo de archivos huerfanos y reintento documentado en ALL-158 sigue vigente; esta tarea no implementa limpieza ni compensacion.
+
+Estado del primer intento: validacion HTTP/SQL aprobada y navegador pendiente. El registro siguiente completa ese pendiente sin reutilizar la confirmacion manual de ALL-157. PR/commit de ALL-189 pendientes; no se hizo push.
+
+### Complemento: recorrido real en navegador, 24/11/2026
+
+Misma rama/base, sin cambios de aplicacion. IAM, Media, Catalog y sus tres BD estaban activos; PostgreSQL saludable. Frontend ya escuchaba en 3001. No se duplicaron procesos ni se reiniciaron servicios durante esta comprobacion. Home y login respondieron HTTP 200. Se abrio el home y se llego al login desde el menu; esta vez el navegador integrado permitio interactuar. El fallo anterior de la herramienta no demuestra un defecto de la aplicacion.
+
+Se registraron por HTTP dos nuevas cuentas sinteticas y se inicio sesion mediante el formulario real para cada una, cerrando la sesion A antes de entrar con B. No se uso la cuenta del usuario. Imagenes PNG generadas en memoria con canvas, fondo rojo/letra A y azul/letra B, ambas 2000x1000. La automatizacion asigno cada File al input existente y emitio change; se pulso el boton real Guardar Cambios. No se simularon solicitudes ni respuestas. No se comprobo el dialogo nativo del sistema operativo para elegir archivos.
+
+| Cuenta | Subida real desde modal | Guardado real desde modal | Recarga propia y publica |
+|---|---|---|---|
+| 35, PruebaVisual CuentaA | POST 201, referencia 26 | PUT 200, misma URL | Imagen cargada, URL correcta; JPEG natural 512x256 observado |
+| 36, PruebaVisual CuentaB | POST 201, referencia 27 | PUT 200, misma URL | Imagen cargada, URL distinta de A y correcta |
+
+URL cuenta 35:
+https://res.cloudinary.com/rstk3bky/image/upload/v1795490606/media/perfil/vpm8oc7ize82ejijkbbq.jpg
+
+URL cuenta 36:
+https://res.cloudinary.com/rstk3bky/image/upload/v1795490707/media/perfil/b8mzygv0kkjf9cz3dsor.jpg
+
+Se observaron el nombre del archivo separado del boton, el cierre del modal tras el guardado exitoso y la confirmacion de actualizacion. Tras recargar /perfil, el elemento img de cada cuenta conservaba la URL y tenia complete=true y naturalWidth>0. Se abrieron y recargaron /perfil/35 y /perfil/36: nombres e imagenes correctos despues de terminar la consulta. Ambos GET publicos sin credenciales devolvieron 200, solo claves del contrato publico y la misma URL que el elemento img; el contenido principal de las paginas no mostraba correo de prueba ni etiquetas de correo/telefono privados.
+
+En la cuenta 35 se probaron tambien desde el modal:
+
+- Texto de 5 bytes llamado texto.png: POST 415, aviso "El formato de la imagen no es valido. Selecciona una foto JPG, PNG, WebP o AVIF."; foto anterior conservada.
+- Archivo de 5.242.881 bytes llamado grande.png: rechazo HTTP 413 observado en el navegador, aviso "La imagen es demasiado grande. Selecciona una de hasta 5 MiB."; foto anterior conservada.
+
+Consultas SQL posteriores: Media contiene exactamente una fila para cada nueva cuenta (26/35 y 27/36), ambas PERFIL; IAM contiene las URLs anteriores para sus respectivos usuarios. Los rechazos de la cuenta 35 no agregaron referencias. Esta ejecucion con navegador no repitio el reinicio: la evidencia de reinicio sigue siendo la prueba HTTP/SQL con cuentas 33/34 del apartado anterior.
+
+Observacion separada, no corregida: [perfil/[id]/page.tsx](../frontend-marketplace/src/app/perfil/[id]/page.tsx) inicializa el estado con MOCK_SELLERS/DEFAULT_SELLER; durante la carga se vio brevemente Juan Andres Perez Silva antes del nombre real. Biografia/ubicacion vacias conservan valores de ejemplo, y reputacion/resenas incluyen datos simulados. Las fotos y nombres finales de las cuentas 35/36 si provinieron de IAM. No se acredita autenticidad de esas otras secciones ni se declara resuelto ese defecto; requiere seguimiento separado del alcance de Media.
+
+Conclusiones: queda comprobado el recorrido real de foto con dos cuentas en navegador, los rechazos visibles, la recuperacion de referencias y la privacidad de los campos evaluados. Se mantienen las limitaciones de formatos, version binaria y alcance del reinicio ya descritas. Se conservaron las dos cuentas y sus dos assets nuevos; no se eliminaron datos. No se agregaron archivos de pruebas ni se modifico codigo funcional.
