@@ -9,117 +9,85 @@ import {
   PublicProfilePublications,
   PublicProfileReviews,
 } from '@/components/shared';
-import type { PublicProfilePublication, PublicSellerProfile } from '@/types/profile';
-import { MOCK_SELLER_REVIEWS } from '@/types/review';
+import type { PublicProfilePublication } from '@/types/profile';
 import { getPublicProfile } from '@/services/authService';
 import { publicationService } from '@/services/publicationService';
 
-/* -----------------------------------------------------------------------
- * Datos mock de respaldo si el perfil no existe en IAM
- * --------------------------------------------------------------------- */
+interface SellerProfileState {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  bio?: string;
+  city?: string;
+  avatarUrl?: string;
+}
 
-const MOCK_SELLERS: PublicSellerProfile[] = [
-  {
-    id: 'user-1',
-    firstName: 'Juan Andrés',
-    lastName: 'Pérez Silva',
-    bio: 'Especialista en fletes, traslados urbanos y reparaciones menores del hogar. Comprometido con la puntualidad y el buen trato.',
-    isVerified: true,
-    city: 'Providencia, RM',
-    memberSince: '2023',
-    score: 4.9,
-    totalReviews: 28,
-    responseTime: '< 15 min',
-    completionRate: 98,
-  },
-  {
-    id: 'user-2',
-    firstName: 'Mariana',
-    lastName: 'Gómez Torres',
-    bio: 'Técnica en mantención del hogar. Especialidad en gasfitería, pintura y pequeñas reparaciones eléctricas.',
-    isVerified: true,
-    city: 'Ñuñoa, RM',
-    memberSince: '2024',
-    score: 4.7,
-    totalReviews: 14,
-    responseTime: '< 30 min',
-    completionRate: 95,
-  },
-  {
-    id: 'user-3',
-    firstName: 'Carlos',
-    lastName: 'Muñoz Rivas',
-    bio: 'Vendedor de herramientas y artículos para el hogar. Entrega rápida en Santiago y alrededores.',
-    isVerified: false,
-    city: 'La Florida, RM',
-    memberSince: '2024',
-    score: 4.3,
-    totalReviews: 7,
-    responseTime: '< 1 hora',
-    completionRate: 90,
-  },
-];
+type PageStatus = 'loading' | 'not-found' | 'success';
 
-const DEFAULT_SELLER: PublicSellerProfile = MOCK_SELLERS[0];
-
-/* -----------------------------------------------------------------------
- * Página pública del vendedor — /perfil/[id]
- * Muestra: Foto, Bio, Botón Contactar, Reputación y publicaciones reales
- * --------------------------------------------------------------------- */
-export default function PublicProfilePage() {
-  const params = useParams();
-  const id = typeof params?.id === 'string' ? params.id : '';
-
+function PublicProfileDetail({ id }: { id: string }) {
   const numericId = React.useMemo(() => {
-    const digits = id.replace(/\D/g, '');
-    return digits ? parseInt(digits, 10) : null;
+    if (!/^\d+$/.test(id)) return null;
+    const parsed = parseInt(id, 10);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   }, [id]);
 
-  const [seller, setSeller] = React.useState<PublicSellerProfile>(() => {
-    return (
-      MOCK_SELLERS.find((s) => s.id === id || s.id === `user-${id}` || `user-${s.id}` === id) ??
-      DEFAULT_SELLER
-    );
-  });
-
+  const [status, setStatus] = React.useState<PageStatus>(() =>
+    numericId === null ? 'not-found' : 'loading',
+  );
+  const [seller, setSeller] = React.useState<SellerProfileState | null>(null);
   const [sellerPublications, setSellerPublications] = React.useState<PublicProfilePublication[]>(
     [],
   );
-  const [isLoadingPubs, setIsLoadingPubs] = React.useState(Boolean(numericId));
+  const [isLoadingPubs, setIsLoadingPubs] = React.useState(() => numericId !== null);
 
-  // Cargar datos de perfil público del vendedor desde IAM
   React.useEffect(() => {
-    if (!numericId) return;
+    if (numericId === null) {
+      return;
+    }
 
-    let isMounted = true;
-    getPublicProfile(numericId).then((profile) => {
-      if (!isMounted || !profile) return;
-      setSeller((prev) => ({
-        ...prev,
-        id: String(profile.userId),
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        bio: profile.bioExperiencia || prev.bio,
-        city: profile.ciudad ? `${profile.ciudad}, ${profile.region || 'Chile'}` : prev.city,
-        avatarUrl: profile.fotoPerfilUrl || prev.avatarUrl,
-      }));
-    });
+    const controller = new AbortController();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [numericId]);
+    // 1. Cargar datos de perfil público del vendedor desde IAM
+    getPublicProfile(numericId, controller.signal)
+      .then((profile) => {
+        if (controller.signal.aborted) return;
+        if (!profile || profile.userId !== numericId) {
+          setStatus('not-found');
+          setSeller(null);
+          return;
+        }
 
-  // Cargar publicaciones reales del vendedor desde el microservicio Catalog
-  React.useEffect(() => {
-    if (!numericId) return;
+        const firstName = profile.firstName?.trim() || '';
+        const lastName = profile.lastName?.trim() || '';
+        const fullName =
+          [firstName, lastName].filter(Boolean).join(' ').trim() || `Usuario #${numericId}`;
+        const city =
+          [profile.ciudad?.trim(), profile.region?.trim()].filter(Boolean).join(', ') || undefined;
 
-    let isMounted = true;
+        setSeller({
+          id: String(numericId),
+          firstName: firstName || `Usuario #${numericId}`,
+          lastName,
+          fullName,
+          bio: profile.bioExperiencia?.trim() || undefined,
+          city,
+          avatarUrl: profile.fotoPerfilUrl?.trim() || undefined,
+        });
+        setStatus('success');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setStatus('not-found');
+          setSeller(null);
+        }
+      });
 
+    // 2. Cargar publicaciones reales del vendedor desde Catalog
     publicationService
       .getPublications({ userId: numericId, limit: 50 })
       .then((res) => {
-        if (!isMounted) return;
+        if (controller.signal.aborted) return;
         if (res && res.publications) {
           const mapped: PublicProfilePublication[] = res.publications.map((p) => {
             const cat = (p.categorySlug || '').toLowerCase();
@@ -149,21 +117,65 @@ export default function PublicProfilePage() {
         }
       })
       .catch((err) => {
-        console.error('Error al cargar publicaciones del vendedor:', err);
+        if (!controller.signal.aborted) {
+          console.error('Error al cargar publicaciones del vendedor:', err);
+        }
       })
       .finally(() => {
-        if (isMounted) setIsLoadingPubs(false);
+        if (!controller.signal.aborted) {
+          setIsLoadingPubs(false);
+        }
       });
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, [numericId]);
 
-  const sellerReviews = React.useMemo(() => {
-    const matched = MOCK_SELLER_REVIEWS.filter((r) => r.sellerId === seller.id);
-    return matched.length > 0 ? matched : MOCK_SELLER_REVIEWS;
-  }, [seller.id]);
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-surface-base py-16 flex items-center justify-center">
+        <div role="status" className="text-center space-y-3">
+          <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-semibold text-content-muted">
+            Cargando perfil del vendedor...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'not-found' || !seller) {
+    return (
+      <div className="min-h-screen bg-surface-base py-16">
+        <div className="max-w-md mx-auto px-4 text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-surface-main border border-border-base flex items-center justify-center mx-auto text-content-muted shadow-xs">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-content-main">Vendedor no encontrado</h1>
+          <p className="text-xs text-content-muted">
+            El perfil de vendedor solicitado no existe o no se pudo cargar su información desde el
+            sistema.
+          </p>
+          <div>
+            <Link
+              href="/explorar"
+              className="inline-flex items-center text-xs font-bold text-brand hover:underline"
+            >
+              ← Explorar publicaciones
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface-base py-8 sm:py-12">
@@ -180,9 +192,7 @@ export default function PublicProfilePage() {
           <span>/</span>
           <span>Perfil de vendedor</span>
           <span>/</span>
-          <span className="text-content-main font-semibold">
-            {seller.firstName} {seller.lastName}
-          </span>
+          <span className="text-content-main font-semibold">{seller.fullName}</span>
         </nav>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -192,20 +202,12 @@ export default function PublicProfilePage() {
               firstName={seller.firstName}
               lastName={seller.lastName}
               bio={seller.bio}
-              isVerified={seller.isVerified}
+              isVerified={false}
               avatarUrl={seller.avatarUrl}
               city={seller.city}
-              memberSince={seller.memberSince}
-              onContact={() => {
-                /* conectar con módulo de mensajería en sprint futuro */
-              }}
+              contactDisabled={true}
             />
-            <PublicProfileReputation
-              score={seller.score}
-              totalReviews={seller.totalReviews}
-              responseTime={seller.responseTime}
-              completionRate={seller.completionRate}
-            />
+            <PublicProfileReputation available={false} />
           </div>
 
           {/* Columna derecha — Publicaciones reales de la base de datos y Reseñas */}
@@ -215,14 +217,17 @@ export default function PublicProfilePage() {
               publications={sellerPublications}
               isLoading={isLoadingPubs}
             />
-            <PublicProfileReviews
-              sellerName={seller.firstName}
-              averageScore={seller.score}
-              reviews={sellerReviews}
-            />
+            <PublicProfileReviews sellerName={seller.firstName} reviews={[]} />
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+export default function PublicProfilePage() {
+  const params = useParams();
+  const rawId = typeof params?.id === 'string' ? params.id : '';
+
+  return <PublicProfileDetail key={rawId} id={rawId} />;
 }

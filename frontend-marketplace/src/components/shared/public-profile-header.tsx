@@ -12,6 +12,7 @@ export interface PublicProfileHeaderProps {
   memberSince?: string;
   city?: string;
   onContact?: () => void;
+  contactDisabled?: boolean;
 }
 
 export function PublicProfileHeader({
@@ -20,9 +21,10 @@ export function PublicProfileHeader({
   bio,
   isVerified = false,
   avatarUrl,
-  memberSince = '2024',
-  city = 'Santiago, RM',
+  memberSince,
+  city,
   onContact,
+  contactDisabled = true,
 }: PublicProfileHeaderProps) {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   const fullName = `${firstName} ${lastName}`;
@@ -64,55 +66,62 @@ export function PublicProfileHeader({
       )}
 
       {/* Meta info */}
-      <div className="flex justify-center gap-6 text-[11px] text-content-muted font-medium border-t border-border-base/60 pt-4">
-        <div className="flex items-center gap-1.5">
-          <svg
-            className="w-3.5 h-3.5 text-brand"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
-          <span>{city}</span>
+      {(city || memberSince) && (
+        <div className="flex justify-center gap-6 text-[11px] text-content-muted font-medium border-t border-border-base/60 pt-4">
+          {city && (
+            <div className="flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5 text-brand"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span>{city}</span>
+            </div>
+          )}
+          {memberSince && (
+            <div className="flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5 text-brand"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span>Miembro desde {memberSince}</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <svg
-            className="w-3.5 h-3.5 text-brand"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <span>Miembro desde {memberSince}</span>
-        </div>
-      </div>
+      )}
 
       {/* Botón Contactar */}
       <Button
-        variant="primary"
+        variant={onContact && !contactDisabled ? 'primary' : 'secondary'}
         size="lg"
         fullWidth
+        disabled={!onContact || contactDisabled}
         onClick={onContact}
-        className="py-3.5 text-sm font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer"
+        className="py-3.5 text-sm font-extrabold shadow-sm transition-all"
       >
-        Contactar →
+        {onContact && !contactDisabled ? 'Contactar →' : 'Contactar (No disponible en el MVP)'}
       </Button>
     </div>
   );
