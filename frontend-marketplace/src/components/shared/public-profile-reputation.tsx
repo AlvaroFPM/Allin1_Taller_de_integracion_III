@@ -7,14 +7,28 @@ export interface PublicProfileReputationProps {
   totalReviews?: number;
   responseTime?: string;
   completionRate?: number;
+  available?: boolean;
 }
 
 export function PublicProfileReputation({
-  score = 4.9,
-  totalReviews = 28,
-  responseTime = '< 15 min',
-  completionRate = 98,
+  score,
+  totalReviews,
+  responseTime,
+  completionRate,
+  available = false,
 }: PublicProfileReputationProps) {
+  if (!available || score == null) {
+    return (
+      <div className="bg-surface-main rounded-3xl border border-border-base p-6 sm:p-8 shadow-xs space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-content-main">Reputación</h3>
+        <p className="text-xs text-content-muted leading-relaxed">
+          Métricas y calificaciones no disponibles en el MVP. Se registrarán tras completar
+          transacciones en próximas versiones.
+        </p>
+      </div>
+    );
+  }
+
   const fullStars = Math.floor(score);
   const hasHalf = score - fullStars >= 0.5;
 

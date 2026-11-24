@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Rating } from '@/components/ui/rating';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_SELLER_REVIEWS, type SellerReview } from '@/types/review';
+import type { SellerReview } from '@/types/review';
 
 export interface PublicProfileReviewsProps {
   reviews?: SellerReview[];
@@ -12,9 +12,9 @@ export interface PublicProfileReviewsProps {
 }
 
 export function PublicProfileReviews({
-  reviews = MOCK_SELLER_REVIEWS,
+  reviews = [],
   sellerName = 'este vendedor',
-  averageScore = 4.9,
+  averageScore,
 }: PublicProfileReviewsProps) {
   const [selectedFilter, setSelectedFilter] = React.useState<number | 'ALL'>('ALL');
 
@@ -143,11 +143,13 @@ export function PublicProfileReviews({
         /* Estado Vacío */
         <div className="p-8 rounded-2xl border border-dashed border-border-base text-center space-y-1">
           <p className="text-sm font-semibold text-content-main">
-            No se encontraron opiniones con este filtro
+            {reviews.length === 0
+              ? 'Sin opiniones ni reseñas registradas'
+              : 'No se encontraron opiniones con este filtro'}
           </p>
           <p className="text-xs text-content-muted">
             {reviews.length === 0
-              ? `${sellerName} aún no ha recibido reseñas en la plataforma.`
+              ? `${sellerName} aún no registra opiniones ni calificaciones de clientes en el MVP.`
               : 'Prueba seleccionando otra calificación en los filtros superiores.'}
           </p>
         </div>
