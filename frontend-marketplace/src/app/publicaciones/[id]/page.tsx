@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { PurchaseConfirmationModal } from '@/components/shared/purchase-confirmation-modal';
 import { orderService } from '@/services/orderService';
@@ -29,6 +29,7 @@ export default function PublicationDetailPage() {
 }
 
 function PublicationDetail({ id }: { id: string }) {
+  const router = useRouter();
   const [state, setState] = useState<DetailState>({ status: 'loading' });
   const [retryCount, setRetryCount] = useState(0);
   const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
@@ -294,10 +295,19 @@ function PublicationDetail({ id }: { id: string }) {
             <PublicationDetailContact
               sellerId={publication.sellerId}
               sellerName={publication.sellerName}
+              onSendMessage={
+                Number.isInteger(publication.id) &&
+                publication.id > 0 &&
+                Number.isInteger(publication.sellerId) &&
+                publication.sellerId > 0
+                  ? () => router.push(`/mensajes?publicacionId=${publication.id}`)
+                  : undefined
+              }
             />
           </aside>
         </div>
       </div>
+
       {isPurchaseOpen && (
         <PurchaseConfirmationModal
           isOpen={isPurchaseOpen}
