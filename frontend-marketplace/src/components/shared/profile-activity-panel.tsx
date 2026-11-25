@@ -114,11 +114,23 @@ export function ProfileActivityPanel({ userId }: ProfileActivityPanelProps) {
           </p>
         </div>
 
-        <Link href="/publicar" className="shrink-0">
-          <Button variant="primary" size="sm">
-            + Publicar Solicitud / Venta
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link href="/ordenes">
+            <Button variant="secondary" size="sm">
+              Mis Órdenes
+            </Button>
+          </Link>
+          <Link href="/mensajes">
+            <Button variant="outline" size="sm">
+              Mensajes
+            </Button>
+          </Link>
+          <Link href="/publicar">
+            <Button variant="primary" size="sm">
+              + Publicar Solicitud / Venta
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Pestañas de Filtro Dinámicas */}

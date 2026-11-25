@@ -359,7 +359,7 @@ export function OrdersDashboardPanel() {
           </div>
           <div>
             {activeTab === 'COMPRA' ? (
-              <Link href="/catalogo">
+              <Link href="/explorar">
                 <Button variant="primary" size="sm">
                   Explorar Catálogo de Servicios
                 </Button>
