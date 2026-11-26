@@ -11,6 +11,7 @@ import {
 import type { CreatePublicationFormState, PublicationCategory } from '@/types/publication';
 import { publicationService } from '@/services/publicationService';
 import { useAuthStore } from '@/store/useAuthStore';
+import { uploadMedia, MediaUploadError } from '@/services/mediaService';
 
 export default function PublicarPage() {
   const router = useRouter();
@@ -18,6 +19,11 @@ export default function PublicarPage() {
   const [categories, setCategories] = React.useState<PublicationCategory[]>([]);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const { user } = useAuthStore();
+  const [photos, setPhotos] = React.useState<File[]>([]);
+  const uploadedPhotos = React.useRef(new Map<File, string>());
+  const uploadOwner = React.useRef<number | null>(null);
+  const [stage, setStage] = React.useState<'upload' | 'save' | null>(null);
+  const busy = React.useRef(false);
 
   const [formState, setFormState] = React.useState<CreatePublicationFormState>({
     titulo: '',
@@ -48,6 +54,7 @@ export default function PublicarPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (busy.current) return;
     setErrorMessage(null);
 
     if (!user) {
@@ -89,10 +96,40 @@ export default function PublicarPage() {
       return;
     }
 
+    const token = useAuthStore.getState().token;
+    let uploading = false;
     try {
+      busy.current = true;
       setIsSubmitting(true);
-
-      await publicationService.createPublication({
+      if (uploadOwner.current !== user.id) {
+        uploadedPhotos.current.clear();
+        uploadOwner.current = user.id;
+      }
+      const imageUrls: string[] = [];
+      for (const photo of photos) {
+        const session = useAuthStore.getState();
+        if (!token || session.token !== token || session.user?.id !== user.id) {
+          throw new MediaUploadError('session', 'La sesión cambió.');
+        }
+        let url = uploadedPhotos.current.get(photo);
+        if (!url) {
+          uploading = true;
+          setStage('upload');
+          url = (await uploadMedia(photo, 'PORTADA')).url;
+          uploadedPhotos.current.set(photo, url);
+        }
+        imageUrls.push(url);
+      }
+      uploading = false;
+      setStage('save');
+      const session = useAuthStore.getState();
+      if (!token || session.token !== token || session.user?.id !== user.id) {
+        setErrorMessage(
+          'Tu sesión cambió. Inicia sesión y revisa tus publicaciones antes de continuar.',
+        );
+        return;
+      }
+      const created = await publicationService.createPublication({
         title: formState.titulo.trim(),
         description: formState.descripcion.trim(),
         categoryId: Number(formState.categoriaId),
@@ -101,16 +138,44 @@ export default function PublicarPage() {
         type: formState.tipo,
         sellerId: user.id,
         location: formState.ubicacion,
+        images: imageUrls,
       });
+      if (
+        !created?.id ||
+        created.images?.length !== imageUrls.length ||
+        imageUrls.some((url, i) => created.images?.[i] !== url)
+      ) {
+        setErrorMessage(
+          'No se pudo confirmar la publicación con sus imágenes. Revisa tu perfil antes de reintentar para evitar duplicados.',
+        );
+        return;
+      }
       alert('¡Publicación creada con éxito! Redirigiendo...');
-      router.push('/');
+      router.push(`/publicaciones/${created.id}`);
     } catch (error: unknown) {
-      const err = error as AxiosError<{ message?: string }>;
-      const errorMsg =
-        err.response?.data?.message || 'Ocurrió un error desconocido al crear la publicación.';
-      alert(`No se pudo crear: ${errorMsg}`);
+      if (uploading) {
+        const kind = error instanceof MediaUploadError ? error.kind : undefined;
+        setErrorMessage(
+          kind === 'size'
+            ? 'Una imagen supera el límite de 5 MiB. Selecciona una imagen más pequeña.'
+            : kind === 'format'
+              ? 'Selecciona una imagen válida JPG, PNG, WebP o AVIF.'
+              : kind === 'session'
+                ? 'Inicia sesión nuevamente para subir las imágenes.'
+                : 'No se pudieron subir todas las imágenes. Comprueba tu conexión. La publicación no se ha enviado.',
+        );
+      } else {
+        const err = error as AxiosError;
+        setErrorMessage(
+          err.response?.status === 400
+            ? 'No se pudo guardar la publicación. Revisa sus datos; al reintentar se reutilizarán las imágenes subidas.'
+            : 'No se pudo confirmar el guardado. Revisa tus publicaciones antes de reintentar para evitar duplicados.',
+        );
+      }
     } finally {
+      busy.current = false;
       setIsSubmitting(false);
+      setStage(null);
     }
   };
 
@@ -119,15 +184,24 @@ export default function PublicarPage() {
       <h1 className="text-2xl font-bold mb-6">Crear nueva publicación</h1>
 
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
+        <div
+          role="alert"
+          className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs"
+        >
           {errorMessage}
         </div>
+      )}
+      {stage && (
+        <p role="status">{stage === 'upload' ? 'Subiendo imágenes…' : 'Guardando publicación…'}</p>
       )}
 
       {/* Layout de 2 Columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-4">
         {/* Columna Izquierda: Pasos 1 y 2 */}
-        <div className="lg:col-span-7 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs">
+        <fieldset
+          disabled={isSubmitting}
+          className="lg:col-span-7 min-w-0 space-y-8 bg-surface-main p-6 sm:p-8 rounded-3xl border border-border-base shadow-xs"
+        >
           <PublicationTypeSelector
             value={formState.tipo}
             onChange={(tipo) => setFormState((prev) => ({ ...prev, tipo }))}
@@ -136,8 +210,18 @@ export default function PublicarPage() {
             formState={formState}
             categories={categories}
             onChange={handleChange}
+            photos={photos}
+            disabled={isSubmitting}
+            onPhotosChange={(files) => {
+              if (busy.current) return;
+              setPhotos(files);
+              for (const file of uploadedPhotos.current.keys()) {
+                if (!files.includes(file)) uploadedPhotos.current.delete(file);
+              }
+              setErrorMessage(null);
+            }}
           />
-        </div>
+        </fieldset>
 
         {/* Columna Derecha: Vista Previa en Vivo */}
         <div className="lg:col-span-5 lg:sticky lg:top-8">
@@ -145,6 +229,7 @@ export default function PublicarPage() {
             formState={formState}
             onSubmit={handleSubmit}
             isSubmitting={isSubmitting}
+            photoCount={photos.length}
           />
         </div>
       </div>

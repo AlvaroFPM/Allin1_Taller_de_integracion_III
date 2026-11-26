@@ -19,6 +19,53 @@ import (
 )
 
 // baseValidRequest genera un CreatePublicationRequest válido para mutar en cada caso de prueba
+func TestPublicationImagesValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		images []string
+		valid  bool
+	}{
+		{"legacy", nil, true},
+		{"cover", []string{"https://res.cloudinary.com/demo/image/upload/cover.jpg"}, true},
+		{"javascript", []string{"javascript:alert(1)"}, false},
+		{"empty", []string{""}, false},
+		{"http", []string{"http://example.com/image.jpg"}, false},
+		{"credentials", []string{"https://user:secret@example.com/a.jpg"}, false},
+		{"too many", make([]string, 6), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := baseValidRequest()
+			req.ImagenesUrls = tc.images
+			err := validateCreateRequest(req)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.Equal(t, codes.InvalidArgument, status.Code(err))
+			}
+		})
+	}
+}
+
+func TestPublicationImagesPersistence(t *testing.T) {
+	db := setupTestDB(t)
+	cat := seedCategoria(t, db)
+	svc := NewPublicationServiceServer(db)
+	req := baseValidRequest()
+	req.CategoriaId = uint32(cat.IDCategoria)
+	for i := 0; i < 5; i++ {
+		req.ImagenesUrls = append(req.ImagenesUrls, fmt.Sprintf("https://res.cloudinary.com/demo/image/upload/photo-%d.jpg", i))
+	}
+	created, err := svc.CreatePublication(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, req.ImagenesUrls, created.Publication.ImagenesUrls)
+	got, err := svc.GetPublication(context.Background(), &pb.GetPublicationRequest{IdPublicacion: created.Publication.IdPublicacion})
+	require.NoError(t, err)
+	require.Equal(t, req.ImagenesUrls, got.Publication.ImagenesUrls)
+	var stored models.Publicacion
+	require.NoError(t, db.First(&stored, created.Publication.IdPublicacion).Error)
+	require.Equal(t, req.ImagenesUrls, stored.ImagenesURLs)
+}
+
 func baseValidRequest() *pb.CreatePublicationRequest {
 	return &pb.CreatePublicationRequest{
 		IdUsuarioVendedor: 1,

@@ -53,6 +53,7 @@ func (s *PublicationServiceServer) CreatePublication(ctx context.Context, req *p
 		PrecioBase:        req.GetPrecioBase(),
 		Ciudad:            req.GetCiudad(),
 		Region:            req.GetRegion(),
+		ImagenesURLs:      req.GetImagenesUrls(),
 		Estado:            models.EstadoActivo,
 	}
 

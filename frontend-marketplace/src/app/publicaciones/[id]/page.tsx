@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { getAccessToken } from '@/lib/authCookies';
 import {
   PublicationDetailHero,
+  PublicationDetailGallery,
   PublicationDetailContact,
   PublicationDetailSidebar,
 } from '@/components/shared';
@@ -260,6 +261,7 @@ function PublicationDetail({ id }: { id: string }) {
 
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           <div className="space-y-6 sm:space-y-8 lg:col-span-8">
+            <PublicationDetailGallery images={publication.images ?? []} title={publication.title} />
             <section className="space-y-4 rounded-3xl border border-border-base bg-surface-main p-6 shadow-2xs sm:p-8">
               <h2 className="text-lg font-bold text-content-main sm:text-xl">Descripción</h2>
               <p className="text-sm leading-relaxed whitespace-pre-line text-content-main/90 sm:text-base">

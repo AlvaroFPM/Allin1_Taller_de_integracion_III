@@ -17,6 +17,7 @@ export interface CatalogPublication {
   categorySlug?: string;
   location?: string;
   createdAtRelative: string;
+  images?: string[];
 }
 
 export interface ListPublicationsParams {
@@ -55,6 +56,8 @@ interface RawCategory {
 }
 
 interface RawPublication {
+  imagenesUrls?: string[];
+  imagenes_urls?: string[];
   idPublicacion?: number;
   id_publicacion?: number;
   titulo?: string;
@@ -119,6 +122,7 @@ export const publicationService = {
 
     return {
       id: idPub,
+      images: publication.imagenesUrls ?? publication.imagenes_urls ?? [],
       title: publication.titulo || '',
       description: publication.descripcion || '',
       price: Number(publication.precioBase ?? publication.precio_base ?? 0),
@@ -221,6 +225,7 @@ export const publicationService = {
 
           return {
             id: idPub,
+            images: publication.imagenesUrls ?? publication.imagenes_urls ?? [],
             title: publication.titulo || '',
             description: publication.descripcion || '',
             price: Number(publication.precioBase ?? publication.precio_base ?? 0),
@@ -279,6 +284,7 @@ export const publicationService = {
       precio_base: data.price,
       ciudad: data.location || 'Santiago',
       region: 'RM',
+      ...(data.images?.length ? { imagenes_urls: data.images } : {}),
     };
 
     const response = await api.post<PublicationResponse>(
@@ -306,6 +312,7 @@ export const publicationService = {
 
     return {
       id: idPub,
+      images: publication.imagenesUrls ?? publication.imagenes_urls ?? [],
       title: publication.titulo || data.title,
       description: publication.descripcion || data.description,
       price: Number(publication.precioBase ?? publication.precio_base ?? data.price),

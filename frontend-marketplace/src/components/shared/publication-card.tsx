@@ -21,6 +21,15 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
 
   return (
     <article className="bg-surface-main border border-border-base rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-emerald-600/30 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between text-left gap-4 group">
+      {publication.coverUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={publication.coverUrl}
+          alt={`Portada de ${publication.title}`}
+          loading="lazy"
+          className="aspect-video w-full rounded-xl object-cover"
+        />
+      )}
       {/* Cabecera: Badge de tipo y tiempo relativo */}
       <div className="flex items-center justify-between gap-2">
         <span

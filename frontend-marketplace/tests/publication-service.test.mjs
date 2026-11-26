@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 
-function setup(getImpl) {
+function setup(getImpl, postImpl) {
   const source = fs.readFileSync(
     new URL('../src/services/publicationService.ts', import.meta.url),
     'utf8',
@@ -35,11 +35,14 @@ function setup(getImpl) {
       }
       if (name === '@/lib/axios') {
         return {
+          __esModule: true,
           default: {
             get: getImpl,
-            post: async () => {
-              throw new Error('post no esperado en pruebas de lectura');
-            },
+            post:
+              postImpl ??
+              (async () => {
+                throw new Error('post no esperado en pruebas de lectura');
+              }),
           },
         };
       }
@@ -56,6 +59,57 @@ function setup(getImpl) {
 
   return moduleObject.exports.publicationService;
 }
+
+test('portada: envia imagenes_urls y conserva la URL confirmada en crear, detalle y lista', async () => {
+  const images = Array.from(
+    { length: 5 },
+    (_, i) => `https://res.cloudinary.com/demo/image/upload/photo-${i}.jpg`,
+  );
+  const raw = { idPublicacion: 42, imagenesUrls: images };
+  const service = setup(
+    async (url) => ({
+      data: url.endsWith('/42')
+        ? { publication: raw }
+        : { publications: [{ id_publicacion: 42, imagenes_urls: images }] },
+    }),
+    async (_url, payload) => {
+      assert.deepEqual(payload.imagenes_urls, images);
+      return { data: { publication: raw } };
+    },
+  );
+  const created = await service.createPublication({
+    title: 'Prueba',
+    description: 'Prueba',
+    price: 100,
+    currency: 'CLP',
+    type: 'OFERTA',
+    sellerId: 1,
+    categoryId: 1,
+    images,
+  });
+  assert.deepEqual(created.images, images);
+  assert.deepEqual((await service.getPublicationById('42')).images, images);
+  assert.deepEqual((await service.getPublications()).publications[0].images, images);
+});
+
+test('portada: no inventa confirmacion si Catalog no devuelve las imagenes', async () => {
+  const service = setup(
+    async () => ({ data: { publication: { idPublicacion: 1 } } }),
+    async () => ({ data: { publication: { idPublicacion: 1 } } }),
+  );
+  const created = await service.createPublication({
+    title: 'Prueba',
+    description: 'Prueba',
+    price: 100,
+    currency: 'CLP',
+    type: 'OFERTA',
+    sellerId: 1,
+    categoryId: 1,
+    images: ['https://example.com/a.jpg'],
+  });
+  assert.deepEqual(created.images, []);
+  assert.deepEqual((await service.getPublicationById('1')).images, []);
+});
 
 // 1. CASO NOMINAL (payloads reales capturados desde GET /v1/categories, /v1/publications/1 y /v1/publications?limit=2)
 test('nominal: getCategories conserva id numerico, nombre, slug e iconoUrl real', async () => {

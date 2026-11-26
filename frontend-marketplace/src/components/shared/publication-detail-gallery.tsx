@@ -25,9 +25,11 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
           alt={`${title} - Imagen ${selectedIdx + 1}`}
           className="w-full h-full object-cover"
         />
-        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-md">
-          {selectedIdx + 1} / {images.length}
-        </div>
+        {images.length > 1 && (
+          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-md">
+            {selectedIdx + 1} / {images.length}
+          </div>
+        )}
       </div>
 
       {/* Miniaturas (Soporta 1 a 5 imágenes según la regla de negocio RN-25) */}
