@@ -18,7 +18,11 @@ export function PublicationLivePreview({
   isSubmitting = false,
   photoCount = 0,
 }: PublicationLivePreviewProps) {
-  const { tipo, titulo, descripcion, ubicacion, moneda, precioBase } = formState;
+  const { tipo, titulo, descripcion, region, ubicacion, moneda, precioBase } = formState;
+  const displayLocation =
+    ubicacion.trim() && region
+      ? `${ubicacion.trim()}, ${region}`
+      : ubicacion.trim() || region || 'Por definir';
 
   // Badge según el tipo
   const badgeConfig = {
@@ -74,7 +78,7 @@ export function PublicationLivePreview({
             </p>
             <p className="text-xs font-semibold text-content-main mt-0.5 flex items-center gap-1">
               <span>📍</span>
-              <span className="truncate">{ubicacion || 'Por definir'}</span>
+              <span className="truncate">{displayLocation}</span>
             </p>
           </div>
 

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  COMUNAS_DISPONIBLES,
+  REGIONES_CHILE,
   type CreatePublicationFormState,
   type PublicationCategory,
 } from '@/types/publication';
@@ -27,7 +27,7 @@ export function CreatePublicationForm({
 }: CreatePublicationFormProps) {
   const coverInput = React.useRef<HTMLInputElement>(null);
   const [photoError, setPhotoError] = React.useState<string | null>(null);
-  const { titulo, categoriaId, descripcion, ubicacion, moneda, precioBase } = formState;
+  const { titulo, categoriaId, descripcion, region, ubicacion, moneda, precioBase } = formState;
 
   return (
     <div className="space-y-6 text-left">
@@ -106,51 +106,66 @@ export function CreatePublicationForm({
           />
         </div>
 
-        {/* Grid: Ubicación y Presupuesto */}
+        {/* Grid: Región y Ciudad / Comuna */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Ubicación */}
+          {/* Región de Chile */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-content-main">
-              Ubicación <span className="text-red-500">*</span>
+              Región <span className="text-red-500">*</span>
             </label>
             <select
-              value={ubicacion}
-              onChange={(e) => onChange({ ubicacion: e.target.value })}
+              value={region}
+              onChange={(e) => onChange({ region: e.target.value })}
               className="w-full h-10 px-3.5 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl transition-all focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20 cursor-pointer"
             >
-              <option value="">Comuna / Sector...</option>
-              {COMUNAS_DISPONIBLES.map((comuna) => (
-                <option key={comuna} value={comuna}>
-                  {comuna}
+              <option value="">Selecciona una región...</option>
+              {REGIONES_CHILE.map((reg) => (
+                <option key={reg} value={reg}>
+                  {reg}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Presupuesto Estimado */}
+          {/* Ciudad / Comuna (texto libre) */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-content-main">
-              Presupuesto Estimado
+              Ciudad / Comuna <span className="text-red-500">*</span>
             </label>
-            <div className="flex rounded-xl overflow-hidden border border-border-base focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
-              <select
-                value={moneda}
-                onChange={(e) => onChange({ moneda: e.target.value })}
-                className="h-10 px-3 bg-surface-main border-r border-border-base text-xs font-bold text-content-main cursor-pointer focus:outline-hidden"
-              >
-                <option value="CLP">CLP</option>
-                <option value="USD">USD</option>
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="1000"
-                value={precioBase}
-                onChange={(e) => onChange({ precioBase: e.target.value })}
-                placeholder="0"
-                className="w-full h-10 px-3.5 text-xs sm:text-sm bg-surface-base focus:outline-hidden"
-              />
-            </div>
+            <input
+              type="text"
+              value={ubicacion}
+              maxLength={100}
+              onChange={(e) => onChange({ ubicacion: e.target.value })}
+              placeholder="Ej: Temuco, Providencia, Valdivia..."
+              className="w-full h-10 px-3.5 text-xs sm:text-sm bg-surface-base border border-border-base rounded-xl transition-all focus:outline-hidden focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+          </div>
+        </div>
+
+        {/* Presupuesto Estimado */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-content-main">
+            Presupuesto Estimado <span className="text-red-500">*</span>
+          </label>
+          <div className="flex rounded-xl overflow-hidden border border-border-base focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+            <select
+              value={moneda}
+              onChange={(e) => onChange({ moneda: e.target.value })}
+              className="h-10 px-3 bg-surface-main border-r border-border-base text-xs font-bold text-content-main cursor-pointer focus:outline-hidden"
+            >
+              <option value="CLP">CLP</option>
+              <option value="USD">USD</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              value={precioBase}
+              onChange={(e) => onChange({ precioBase: e.target.value })}
+              placeholder="0"
+              className="w-full h-10 px-3.5 text-xs sm:text-sm bg-surface-base focus:outline-hidden"
+            />
           </div>
         </div>
 

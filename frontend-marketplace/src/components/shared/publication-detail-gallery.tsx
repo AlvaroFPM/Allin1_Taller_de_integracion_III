@@ -17,13 +17,13 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
 
   return (
     <div className="space-y-4">
-      {/* Visor Principal */}
-      <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-gray-100 border border-border-base flex items-center justify-center">
+      {/* Visor Principal: conserva proporción original y evita ampliar fotos pequeñas */}
+      <div className="relative min-h-[260px] max-h-[520px] w-full rounded-2xl overflow-hidden bg-surface-base border border-border-base flex items-center justify-center p-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[selectedIdx]}
           alt={`${title} - Imagen ${selectedIdx + 1}`}
-          className="w-full h-full object-cover"
+          className="max-h-[500px] max-w-full w-auto h-auto object-contain rounded-lg"
         />
         {images.length > 1 && (
           <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-md">
@@ -41,7 +41,7 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
               type="button"
               onClick={() => setSelectedIdx(idx)}
               className={cn(
-                'relative w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer',
+                'relative w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-surface-base flex items-center justify-center p-0.5',
                 selectedIdx === idx
                   ? 'border-brand ring-2 ring-brand/30'
                   : 'border-border-base hover:border-brand/60 opacity-80 hover:opacity-100',
@@ -51,7 +51,7 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
               <img
                 src={imgUrl}
                 alt={`Miniatura ${idx + 1}`}
-                className="w-full h-full object-cover"
+                className="max-w-full max-h-full w-auto h-auto object-contain"
               />
             </button>
           ))}

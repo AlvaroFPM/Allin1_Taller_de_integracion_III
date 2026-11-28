@@ -15,8 +15,8 @@ const (
 	// MaxDimension es el límite del lado más largo, en píxeles
 	MaxDimension = 1920
 
-	// JPEGQuality es la calidad de recompresión: sweet spot entre peso y percepción visual para imágenes web.
-	JPEGQuality = 82
+	// JPEGQuality conserva alta nitidez cuando es necesario redimensionar o convertir.
+	JPEGQuality = 92
 )
 
 // ProcessedFile contiene el nombre original y los bytes listos para subir.
@@ -74,6 +74,16 @@ func (p *ImageProcessor) Process(vf ValidatedFile) (ProcessedFile, error) {
 			Size:     vf.Size(),
 			Err:      fmt.Errorf("%w: no se pudo decodificar la imagen: %v", ErrUnsupportedFormat, err),
 		}
+	}
+
+	bounds := img.Bounds()
+	// Si ya es JPEG válido y está dentro del tamaño máximo, conservar bytes originales
+	// sin recomprimir para evitar pérdida de nitidez por doble compresión.
+	if vf.Format == FormatJPEG && max(bounds.Dx(), bounds.Dy()) <= p.maxDimension {
+		return ProcessedFile{
+			Name: vf.Name,
+			Data: vf.Data,
+		}, nil
 	}
 
 	img = p.resizeIfNeeded(img)
