@@ -254,22 +254,39 @@ function SelectedPhoto({
   onRemove: () => void;
 }) {
   const image = React.useRef<HTMLImageElement>(null);
+  const [dimensions, setDimensions] = React.useState<{ w: number; h: number } | null>(null);
   React.useEffect(() => {
     const url = URL.createObjectURL(file);
     if (image.current) image.current.src = url;
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  const isLowRes = dimensions !== null && Math.max(dimensions.w, dimensions.h) < 500;
+
   return (
     <li className="flex items-center gap-3 rounded-xl border border-border-base bg-surface-base p-2.5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={image}
         alt={`Vista previa de ${file.name}`}
-        className="h-12 w-16 shrink-0 rounded-lg object-cover bg-surface-main"
+        onLoad={(e) => {
+          const el = e.currentTarget;
+          if (el.naturalWidth > 0 && el.naturalHeight > 0) {
+            setDimensions({ w: el.naturalWidth, h: el.naturalHeight });
+          }
+        }}
+        className="h-12 w-16 shrink-0 rounded-lg object-contain bg-surface-main"
       />
       <div className="min-w-0 flex-1">
         <p className="break-all text-sm text-content-main">{file.name}</p>
-        {cover && <span className="text-xs font-semibold text-brand">Portada</span>}
+        <div className="flex flex-wrap items-center gap-2">
+          {cover && <span className="text-xs font-semibold text-brand">Portada</span>}
+          {isLowRes && dimensions && (
+            <span className="text-[11px] font-medium text-amber-700">
+              Resolución baja ({dimensions.w}×{dimensions.h} px): puede verse algo borrosa
+            </span>
+          )}
+        </div>
       </div>
       <button
         type="button"

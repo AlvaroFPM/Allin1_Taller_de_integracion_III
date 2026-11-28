@@ -17,16 +17,24 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
 
   return (
     <div className="space-y-4">
-      {/* Visor Principal: conserva proporción original y evita ampliar fotos pequeñas */}
-      <div className="relative min-h-[260px] max-h-[520px] w-full rounded-2xl overflow-hidden bg-surface-base border border-border-base flex items-center justify-center p-2">
+      {/* Visor Principal: altura equilibrada + object-contain + fondo ambiental difuminado */}
+      <div className="relative h-[340px] sm:h-[420px] w-full rounded-2xl overflow-hidden bg-surface-base border border-border-base flex items-center justify-center">
+        {/* Fondo difuminado sutil para rellenar bordes en fotos cuadradas o verticales */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={images[selectedIdx]}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-30 pointer-events-none select-none"
+        />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[selectedIdx]}
           alt={`${title} - Imagen ${selectedIdx + 1}`}
-          className="max-h-[500px] max-w-full w-auto h-auto object-contain rounded-lg"
+          className="relative z-10 w-full h-full object-contain p-2 drop-shadow-xs"
         />
         {images.length > 1 && (
-          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-md">
+          <div className="absolute top-3 right-3 z-20 bg-black/60 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-md">
             {selectedIdx + 1} / {images.length}
           </div>
         )}
@@ -51,7 +59,7 @@ export function PublicationDetailGallery({ images, title }: PublicationDetailGal
               <img
                 src={imgUrl}
                 alt={`Miniatura ${idx + 1}`}
-                className="max-w-full max-h-full w-auto h-auto object-contain"
+                className="w-full h-full object-contain"
               />
             </button>
           ))}
