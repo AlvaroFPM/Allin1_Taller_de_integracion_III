@@ -600,3 +600,52 @@ Consultas SQL posteriores: Media contiene exactamente una fila para cada nueva c
 Observacion separada, no corregida: [perfil/[id]/page.tsx](../frontend-marketplace/src/app/perfil/[id]/page.tsx) inicializa el estado con MOCK_SELLERS/DEFAULT_SELLER; durante la carga se vio brevemente Juan Andres Perez Silva antes del nombre real. Biografia/ubicacion vacias conservan valores de ejemplo, y reputacion/resenas incluyen datos simulados. Las fotos y nombres finales de las cuentas 35/36 si provinieron de IAM. No se acredita autenticidad de esas otras secciones ni se declara resuelto ese defecto; requiere seguimiento separado del alcance de Media.
 
 Conclusiones: queda comprobado el recorrido real de foto con dos cuentas en navegador, los rechazos visibles, la recuperacion de referencias y la privacidad de los campos evaluados. Se mantienen las limitaciones de formatos, version binaria y alcance del reinicio ya descritas. Se conservaron las dos cuentas y sus dos assets nuevos; no se eliminaron datos. No se agregaron archivos de pruebas ni se modifico codigo funcional.
+
+## Portada de publicaciones (sin issue): implementacion del 26/11/2026
+
+Rama `feat/portada-publicaciones`, base `8299e08` de develop. Alcance nuevo solicitado: una portada opcional al crear publicaciones, no portada de perfil. Se reutiliza POST Media con tipo PORTADA (limite 5 MiB, lado mayor 1600 para imagenes transcodificadas) y el campo repetido `imagenes_urls` ya existente en publication.proto. Sin endpoints, dependencias ni cambios protobuf/pb nuevos.
+
+### Cambios y despliegue
+
+- [Modelo](../backend-go/internal/models/publication.go): columna nullable `imagenes_urls` JSONB con serializador JSON GORM. AutoMigrate de cmd/catalog la agrega al arrancar la nueva imagen. Es aditiva; filas antiguas sin imagen siguen siendo validas. No borrar volumenes. Al volver al binario anterior, conservar la columna y los datos; ese binario no devuelve imagenes.
+- [Servicio](../backend-go/internal/service/publication_service.go) y [mapeadores](../backend-go/internal/service/mappers.go): guardan/devuelven la lista en crear, detalle y listado. Aceptan cero a cinco URLs HTTPS, sin credenciales en la URL y hasta 2000 caracteres. No descargan URLs ni comprueban propiedad del asset; no es una validacion de pertenencia entre Media y Catalog.
+- [Formulario](../frontend-marketplace/src/components/shared/create-publication-form.tsx) y [pagina de creacion](../frontend-marketplace/src/app/publicar/page.tsx): selector de una portada, nombre separado, quitar seleccion, subida al confirmar, etapas y errores legibles. Bloqueo de doble envio/cambios durante el proceso. Si falla Catalog se conserva la URL en memoria para reintentar sin subir de nuevo. Se exige respuesta con ID y misma URL antes de anunciar exito; se navega al detalle creado.
+- [Cliente Catalog](../frontend-marketplace/src/services/publicationService.ts): envia imagenes_urls y lee camelCase/snake_case sin inventar una URL si la respuesta no la confirma. [Detalle](../frontend-marketplace/src/app/publicaciones/[id]/page.tsx): reutiliza galeria existente; /catalogo/[id] comparte esa pagina. [Explorar](../frontend-marketplace/src/app/explorar/page.tsx), [tipo](../frontend-marketplace/src/types/catalog.ts) y [tarjeta](../frontend-marketplace/src/components/shared/publication-card.tsx): primera imagen como portada. [Vista previa](../frontend-marketplace/src/components/shared/publication-live-preview.tsx): informa el nombre seleccionado, no una persistencia ficticia.
+- Regresiones ampliadas en [pruebas Go existentes](../backend-go/internal/service/publication_service_test.go) y [pruebas de cliente existentes](../frontend-marketplace/tests/publication-service.test.mjs). Sin nuevos archivos de tests.
+
+Para desplegar localmente: `docker compose up -d --build catalog`, con IAM/Media y sus BD activos. Frontend: `npm run dev -- --port 3001`. Se reconstruyo Catalog correctamente; la migracion ya esta aplicada a catalog_db local. No se alteraron manifiestos Kubernetes.
+
+### Evidencia real, sin mocks de integracion
+
+Cuenta sintetica 37, creada para esta ejecucion; login mediante formulario real. Imagenes generadas en memoria y asignadas al input del navegador, sin automatizar el dialogo nativo de Windows. Se pulsaron los botones reales y se observaron respuestas HTTP, DOM y SQL.
+
+| Caso | Observado |
+|---|---|
+| PNG 2000x1000 desde /publicar | Media 201, id 28, tipo PORTADA; Catalog 200, publicacion 95 con misma URL |
+| Recargar detalle 95 | Imagen cargada, naturalWidth=1600 y naturalHeight=800; coincide con SQL |
+| Texto disfrazado de PNG | Media 415, aviso legible, permanece en formulario |
+| Subida valida seguida de precio decimal 1.5 | Media 201, id 29; Catalog 400 por int64; solo una publicacion del usuario y dos filas Media |
+| Corregir precio a 15000 y reintentar | Catalog 200, publicacion 96 con URL del id 29; Media sigue con dos filas, sin segunda subida |
+| Crear sin portada | Catalog 200, publicacion 97, imagenesUrls vacio; compatibilidad conservada |
+
+URL publicacion 95 / Media 28: https://res.cloudinary.com/rstk3bky/image/upload/v1795720125/media/portada/bcskoxmlylkpc3vt2m6q.jpg
+
+URL publicacion 96 / Media 29: https://res.cloudinary.com/rstk3bky/image/upload/v1795720187/media/portada/di1hlgzypfops2dsprsh.jpg
+
+Consultas reproducibles: `SELECT id_publicacion,id_usuario_vendedor,imagenes_urls FROM publicaciones WHERE id_usuario_vendedor=37 ORDER BY id_publicacion;` en catalog_db y `SELECT id_media,id_usuario,tipo,url FROM media WHERE id_usuario=37 ORDER BY id_media;` en media_db. Se conservaron cuenta, tres publicaciones y dos assets sinteticos; no se borraron datos.
+
+Validaciones: `go test ./internal/service -run 'TestPublicationImages|TestValidateCreateRequest|TestMappers|TestListPublications|TestGetPublication' -count=1` aprobado con PostgreSQL real (transacciones de tests revertidas). `node --test tests/publication-service.test.mjs src/services/mediaService.test.mjs`: 18 aprobadas. TypeScript sin emitir ni incremental: aprobado. ESLint enfocado en archivos frontend modificados: aprobado. Build Docker Catalog: aprobado. No se ejecutaron build de produccion frontend ni todas las suites del repositorio.
+
+Limites de la primera iteracion: una sola portada en UI (ampliada a cinco en el complemento siguiente); no edicion de publicaciones existentes, borrado remoto ni compensacion automatica. Cerrar/recargar tras subir pero antes de guardar pierde la URL pendiente y puede dejar un asset huerfano. Ante resultado incierto de red se indica consultar publicaciones antes de reintentar; no hay idempotencia de creacion. No se verificaron todos los formatos ni reinicio adicional en esta ejecucion. El precio decimal se uso como rechazo real de Catalog; su validacion anticipada sigue siendo un pendiente ajeno a portada. La seccion de publicaciones recientes del home y otras tarjetas distintas de Explorar no incorporan miniatura en este cambio. Sin commit ni push al registrar esta evidencia.
+
+### Complemento: hasta cinco imagenes y etiquetas con miniaturas
+
+El 26/11/2026 el usuario solicito ampliar el selector al maximo de cinco imagenes indicado por RN-25 en el contrato. Se mantiene la compatibilidad con publicaciones sin imagen. No se modifica la altura/distribucion de las tarjetas del listado, por decision expresa del usuario.
+
+El input permite seleccion multiple y acumulativa. Si una tanda excede cinco se rechaza completa con aviso, conservando lo anterior; archivos vacios o de mas de 5 MiB tambien se rechazan antes de subir. Cada seleccion aparece en una etiqueta rectangular redondeada con miniatura local, nombre completo, marca Portada para la primera y boton accesible Quitar. Quitar libera un espacio; se puede volver a seleccionar el mismo archivo. Las URLs temporales de vista previa se liberan al quitar/desmontar. Una miniatura no acredita persistencia.
+
+La pagina sube secuencialmente las imagenes por el endpoint autenticado existente, guarda en memoria cada URL confirmada y envia a Catalog la lista ordenada. Al reintentar se reutilizan las subidas confirmadas de los archivos que siguen seleccionados. Quitar un archivo ya subido lo excluye de la publicacion, pero no borra el asset remoto. Se comprueban todas las URLs devueltas por Catalog antes de anunciar exito. La galeria existente permite cambiar entre miniaturas y solo muestra contador cuando hay mas de una imagen.
+
+Prueba real en navegador con cuenta sintetica 38: seleccionar dos, intentar agregar cuatro (rechazado, conserva dos), agregar tres (cinco, boton desactivado), quitar la primera (libera espacio y la siguiente es portada), agregar una nueva (cinco miniaturas cargadas). Crear publicacion: respuesta Catalog 200, id 101, cinco URLs ordenadas. SQL: cinco referencias Media del usuario y jsonb_array_length(imagenes_urls)=5 para publicacion 101. Tras recargar, cinco miniaturas; pulsar la quinta muestra contador 5 / 5 y su URL correspondiente. No se probaron nuevamente fallos parciales de red en esta ampliacion; la prueba de reintento anterior fue con una imagen.
+
+Verificaciones: 18 pruebas frontend aprobadas; TestPublicationImages con PostgreSQL real aprobado (ahora verifica cinco URLs y su orden); TypeScript y ESLint de los componentes modificados sin errores; diagnosticos del editor y git diff --check sin errores. Se conservaron una cuenta, una publicacion y cinco assets sinteticos nuevos. No se agregaron archivos de tests ni dependencias; sin commit/push.

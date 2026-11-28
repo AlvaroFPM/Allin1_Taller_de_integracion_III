@@ -1,6 +1,7 @@
 export type CatalogPublicationType = 'TRABAJO' | 'SERVICIO' | 'ARTICULO';
 
 export interface CatalogPublication {
+  coverUrl?: string;
   id: string;
   type: CatalogPublicationType;
   title: string;

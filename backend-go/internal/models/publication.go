@@ -42,6 +42,7 @@ type Publicacion struct {
 	PrecioBase        int64          `gorm:"type:bigint;not null" json:"precio_base"` // RN-23: Entero positivo en CLP
 	Ciudad            string         `gorm:"type:varchar(100);not null" json:"ciudad"`
 	Region            string         `gorm:"type:varchar(100);not null" json:"region"`
+	ImagenesURLs      []string       `gorm:"column:imagenes_urls;serializer:json;type:jsonb" json:"imagenes_urls"`
 	Estado            string         `gorm:"type:varchar(30);default:'ACTIVO'" json:"estado"`
 	CreatedAt         time.Time      `gorm:"column:fecha_creacion;autoCreateTime" json:"fecha_creacion"`
 	UpdatedAt         time.Time      `gorm:"column:fecha_actualizacion;autoUpdateTime" json:"fecha_actualizacion"`

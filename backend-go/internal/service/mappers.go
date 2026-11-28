@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -39,6 +40,16 @@ func validateCreateRequest(req *pb.CreatePublicationRequest) error {
 		return status.Error(codes.InvalidArgument, "debe seleccionar un tipo de servicio válido: OFERTA o DEMANDA (RN-11)")
 	}
 
+	// Mantener compatibles las publicaciones sin fotos; el contrato admite hasta cinco.
+	if len(req.GetImagenesUrls()) > 5 {
+		return status.Error(codes.InvalidArgument, "se permiten hasta 5 imágenes")
+	}
+	for _, imageURL := range req.GetImagenesUrls() {
+		parsed, err := url.Parse(imageURL)
+		if err != nil || len(imageURL) > 2000 || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil {
+			return status.Error(codes.InvalidArgument, "las imágenes deben tener URLs HTTPS válidas de hasta 2000 caracteres")
+		}
+	}
 	return nil
 }
 
@@ -99,6 +110,7 @@ func mapModelToProto(m *models.Publicacion) *pb.Publication {
 		PrecioBase:        m.PrecioBase,
 		Ciudad:            m.Ciudad,
 		Region:            m.Region,
+		ImagenesUrls:      m.ImagenesURLs,
 		Estado:            modelEstadoToProto(m.Estado),
 		Categoria:         protoCategoria,
 		CreatedAt:         timestamppb.New(m.CreatedAt),

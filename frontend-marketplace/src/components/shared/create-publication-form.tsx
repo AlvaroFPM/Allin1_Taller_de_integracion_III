@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { Button } from '@/components/ui/button';
 import {
   COMUNAS_DISPONIBLES,
   type CreatePublicationFormState,
@@ -11,13 +12,21 @@ export interface CreatePublicationFormProps {
   formState: CreatePublicationFormState;
   categories: PublicationCategory[];
   onChange: (fields: Partial<CreatePublicationFormState>) => void;
+  photos: File[];
+  onPhotosChange: (files: File[]) => void;
+  disabled?: boolean;
 }
 
 export function CreatePublicationForm({
   formState,
   categories,
   onChange,
+  photos,
+  onPhotosChange,
+  disabled,
 }: CreatePublicationFormProps) {
+  const coverInput = React.useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
   const { titulo, categoriaId, descripcion, ubicacion, moneda, precioBase } = formState;
 
   return (
@@ -145,29 +154,117 @@ export function CreatePublicationForm({
           </div>
         </div>
 
-        {/* Slot: Multimedia y Fotos (Preparado para Paso 2) */}
+        {/* La primera imagen es la portada; se suben al publicar. */}
         <div className="space-y-1.5 pt-1">
-          <label className="block text-xs font-bold text-content-main">Multimedia y Fotos</label>
-          <div className="w-full border-2 border-dashed border-border-base rounded-2xl p-6 sm:p-8 text-center bg-surface-main/50 hover:bg-surface-base/60 transition-all flex flex-col items-center justify-center gap-2 select-none cursor-pointer">
-            <div className="w-10 h-10 rounded-full bg-surface-base flex items-center justify-center text-content-muted">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-            </div>
-            <p className="text-xs sm:text-sm font-semibold text-content-main">
-              Click para subir fotos o arrastra archivos
+          <p className="text-sm font-bold text-content-main">
+            Imágenes de la publicación (opcionales)
+          </p>
+          <input
+            ref={coverInput}
+            type="file"
+            multiple
+            hidden
+            aria-label="Imágenes de la publicación"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            disabled={disabled || photos.length >= 5}
+            onChange={(e) => {
+              const added = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              if (!added.length) return;
+              if (photos.length + added.length > 5) {
+                setPhotoError(
+                  `Puedes seleccionar hasta 5 imágenes. Quedan ${5 - photos.length} espacios; no se añadieron archivos.`,
+                );
+                return;
+              }
+              if (added.some((file) => file.size === 0 || file.size > 5 * 1024 * 1024)) {
+                setPhotoError(
+                  'Cada imagen debe tener contenido y pesar como máximo 5 MiB. No se añadieron archivos.',
+                );
+                return;
+              }
+              setPhotoError(null);
+              onPhotosChange([...photos, ...added]);
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            disabled={disabled || photos.length >= 5}
+            onClick={() => coverInput.current?.click()}
+          >
+            {photos.length ? 'Añadir imágenes' : 'Seleccionar imágenes'}
+          </Button>
+          <p aria-live="polite" className="break-all text-sm text-content-main">
+            {photos.length} / 5 imágenes seleccionadas. La primera será la portada.
+          </p>
+          {photoError && (
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {photoError}
             </p>
-            <p className="text-[11px] text-content-muted">
-              Soporta JPG, PNG (Max 10MB) · Área preparada para componente Drag & Drop
-            </p>
-          </div>
+          )}
+          <ul className="space-y-2" aria-label="Imágenes seleccionadas">
+            {photos.map((file, index) => (
+              <SelectedPhoto
+                key={`${file.name}-${file.lastModified}-${index}`}
+                file={file}
+                cover={index === 0}
+                disabled={disabled}
+                onRemove={() => {
+                  setPhotoError(null);
+                  onPhotosChange(photos.filter((_, i) => i !== index));
+                }}
+              />
+            ))}
+          </ul>
+          <p className="text-xs text-content-muted">
+            JPG, PNG, WebP o AVIF. Hasta 5 MiB por imagen. Las miniaturas son vistas previas
+            locales; se subirán al publicar.
+          </p>
         </div>
       </div>
     </div>
+  );
+}
+
+function SelectedPhoto({
+  file,
+  cover,
+  disabled,
+  onRemove,
+}: {
+  file: File;
+  cover: boolean;
+  disabled?: boolean;
+  onRemove: () => void;
+}) {
+  const image = React.useRef<HTMLImageElement>(null);
+  React.useEffect(() => {
+    const url = URL.createObjectURL(file);
+    if (image.current) image.current.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-border-base bg-surface-base p-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={image}
+        alt={`Vista previa de ${file.name}`}
+        className="h-12 w-16 shrink-0 rounded-lg object-cover bg-surface-main"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="break-all text-sm text-content-main">{file.name}</p>
+        {cover && <span className="text-xs font-semibold text-brand">Portada</span>}
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onRemove}
+        aria-label={`Quitar ${file.name}`}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-content-muted hover:bg-surface-main hover:text-red-600 focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+      >
+        ×
+      </button>
+    </li>
   );
 }

@@ -69,6 +69,7 @@ export default function ExplorarPage() {
 
             return {
               id: String(item.id),
+              coverUrl: item.images?.[0],
               type: pubType,
               title: item.title,
               description: item.description,
