@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { DashboardOrder, OrderStatus, OrderItemType } from '@/types/orders-dashboard';
+import type { DashboardOrder, OrderStatus } from '@/types/orders-dashboard';
 
 export interface OrderCardProps {
   order: DashboardOrder;
@@ -44,13 +44,6 @@ const STATUS_BADGE_CONFIG: Record<
   },
 };
 
-const TYPE_BADGE_VARIANT: Record<OrderItemType, 'brand' | 'warning' | 'neutral'> = {
-  SERVICIO: 'brand',
-  ARTICULO: 'warning',
-  FLETE: 'neutral',
-  TRABAJO: 'brand',
-};
-
 export function OrderCard({
   order,
   onAccept,
@@ -63,7 +56,6 @@ export function OrderCard({
   onViewDetail,
 }: OrderCardProps) {
   const statusConfig = STATUS_BADGE_CONFIG[order.status];
-  const typeVariant = order.type ? TYPE_BADGE_VARIANT[order.type] : 'neutral';
   const currency = order.currency;
   const priceLabel =
     typeof order.price === 'string' && /^-?\d+$/.test(order.price)
@@ -80,14 +72,6 @@ export function OrderCard({
           <span className="font-extrabold text-content-main tracking-tight font-mono">
             {order.orderNumber}
           </span>
-          <span className="text-content-muted">•</span>
-          <span className="text-content-muted">{order.createdAt}</span>
-          <Badge variant={typeVariant} size="sm">
-            {order.type ?? 'Tipo no informado'}
-          </Badge>
-          {order.category && (
-            <span className="text-content-muted hidden sm:inline">({order.category})</span>
-          )}
         </div>
 
         <Badge variant={statusConfig.variant} size="sm">
@@ -144,7 +128,7 @@ export function OrderCard({
           <p className="text-xl font-black text-brand tracking-tight">
             {priceLabel}{' '}
             <span className="text-xs font-semibold text-content-muted">
-              {currency ?? (order.price !== null ? 'Moneda no informada' : '')}
+              {currency ?? (order.price !== null ? 'CLP' : '')}
             </span>
           </p>
           {order.escrowSecured && (

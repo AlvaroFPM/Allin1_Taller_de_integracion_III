@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { OrderCard } from './order-card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useOrdersStore } from '@/store/useOrdersStore';
 import { useOrderActionsStore } from '@/store/useOrderActionsStore';
 import { toDashboardOrder } from '@/lib/mappers/orders';
+import { publicationService, type CatalogPublication } from '@/services/publicationService';
+import { getPublicProfile, type PublicProfileData } from '@/services/authService';
 import type { OrderDto } from '@/types/dto/orders';
 import type { DashboardOrder, OrderRole } from '@/types/orders-dashboard';
 
@@ -18,6 +21,14 @@ function subscribeToHydration(listener: () => void) {
     start();
     finish();
   };
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return parts[0] ? parts[0].slice(0, 2).toUpperCase() : '?';
 }
 
 function mapList(orders: OrderDto[], role: OrderRole) {
@@ -34,7 +45,43 @@ function mapList(orders: OrderDto[], role: OrderRole) {
   }
 }
 
+function enrichList(
+  dtos: OrderDto[],
+  role: OrderRole,
+  publicationsById: Record<number, CatalogPublication>,
+  profilesById: Record<number, PublicProfileData>,
+) {
+  const mapped = mapList(dtos, role);
+  if (mapped.error) return mapped;
+
+  return {
+    error: null,
+    orders: mapped.orders.map((order, index) => {
+      const dto = dtos[index];
+      const pub = dto?.idPublicacion ? publicationsById[dto.idPublicacion] : undefined;
+      const counterpartId = role === 'COMPRA' ? dto?.idUsuarioVendedor : dto?.idUsuarioComprador;
+      const profile = counterpartId ? profilesById[counterpartId] : undefined;
+      const fullName = profile
+        ? [profile.firstName, profile.lastName]
+            .map((part) => part?.trim() ?? '')
+            .filter(Boolean)
+            .join(' ')
+        : '';
+
+      return {
+        ...order,
+        title: pub?.title?.trim() ? pub.title : order.title,
+        currency: pub?.currency || 'CLP',
+        counterpartName: fullName || order.counterpartName,
+        counterpartInitials: fullName ? getInitials(fullName) : order.counterpartInitials,
+        counterpartAvatarUrl: profile?.fotoPerfilUrl || order.counterpartAvatarUrl,
+      };
+    }),
+  };
+}
+
 export function OrdersDashboardPanel() {
+  const router = useRouter();
   const userId = useAuthStore((state) => state.user?.id);
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -52,6 +99,12 @@ export function OrdersDashboardPanel() {
   const [activeTab, setActiveTab] = React.useState<OrderRole>('COMPRA');
   const [statusFilter, setStatusFilter] = React.useState('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [publicationsById, setPublicationsById] = React.useState<
+    Record<number, CatalogPublication>
+  >({});
+  const [profilesById, setProfilesById] = React.useState<Record<number, PublicProfileData>>({});
+  const requestedPublicationIds = React.useRef<Set<number>>(new Set());
+  const requestedProfileIds = React.useRef<Set<number>>(new Set());
   const sessionReady = hydrated && isAuthenticated && userId != null && Boolean(token);
 
   React.useEffect(() => {
@@ -62,11 +115,102 @@ export function OrdersDashboardPanel() {
     return () => controller.abort();
   }, [sessionReady, userId, token, loadPurchases, loadSales]);
 
+  React.useEffect(() => {
+    if (!sessionReady) return;
+    const controller = new AbortController();
+    const requestedPubs = requestedPublicationIds.current;
+    const requestedProfiles = requestedProfileIds.current;
+
+    const publicationIds = new Set<number>();
+    const profileIds = new Set<number>();
+
+    for (const order of purchases.orders) {
+      if (order.idPublicacion && order.idPublicacion > 0) {
+        publicationIds.add(order.idPublicacion);
+      }
+      if (order.idUsuarioVendedor && order.idUsuarioVendedor > 0) {
+        profileIds.add(order.idUsuarioVendedor);
+      }
+    }
+    for (const order of sales.orders) {
+      if (order.idPublicacion && order.idPublicacion > 0) {
+        publicationIds.add(order.idPublicacion);
+      }
+      if (order.idUsuarioComprador && order.idUsuarioComprador > 0) {
+        profileIds.add(order.idUsuarioComprador);
+      }
+    }
+
+    const missingPubs = Array.from(publicationIds).filter((id) => !requestedPubs.has(id));
+    const missingProfiles = Array.from(profileIds).filter((id) => !requestedProfiles.has(id));
+
+    const inFlightPubs = new Set(missingPubs);
+    const inFlightProfiles = new Set(missingProfiles);
+
+    if (missingPubs.length > 0) {
+      missingPubs.forEach((id) => requestedPubs.add(id));
+      void Promise.all(
+        missingPubs.map(async (id) => {
+          try {
+            const pub = await publicationService.getPublicationById(String(id), controller.signal);
+            inFlightPubs.delete(id);
+            return [id, pub] as const;
+          } catch {
+            if (!controller.signal.aborted) {
+              inFlightPubs.delete(id);
+            }
+            return null;
+          }
+        }),
+      ).then((results) => {
+        if (controller.signal.aborted) return;
+        const updates: Record<number, CatalogPublication> = {};
+        for (const entry of results) {
+          if (entry) updates[entry[0]] = entry[1];
+        }
+        if (Object.keys(updates).length > 0) {
+          setPublicationsById((prev) => ({ ...prev, ...updates }));
+        }
+      });
+    }
+
+    if (missingProfiles.length > 0) {
+      missingProfiles.forEach((id) => requestedProfiles.add(id));
+      void Promise.all(
+        missingProfiles.map(async (id) => {
+          const profile = await getPublicProfile(id, controller.signal);
+          if (!controller.signal.aborted) {
+            inFlightProfiles.delete(id);
+          }
+          return profile ? ([id, profile] as const) : null;
+        }),
+      ).then((results) => {
+        if (controller.signal.aborted) return;
+        const updates: Record<number, PublicProfileData> = {};
+        for (const entry of results) {
+          if (entry) updates[entry[0]] = entry[1];
+        }
+        if (Object.keys(updates).length > 0) {
+          setProfilesById((prev) => ({ ...prev, ...updates }));
+        }
+      });
+    }
+
+    return () => {
+      controller.abort();
+      inFlightPubs.forEach((id) => requestedPubs.delete(id));
+      inFlightProfiles.forEach((id) => requestedProfiles.delete(id));
+    };
+  }, [sessionReady, purchases.orders, sales.orders]);
+
   const mappedPurchases = React.useMemo(
-    () => mapList(purchases.orders, 'COMPRA'),
-    [purchases.orders],
+    () => enrichList(purchases.orders, 'COMPRA', publicationsById, profilesById),
+    [purchases.orders, publicationsById, profilesById],
   );
-  const mappedSales = React.useMemo(() => mapList(sales.orders, 'VENTA'), [sales.orders]);
+  const mappedSales = React.useMemo(
+    () => enrichList(sales.orders, 'VENTA', publicationsById, profilesById),
+    [sales.orders, publicationsById, profilesById],
+  );
   const orders = [...mappedPurchases.orders, ...mappedSales.orders];
   const totalCompras = mappedPurchases.orders.length;
   const totalVentas = mappedSales.orders.length;
@@ -100,7 +244,7 @@ export function OrdersDashboardPanel() {
   return (
     <div className="space-y-8">
       {/* 1. Tarjetas de Resumen / Métricas del Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
             Compras cargadas
@@ -120,16 +264,6 @@ export function OrdersDashboardPanel() {
           </p>
           <span className="text-xs text-emerald-700 font-medium">
             Cantidad en la página cargada
-          </span>
-        </div>
-
-        <div className="bg-surface-main p-5 rounded-2xl border border-border-base shadow-xs space-y-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
-            Información de pagos
-          </span>
-          <p className="text-2xl font-black text-brand tracking-tight">No disponible</p>
-          <span className="text-xs text-content-muted font-medium">
-            No informada por la API de órdenes
           </span>
         </div>
 
@@ -230,7 +364,7 @@ export function OrdersDashboardPanel() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por ID de orden, publicación o usuario..."
+            placeholder="Buscar por orden, publicación o usuario..."
             className="w-full text-xs py-2 pl-8 pr-3 rounded-xl border border-border-base bg-surface-main text-content-main placeholder:text-content-muted focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <svg
@@ -248,12 +382,6 @@ export function OrdersDashboardPanel() {
           </svg>
         </div>
       </div>
-
-      <p className="text-xs text-content-muted">
-        La API no informa nombres, tipos, moneda ni pagos. Las acciones no conectadas están
-        deshabilitadas. Los contadores y filtros corresponden solo a las páginas cargadas. Compras:{' '}
-        {purchases.status}. Ventas: {sales.status}.
-      </p>
 
       {typeof currentPage === 'number' && typeof totalPages === 'number' && totalPages > 0 && (
         <div className="flex items-center gap-3">
@@ -311,6 +439,11 @@ export function OrdersDashboardPanel() {
                 key={order.id}
                 order={order}
                 actionPending={action?.pending}
+                onViewDetail={
+                  dto?.idPublicacion
+                    ? () => router.push(`/catalogo/${dto.idPublicacion}`)
+                    : undefined
+                }
                 onAccept={
                   sessionReady && isSeller && dto?.estado === 'PENDIENTE'
                     ? () => void changeStatus(id, 'ACEPTADA')
