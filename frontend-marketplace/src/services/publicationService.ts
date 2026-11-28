@@ -12,6 +12,7 @@ export interface CatalogPublication {
   type: string;
   sellerId: number;
   sellerName?: string;
+  sellerAvatarUrl?: string;
   categoryId: number;
   categoryName?: string;
   categorySlug?: string;

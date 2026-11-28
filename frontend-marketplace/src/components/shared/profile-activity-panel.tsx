@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthStore } from '@/store/useAuthStore';
 import { publicationService } from '@/services/publicationService';
+import { usePendingBadges } from '@/hooks/usePendingBadges';
 import type { ProfileActivityFilter, ProfileActivityItem } from '@/types/profile';
 
 export interface ProfileActivityPanelProps {
@@ -16,6 +17,7 @@ export interface ProfileActivityPanelProps {
 export function ProfileActivityPanel({ userId }: ProfileActivityPanelProps) {
   const storeUser = useAuthStore((state) => state.user);
   const targetUserId = userId !== undefined ? userId : storeUser?.id;
+  const { pendingOrdersCount, unreadMessagesCount } = usePendingBadges();
 
   const [activeFilter, setActiveFilter] = React.useState<ProfileActivityFilter>('ALL');
   const [items, setItems] = React.useState<ProfileActivityItem[]>([]);
@@ -117,12 +119,22 @@ export function ProfileActivityPanel({ userId }: ProfileActivityPanelProps) {
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Link href="/ordenes">
             <Button variant="secondary" size="sm">
-              Mis Órdenes
+              <span>Mis Órdenes</span>
+              {pendingOrdersCount > 0 && (
+                <span className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
+                </span>
+              )}
             </Button>
           </Link>
           <Link href="/mensajes">
             <Button variant="outline" size="sm">
-              Mensajes
+              <span>Mensajes</span>
+              {unreadMessagesCount > 0 && (
+                <span className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </Button>
           </Link>
           <Link href="/publicar">

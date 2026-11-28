@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/useAuthStore';
+import { usePendingBadges } from '@/hooks/usePendingBadges';
 import { NavbarUserDropdown } from './navbar-user-dropdown';
 import type { UserSession, NavItem } from '@/types/navigation';
 import type { User } from '@/types/auth';
@@ -40,6 +41,7 @@ export function NavbarUser({
 }: NavbarUserProps) {
   const router = useRouter();
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const { totalCount: pendingBadgeCount } = usePendingBadges();
   const [internalMobileOpen, setInternalMobileOpen] = React.useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -145,9 +147,17 @@ export function NavbarUser({
             <Link
               key={item.label}
               href={item.href}
-              className="px-3.5 py-1.5 text-sm font-medium text-content-muted hover:text-content-main hover:bg-surface-base rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-content-muted hover:text-content-main hover:bg-surface-base rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.href === '/perfil' && pendingBadgeCount > 0 && (
+                <span
+                  aria-label={`${pendingBadgeCount} notificaciones pendientes`}
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                >
+                  {pendingBadgeCount > 99 ? '99+' : pendingBadgeCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

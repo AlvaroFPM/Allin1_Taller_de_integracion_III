@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/components/ui';
 import { mapPrivateProfile, mapProfileToUser } from '@/lib/mappers/auth';
 import { getPrivateProfile, updatePrivateProfile } from '@/services/authService';
+import { orderExtrasService } from '@/services/orderExtrasService';
 import {
   ProfilePersonalCard,
   ProfileReputationCard,
@@ -47,6 +48,10 @@ export default function PerfilPage() {
 
 function PrivateProfile({ userId, token }: { userId: number; token: string }) {
   const [profile, setProfile] = React.useState<UserProfileData | null>(null);
+  const [reputation, setReputation] = React.useState<{ score: number; total: number }>({
+    score: 0,
+    total: 0,
+  });
   const [loadError, setLoadError] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
 
@@ -65,6 +70,14 @@ function PrivateProfile({ userId, token }: { userId: number; token: string }) {
       .catch(() => {
         if (!controller.signal.aborted) setLoadError(true);
       });
+    void orderExtrasService
+      .getUserReviews(userId, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          setReputation({ score: res.averageScore, total: res.totalReviews });
+        }
+      })
+      .catch(() => {});
     return () => controller.abort();
   }, [userId]);
 
@@ -111,7 +124,7 @@ function PrivateProfile({ userId, token }: { userId: number; token: string }) {
           {/* Columna Izquierda: Datos Personales y Reputación */}
           <div className="w-full lg:w-84 xl:w-96 shrink-0 space-y-6">
             <ProfilePersonalCard profile={profile} onEditClick={() => setIsEditOpen(true)} />
-            <ProfileReputationCard score={4.9} totalReviews={28} />
+            <ProfileReputationCard score={reputation.score} totalReviews={reputation.total} />
           </div>
 
           {/* Columna Derecha: Panel de Actividad y Publicaciones */}

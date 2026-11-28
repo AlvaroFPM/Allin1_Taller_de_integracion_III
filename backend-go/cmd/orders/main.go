@@ -36,11 +36,11 @@ func main() {
 		log.Fatalf("Error crítico al conectar a la base de datos de Orders: %v", err)
 	}
 
-	// 2. AutoMigrate de la entidad Orden en la base de datos relacional
-	if err := db.AutoMigrate(&models.Orden{}); err != nil {
-		log.Fatalf("Error crítico al ejecutar AutoMigrate de la tabla 'ordenes': %v", err)
+	// 2. AutoMigrate de las entidades del dominio Orders en la base de datos relacional
+	if err := db.AutoMigrate(&models.Orden{}, &models.OrderExtra{}, &models.OrderReview{}); err != nil {
+		log.Fatalf("Error crítico al ejecutar AutoMigrate de las tablas de Orders: %v", err)
 	}
-	fmt.Println("Migración exitosa: Tabla 'ordenes' sincronizada.")
+	fmt.Println("Migración exitosa: Tablas 'ordenes', 'order_extras' y 'order_reviews' sincronizadas.")
 
 	// 2b. Índice único parcial para RN-22 (impide órdenes activas duplicadas)
 	if err := service.EnsureActiveOrderUniqueIndex(db); err != nil {
@@ -103,13 +103,16 @@ func main() {
 		log.Fatalf("Fallo crítico al registrar gRPC-Gateway de Orders: %v", err)
 	}
 
+	extensionsHandler := ordersapi.NewExtensionsHandler(db)
+	rootHandler := extensionsHandler.WrapHandler(mux)
+
 	// 7. Configuración de CORS para clientes web (Next.js)
 	handler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
-	}).Handler(mux)
+	}).Handler(rootHandler)
 
 	fmt.Printf("Servidor REST (gRPC-Gateway) de Orders escuchando en el puerto %s...\n", httpPort)
 	if err := http.ListenAndServe(":"+httpPort, handler); err != nil {
