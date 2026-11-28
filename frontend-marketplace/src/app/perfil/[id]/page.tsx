@@ -10,8 +10,11 @@ import {
   PublicProfileReviews,
 } from '@/components/shared';
 import type { PublicProfilePublication } from '@/types/profile';
+import type { SellerReview } from '@/types/review';
 import { getPublicProfile } from '@/services/authService';
 import { publicationService } from '@/services/publicationService';
+import { orderExtrasService } from '@/services/orderExtrasService';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 interface SellerProfileState {
   id: string;
@@ -24,6 +27,12 @@ interface SellerProfileState {
 }
 
 type PageStatus = 'loading' | 'not-found' | 'success';
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0] ? parts[0].slice(0, 2).toUpperCase() : '?';
+}
 
 function PublicProfileDetail({ id }: { id: string }) {
   const numericId = React.useMemo(() => {
@@ -40,6 +49,8 @@ function PublicProfileDetail({ id }: { id: string }) {
     [],
   );
   const [isLoadingPubs, setIsLoadingPubs] = React.useState(() => numericId !== null);
+  const [reviews, setReviews] = React.useState<SellerReview[]>([]);
+  const [averageScore, setAverageScore] = React.useState<number>(0);
 
   React.useEffect(() => {
     if (numericId === null) {
@@ -127,6 +138,80 @@ function PublicProfileDetail({ id }: { id: string }) {
         }
       });
 
+    // 3. Cargar reseñas reales desde Orders y enriquecer autores y títulos
+    orderExtrasService
+      .getUserReviews(numericId, controller.signal)
+      .then(async (res) => {
+        if (controller.signal.aborted) return;
+        setAverageScore(res.averageScore);
+
+        if (res.reviews.length === 0) {
+          setReviews([]);
+          return;
+        }
+
+        const authorIds = Array.from(new Set(res.reviews.map((r) => r.idUsuarioAutor)));
+        const pubIds = Array.from(new Set(res.reviews.map((r) => r.idPublicacion)));
+
+        const [authors, pubs] = await Promise.all([
+          Promise.all(
+            authorIds.map(async (uid) => {
+              const p = await getPublicProfile(uid, controller.signal);
+              return [uid, p] as const;
+            }),
+          ),
+          Promise.all(
+            pubIds.map(async (pid) => {
+              try {
+                const p = await publicationService.getPublicationById(
+                  String(pid),
+                  controller.signal,
+                );
+                return [pid, p] as const;
+              } catch {
+                return [pid, null] as const;
+              }
+            }),
+          ),
+        ]);
+
+        if (controller.signal.aborted) return;
+
+        const authorMap = new Map(authors);
+        const pubMap = new Map(pubs);
+
+        const mappedReviews: SellerReview[] = res.reviews.map((rev) => {
+          const authorProfile = authorMap.get(rev.idUsuarioAutor);
+          const authorName = authorProfile
+            ? [authorProfile.firstName, authorProfile.lastName]
+                .map((s) => s?.trim() ?? '')
+                .filter(Boolean)
+                .join(' ') || `Usuario #${rev.idUsuarioAutor}`
+            : `Usuario #${rev.idUsuarioAutor}`;
+          const pub = pubMap.get(rev.idPublicacion);
+
+          return {
+            id: String(rev.idReview),
+            sellerId: String(rev.idUsuarioEvaluado),
+            authorName,
+            authorInitials: getInitials(authorName),
+            authorAvatarUrl: authorProfile?.fotoPerfilUrl || undefined,
+            rating: rev.rating,
+            comment: rev.comentario || 'Sin comentario adicional.',
+            createdAt: formatRelativeTime(rev.createdAt),
+            serviceTitle: pub?.title || `Publicación #${rev.idPublicacion}`,
+            verifiedPurchase: true,
+          };
+        });
+
+        setReviews(mappedReviews);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setReviews([]);
+        }
+      });
+
     return () => {
       controller.abort();
     };
@@ -196,7 +281,7 @@ function PublicProfileDetail({ id }: { id: string }) {
         </nav>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Columna izquierda — Header + Reputación */}
+          {/* Columna izquierda — Header + Reputación real */}
           <div className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5">
             <PublicProfileHeader
               firstName={seller.firstName}
@@ -207,17 +292,25 @@ function PublicProfileDetail({ id }: { id: string }) {
               city={seller.city}
               contactDisabled={true}
             />
-            <PublicProfileReputation available={false} />
+            <PublicProfileReputation
+              available={reviews.length > 0}
+              score={averageScore}
+              totalReviews={reviews.length}
+            />
           </div>
 
-          {/* Columna derecha — Publicaciones reales de la base de datos y Reseñas */}
+          {/* Columna derecha — Publicaciones reales y Reseñas reales */}
           <div className="flex-1 min-w-0 w-full space-y-6">
             <PublicProfilePublications
               sellerName={seller.firstName}
               publications={sellerPublications}
               isLoading={isLoadingPubs}
             />
-            <PublicProfileReviews sellerName={seller.firstName} reviews={[]} />
+            <PublicProfileReviews
+              sellerName={seller.firstName}
+              reviews={reviews}
+              averageScore={averageScore}
+            />
           </div>
         </div>
       </div>

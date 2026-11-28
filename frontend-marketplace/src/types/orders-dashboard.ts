@@ -12,10 +12,18 @@ export type OrderStatus =
 
 export type OrderItemType = 'SERVICIO' | 'ARTICULO' | 'FLETE' | 'TRABAJO';
 
+export interface DashboardOrderReview {
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface DashboardOrder {
   id: string;
   orderNumber: string;
   role: OrderRole;
+  publicationId?: number;
+  counterpartId?: number;
   title: string;
   type: OrderItemType | null;
   category: string;
@@ -31,6 +39,10 @@ export interface DashboardOrder {
   counterpartVerified?: boolean;
   location?: string;
   notes?: string;
+  scheduledDate?: string;
+  sellerDelivered?: boolean;
+  sellerDeliveredAt?: string;
+  review?: DashboardOrderReview;
 }
 
 export interface OrdersSummaryStats {

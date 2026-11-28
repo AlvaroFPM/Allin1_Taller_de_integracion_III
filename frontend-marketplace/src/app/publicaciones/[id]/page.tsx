@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { PurchaseConfirmationModal } from '@/components/shared/purchase-confirmation-modal';
 import { orderService } from '@/services/orderService';
+import { ordersQueryService } from '@/services/ordersQueryService';
+import { orderExtrasService } from '@/services/orderExtrasService';
+import { chatService } from '@/services/chatService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getAccessToken } from '@/lib/authCookies';
 import {
@@ -16,12 +19,23 @@ import {
 } from '@/components/shared';
 import { publicationService, type CatalogPublication } from '@/services/publicationService';
 import { getPublicProfile } from '@/services/authService';
+import type { PurchaseConfirmationDetails } from '@/types/order';
+import type { OrderDto } from '@/types/dto/orders';
 
 type DetailState =
   | { status: 'loading' }
   | { status: 'success'; publication: CatalogPublication }
   | { status: 'not-found' }
   | { status: 'error' };
+
+function subscribeToHydration(listener: () => void) {
+  const start = useAuthStore.persist.onHydrate(() => listener());
+  const finish = useAuthStore.persist.onFinishHydration(() => listener());
+  return () => {
+    start();
+    finish();
+  };
+}
 
 export default function PublicationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +45,18 @@ export default function PublicationDetailPage() {
 
 function PublicationDetail({ id }: { id: string }) {
   const router = useRouter();
+  const currentUser = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const token = useAuthStore((state) => state.token);
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => useAuthStore.persist.hasHydrated(),
+    () => false,
+  );
+
   const [state, setState] = useState<DetailState>({ status: 'loading' });
+  const [sellerRating, setSellerRating] = useState<{ score: number; count: number } | null>(null);
+  const [activeOrder, setActiveOrder] = useState<OrderDto | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -56,33 +81,44 @@ function PublicationDetail({ id }: { id: string }) {
           publication: {
             ...publication,
             sellerName: undefined,
+            sellerAvatarUrl: undefined,
           },
         });
 
         if (Number.isInteger(publication.sellerId) && publication.sellerId > 0) {
-          try {
-            const profile = await getPublicProfile(publication.sellerId, controller.signal);
-            if (!controller.signal.aborted && profile && profile.userId === publication.sellerId) {
-              const fullName = [profile.firstName, profile.lastName]
-                .filter(Boolean)
-                .join(' ')
-                .trim();
-              if (fullName.length > 0) {
-                setState((prev) =>
-                  prev.status === 'success' && prev.publication.id === publication.id
-                    ? {
-                        status: 'success',
-                        publication: {
-                          ...prev.publication,
-                          sellerName: fullName,
-                        },
-                      }
-                    : prev,
-                );
-              }
-            }
-          } catch {
-            // Degradación segura ante ausencia o fallo de IAM
+          const [profile, reviewsSummary] = await Promise.all([
+            getPublicProfile(publication.sellerId, controller.signal).catch(() => null),
+            orderExtrasService
+              .getUserReviews(publication.sellerId, controller.signal)
+              .catch(() => null),
+          ]);
+
+          if (controller.signal.aborted) return;
+
+          if (profile && profile.userId === publication.sellerId) {
+            const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+            const avatarUrl = profile.fotoPerfilUrl?.trim() || undefined;
+            setState((prev) =>
+              prev.status === 'success' && prev.publication.id === publication.id
+                ? {
+                    status: 'success',
+                    publication: {
+                      ...prev.publication,
+                      sellerName: fullName || prev.publication.sellerName,
+                      sellerAvatarUrl: avatarUrl,
+                    },
+                  }
+                : prev,
+            );
+          }
+
+          if (reviewsSummary && reviewsSummary.totalReviews > 0) {
+            setSellerRating({
+              score: reviewsSummary.averageScore,
+              count: reviewsSummary.totalReviews,
+            });
+          } else {
+            setSellerRating(null);
           }
         }
       } catch (error: unknown) {
@@ -104,6 +140,38 @@ function PublicationDetail({ id }: { id: string }) {
     return () => controller.abort();
   }, [id, retryCount]);
 
+  // Comprobar si ya existe una orden activa (en compras o en ventas si es propia)
+  const loadedPubId = state.status === 'success' ? state.publication.id : null;
+  const loadedSellerId = state.status === 'success' ? state.publication.sellerId : null;
+  const sessionReady = hydrated && isAuthenticated && Boolean(currentUser?.id) && Boolean(token);
+  const isOwnPublication =
+    sessionReady && loadedSellerId !== null && currentUser?.id === loadedSellerId;
+
+  useEffect(() => {
+    if (!sessionReady || loadedPubId === null) return;
+    const controller = new AbortController();
+
+    const query = isOwnPublication
+      ? ordersQueryService.getSales({ limit: 50 }, controller.signal)
+      : ordersQueryService.getPurchases({ limit: 50 }, controller.signal);
+
+    query
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        const found = (res.orders ?? []).find(
+          (ord) =>
+            ord.idPublicacion === loadedPubId &&
+            (ord.estado === 'PENDIENTE' || ord.estado === 'ACEPTADA'),
+        );
+        setActiveOrder(found ?? null);
+      })
+      .catch(() => {
+        // Degradación segura si Orders no está disponible
+      });
+
+    return () => controller.abort();
+  }, [sessionReady, loadedPubId, isOwnPublication, createdOrderId]);
+
   function retry() {
     setState({ status: 'loading' });
     setRetryCount((previous) => previous + 1);
@@ -112,8 +180,8 @@ function PublicationDetail({ id }: { id: string }) {
   function validatePurchase(): string | null {
     if (state.status !== 'success') return 'La publicación no está disponible.';
 
-    const { user, isAuthenticated } = useAuthStore.getState();
-    if (!isAuthenticated || !user || !getAccessToken()) {
+    const { user, isAuthenticated: authed } = useAuthStore.getState();
+    if (!authed || !user || !getAccessToken()) {
       return 'Inicia sesión para contratar.';
     }
 
@@ -153,7 +221,7 @@ function PublicationDetail({ id }: { id: string }) {
     if (!purchaseLock.current) setIsPurchaseOpen(false);
   }
 
-  async function confirmPurchase() {
+  async function confirmPurchase(details?: PurchaseConfirmationDetails) {
     if (purchaseLock.current || createdOrderId !== null) return;
     const error = validatePurchase();
     if (error || state.status !== 'success') {
@@ -166,16 +234,51 @@ function PublicationDetail({ id }: { id: string }) {
     setPurchaseError(null);
 
     try {
+      const pub = state.publication;
       const result = await orderService.createOrder({
-        idUsuarioVendedor: state.publication.sellerId,
-        idPublicacion: state.publication.id,
-        precio: String(state.publication.price),
+        idUsuarioVendedor: pub.sellerId,
+        idPublicacion: pub.id,
+        precio: String(pub.price),
       });
 
       const orderId = result.order?.idOrden;
       if (!Number.isInteger(orderId) || (orderId ?? 0) <= 0) {
         throw new Error('La API no devolvió un identificador de orden válido.');
       }
+
+      // Persistir fecha/horario y notas en order_extras (best-effort sin revertir la orden)
+      const trimmedNotes = details?.notes?.trim() ?? '';
+      const trimmedDate = details?.scheduledDate?.trim() ?? '';
+      if (trimmedNotes || trimmedDate) {
+        await orderExtrasService
+          .saveExtras(orderId!, { notas: trimmedNotes, fechaAcordada: trimmedDate })
+          .catch(() => {});
+      }
+
+      // Enviar primer mensaje automático al chat para iniciar la coordinación (best-effort)
+      void (async () => {
+        try {
+          const roomRes = await chatService.getOrCreateRoom({
+            vendedorId: pub.sellerId,
+            publicacionId: pub.id,
+          });
+          const salaId = roomRes.sala?.idSala;
+          if (!salaId) return;
+
+          const lines = [`Hola, acabo de contratar "${pub.title}" (Orden #${orderId}).`];
+          if (trimmedDate) lines.push(`Fecha/lugar sugerido: ${trimmedDate}`);
+          if (trimmedNotes) lines.push(`Notas: ${trimmedNotes}`);
+          else lines.push('Quedo atento para coordinar los detalles.');
+
+          await chatService.sendMessage({
+            salaId,
+            destinatarioId: pub.sellerId,
+            contenido: lines.join('\n'),
+          });
+        } catch {
+          // Si Chat no está levantado, no bloquea ni falla la orden creada
+        }
+      })();
 
       setCreatedOrderId(orderId!);
       setIsPurchaseOpen(false);
@@ -250,6 +353,26 @@ function PublicationDetail({ id }: { id: string }) {
 
   const { publication } = state;
 
+  let sidebarNotice: string | undefined;
+  let sidebarLinkHref: string | undefined;
+  let sidebarLinkText: string | undefined;
+  let hideAction = false;
+
+  if (isOwnPublication) {
+    hideAction = true;
+    sidebarNotice = activeOrder
+      ? `Esta es tu publicación · Tienes la Orden #${activeOrder.idOrden} en curso (${activeOrder.estado}).`
+      : 'Esta publicación te pertenece.';
+    sidebarLinkHref = '/ordenes';
+    sidebarLinkText = activeOrder ? 'Gestionar en Mis Ventas →' : 'Ir a Mis Órdenes →';
+  } else if (createdOrderId !== null || activeOrder) {
+    const orderNum = createdOrderId ?? activeOrder?.idOrden;
+    hideAction = true;
+    sidebarNotice = `Ya tienes una orden en curso (Orden #${orderNum}).`;
+    sidebarLinkHref = '/ordenes';
+    sidebarLinkText = 'Ver en Mis Compras →';
+  }
+
   return (
     <main className="min-h-screen bg-surface-base py-6 sm:py-10">
       <div className="mx-auto max-w-7xl space-y-6 px-4 sm:space-y-8 sm:px-6 lg:px-8">
@@ -275,29 +398,51 @@ function PublicationDetail({ id }: { id: string }) {
               price={publication.price}
               currency={publication.currency}
               priceLabel="Precio publicado"
-              actionText={createdOrderId !== null ? 'Orden creada' : 'Contratar'}
-              onAction={createdOrderId === null && !isPurchasing ? openPurchase : undefined}
+              actionText="Contratar"
+              onAction={!hideAction && !isPurchasing ? openPurchase : undefined}
+              hideAction={hideAction}
+              notice={sidebarNotice}
+              linkHref={sidebarLinkHref}
+              linkText={sidebarLinkText}
             />
 
             {purchaseError && !isPurchaseOpen && (
-              <p role="alert" className="text-sm text-content-main">
+              <p role="alert" className="text-sm text-red-700">
                 {purchaseError}
               </p>
             )}
 
             {createdOrderId !== null && (
-              <div className="space-y-1 text-sm text-content-main">
-                <p role="status">Orden {createdOrderId} creada correctamente.</p>
-                <Link href="/ordenes" className="inline-block font-semibold text-brand underline">
-                  Ver mis compras
-                </Link>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1.5 text-sm text-emerald-950">
+                <p role="status" className="font-semibold">
+                  Orden #{createdOrderId} creada correctamente.
+                </p>
+                <p className="text-xs text-emerald-800">
+                  Enviamos un mensaje inicial al vendedor para coordinar por chat.
+                </p>
+                <div className="flex flex-wrap gap-3 pt-1 text-xs">
+                  <Link href="/ordenes" className="font-bold text-brand underline">
+                    Ver mis compras
+                  </Link>
+                  <Link
+                    href={`/mensajes?publicacionId=${publication.id}`}
+                    className="font-bold text-brand underline"
+                  >
+                    Ir al chat
+                  </Link>
+                </div>
               </div>
             )}
 
             <PublicationDetailContact
               sellerId={publication.sellerId}
               sellerName={publication.sellerName}
+              avatarUrl={publication.sellerAvatarUrl}
+              rating={sellerRating?.score}
+              reviewsCount={sellerRating?.count}
+              isOwnPublication={isOwnPublication}
               onSendMessage={
+                !isOwnPublication &&
                 Number.isInteger(publication.id) &&
                 publication.id > 0 &&
                 Number.isInteger(publication.sellerId) &&
@@ -326,6 +471,7 @@ function PublicationDetail({ id }: { id: string }) {
             seller: {
               id: publication.sellerId,
               name: publication.sellerName?.trim() || 'Nombre no disponible',
+              avatarUrl: publication.sellerAvatarUrl,
             },
           }}
         />

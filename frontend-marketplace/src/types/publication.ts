@@ -12,10 +12,30 @@ export interface CreatePublicationFormState {
   titulo: string;
   categoriaId: number | string;
   descripcion: string;
+  region: string;
   ubicacion: string;
   moneda: string;
   precioBase: number | string;
 }
+
+export const REGIONES_CHILE = [
+  'Arica y Parinacota',
+  'Tarapacá',
+  'Antofagasta',
+  'Atacama',
+  'Coquimbo',
+  'Valparaíso',
+  'Región Metropolitana',
+  "O'Higgins",
+  'Maule',
+  'Ñuble',
+  'Biobío',
+  'La Araucanía',
+  'Los Ríos',
+  'Los Lagos',
+  'Aysén',
+  'Magallanes y de la Antártica Chilena',
+] as const;
 
 export const CATEGORIAS_DISPONIBLES: PublicationCategory[] = [
   { id: 1, nombre: 'Flete & Mudanza', slug: 'fletes', icono: '🚚' },

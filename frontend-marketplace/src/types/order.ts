@@ -23,10 +23,15 @@ export interface PurchaseConfirmationItem {
   deliveryEstimate?: string;
 }
 
+export interface PurchaseConfirmationDetails {
+  notes?: string;
+  scheduledDate?: string;
+}
+
 export interface PurchaseConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm?: (notes?: string) => void | Promise<void>;
+  onConfirm?: (details?: PurchaseConfirmationDetails) => void | Promise<void>;
   item: PurchaseConfirmationItem;
   isLoading?: boolean;
   errorMessage?: string | null;

@@ -214,6 +214,13 @@ function MessagesWorkspace({
         if (result.some((room) => otherParticipant(room, userId) === null))
           throw new Error('Lista inválida.');
         setRooms(result);
+        if (publicationId && /^[1-9]\d*$/.test(publicationId)) {
+          const targetPubId = Number(publicationId);
+          const matchingRoom = result.find((room) => room.publicacionId === targetPubId);
+          if (matchingRoom) {
+            setSelectedRoom((current) => current ?? matchingRoom);
+          }
+        }
         setRoomsError('');
       } catch (error: unknown) {
         if (controller.signal.aborted || !sameSession(userId, token)) return;
@@ -230,7 +237,7 @@ function MessagesWorkspace({
       controller.abort();
       clearTimeout(timer);
     };
-  }, [userId, token, revision]);
+  }, [userId, token, revision, publicationId]);
 
   useEffect(() => {
     if (publicationId === null) return;

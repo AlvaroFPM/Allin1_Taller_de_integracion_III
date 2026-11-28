@@ -1,13 +1,15 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { DashboardOrder, OrderStatus, OrderItemType } from '@/types/orders-dashboard';
+import type { DashboardOrder, OrderStatus } from '@/types/orders-dashboard';
 
 export interface OrderCardProps {
   order: DashboardOrder;
   onAccept?: (order: DashboardOrder) => void;
+  onDeliver?: (order: DashboardOrder) => void;
   onComplete?: (order: DashboardOrder) => void;
   onCancel?: (order: DashboardOrder) => void;
   actionPending?: boolean;
@@ -44,16 +46,18 @@ const STATUS_BADGE_CONFIG: Record<
   },
 };
 
-const TYPE_BADGE_VARIANT: Record<OrderItemType, 'brand' | 'warning' | 'neutral'> = {
-  SERVICIO: 'brand',
-  ARTICULO: 'warning',
-  FLETE: 'neutral',
-  TRABAJO: 'brand',
-};
+const PROGRESS_STEPS = ['Solicitada', 'Aceptada', 'Entregada', 'Completada'] as const;
+
+function getProgressStepIndex(order: DashboardOrder): number {
+  if (order.status === 'COMPLETADA') return 3;
+  if (order.status === 'ACEPTADA') return order.sellerDelivered ? 2 : 1;
+  return 0;
+}
 
 export function OrderCard({
   order,
   onAccept,
+  onDeliver,
   onComplete,
   onCancel,
   actionPending = false,
@@ -62,8 +66,11 @@ export function OrderCard({
   onRate,
   onViewDetail,
 }: OrderCardProps) {
-  const statusConfig = STATUS_BADGE_CONFIG[order.status];
-  const typeVariant = order.type ? TYPE_BADGE_VARIANT[order.type] : 'neutral';
+  const statusConfig =
+    order.status === 'ACEPTADA' && order.sellerDelivered
+      ? { label: 'Entregada · Por confirmar', variant: 'brand' as const }
+      : STATUS_BADGE_CONFIG[order.status];
+
   const currency = order.currency;
   const priceLabel =
     typeof order.price === 'string' && /^-?\d+$/.test(order.price)
@@ -71,6 +78,40 @@ export function OrderCard({
       : typeof order.price === 'number' && Number.isFinite(order.price)
         ? order.price.toLocaleString('es-CL')
         : 'Monto no informado';
+
+  const stepIndex = getProgressStepIndex(order);
+  const showProgress =
+    order.status === 'PENDIENTE' || order.status === 'ACEPTADA' || order.status === 'COMPLETADA';
+
+  const counterpartContent = (
+    <div className="flex items-center gap-2.5">
+      {order.counterpartAvatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={order.counterpartAvatarUrl}
+          alt={order.counterpartName}
+          className="w-7 h-7 rounded-full object-cover"
+        />
+      ) : (
+        <div className="w-7 h-7 rounded-full bg-brand text-white flex items-center justify-center font-bold text-[10px] select-none">
+          {order.counterpartInitials}
+        </div>
+      )}
+      <div>
+        <span className="text-content-muted text-[11px] font-medium mr-1">
+          {order.counterpartRole}:
+        </span>
+        <span className="font-bold text-content-main group-hover:text-brand group-hover:underline">
+          {order.counterpartName}
+        </span>
+        {order.counterpartVerified && (
+          <span className="ml-1 text-emerald-600 font-bold" title="Identidad Verificada">
+            ✓
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-surface-main rounded-2xl border border-border-base p-5 sm:p-6 shadow-xs hover:border-brand/40 transition-all space-y-4">
@@ -80,14 +121,6 @@ export function OrderCard({
           <span className="font-extrabold text-content-main tracking-tight font-mono">
             {order.orderNumber}
           </span>
-          <span className="text-content-muted">•</span>
-          <span className="text-content-muted">{order.createdAt}</span>
-          <Badge variant={typeVariant} size="sm">
-            {order.type ?? 'Tipo no informado'}
-          </Badge>
-          {order.category && (
-            <span className="text-content-muted hidden sm:inline">({order.category})</span>
-          )}
         </div>
 
         <Badge variant={statusConfig.variant} size="sm">
@@ -95,12 +128,52 @@ export function OrderCard({
         </Badge>
       </div>
 
+      {/* Mini indicador de progreso */}
+      {showProgress && (
+        <div className="flex items-center gap-1.5 text-[11px]">
+          {PROGRESS_STEPS.map((label, idx) => {
+            const done = idx <= stepIndex;
+            return (
+              <React.Fragment key={label}>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`w-2 h-2 rounded-full ${done ? 'bg-brand' : 'bg-border-base'}`}
+                  />
+                  <span
+                    className={
+                      done ? 'font-bold text-content-main' : 'font-medium text-content-muted'
+                    }
+                  >
+                    {label}
+                  </span>
+                </div>
+                {idx < PROGRESS_STEPS.length - 1 && (
+                  <div
+                    className={`h-0.5 flex-1 rounded-full ${
+                      idx < stepIndex ? 'bg-brand' : 'bg-border-base/80'
+                    }`}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+
       {/* Contenido Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1.5 flex-1 min-w-0">
           <h3 className="text-base font-bold text-content-main leading-snug truncate">
             {order.title}
           </h3>
+
+          {/* Fecha / horario acordado */}
+          {order.scheduledDate && (
+            <p className="text-xs text-content-main/90 flex items-center gap-1.5">
+              <span aria-hidden="true">📅</span>
+              <span className="font-medium">Coordinación: {order.scheduledDate}</span>
+            </p>
+          )}
 
           {/* Ubicación / Trayecto */}
           {order.location && (
@@ -130,7 +203,7 @@ export function OrderCard({
 
           {/* Notas de la orden */}
           {order.notes && (
-            <p className="text-xs text-content-muted italic bg-surface-base/60 p-2 rounded-lg border border-border-base/60 mt-1">
+            <p className="text-xs text-content-muted italic bg-surface-base/60 p-2.5 rounded-lg border border-border-base/60 mt-1">
               &ldquo;{order.notes}&rdquo;
             </p>
           )}
@@ -139,53 +212,29 @@ export function OrderCard({
         {/* Monto de la Orden */}
         <div className="text-left sm:text-right shrink-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-content-muted block">
-            {'Monto de la orden'}
+            Monto de la orden
           </span>
           <p className="text-xl font-black text-brand tracking-tight">
             {priceLabel}{' '}
             <span className="text-xs font-semibold text-content-muted">
-              {currency ?? (order.price !== null ? 'Moneda no informada' : '')}
+              {currency ?? (order.price !== null ? 'CLP' : '')}
             </span>
           </p>
-          {order.escrowSecured && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-              Escrow Protegido
-            </span>
-          )}
         </div>
       </div>
 
       {/* Contraparte y Botones de Acción */}
       <div className="pt-3 border-t border-border-base/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        {/* Identidad de la contraparte */}
-        <div className="flex items-center gap-2.5">
-          {order.counterpartAvatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={order.counterpartAvatarUrl}
-              alt={order.counterpartName}
-              className="w-7 h-7 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-brand text-white flex items-center justify-center font-bold text-[10px] select-none">
-              {order.counterpartInitials}
-            </div>
-          )}
-          <div>
-            <span className="text-content-muted text-[11px] font-medium mr-1">
-              {order.counterpartRole}:
-            </span>
-            <span className="font-bold text-content-main">{order.counterpartName}</span>
-            {order.counterpartVerified && (
-              <span className="ml-1 text-emerald-600 font-bold" title="Identidad Verificada">
-                ✓
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Identidad de la contraparte con enlace al perfil público */}
+        {order.counterpartId && order.counterpartId > 0 ? (
+          <Link href={`/perfil/${order.counterpartId}`} className="group inline-flex items-center">
+            {counterpartContent}
+          </Link>
+        ) : (
+          counterpartContent
+        )}
 
-        {/* Acciones según el rol y estado */}
+        {/* Acciones según el rol y estado (doble confirmación + chat + reseña) */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             type="button"
@@ -222,7 +271,34 @@ export function OrderCard({
             </Button>
           )}
 
-          {order.status === 'ACEPTADA' && (
+          {/* Doble confirmación: Vendedor marca entregado */}
+          {order.role === 'VENTA' && order.status === 'ACEPTADA' && !order.sellerDelivered && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={actionPending || !onDeliver}
+              onClick={() => onDeliver?.(order)}
+              className="text-xs font-bold"
+            >
+              {actionPending ? 'Procesando...' : 'Marcar entregado'}
+            </Button>
+          )}
+
+          {order.role === 'VENTA' && order.status === 'ACEPTADA' && order.sellerDelivered && (
+            <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+              Esperando confirmación del comprador
+            </span>
+          )}
+
+          {/* Doble confirmación: Comprador confirma recibido conforme */}
+          {order.role === 'COMPRA' && order.status === 'ACEPTADA' && !order.sellerDelivered && (
+            <span className="text-[11px] font-medium text-content-muted bg-surface-base border border-border-base px-2.5 py-1 rounded-lg">
+              Esperando entrega del vendedor
+            </span>
+          )}
+
+          {order.role === 'COMPRA' && order.status === 'ACEPTADA' && order.sellerDelivered && (
             <Button
               type="button"
               variant="primary"
@@ -231,7 +307,7 @@ export function OrderCard({
               onClick={() => onComplete?.(order)}
               className="text-xs font-bold"
             >
-              {actionPending ? 'Procesando...' : 'Completar'}
+              {actionPending ? 'Procesando...' : 'Confirmar recibido'}
             </Button>
           )}
 
@@ -247,18 +323,25 @@ export function OrderCard({
               {actionPending ? 'Procesando...' : 'Cancelar'}
             </Button>
           )}
-          {order.role === 'COMPRA' && order.status === 'COMPLETADA' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!onRate}
-              onClick={() => onRate?.(order)}
-              className="text-xs font-semibold"
-            >
-              ★ Calificar
-            </Button>
-          )}
+
+          {order.role === 'COMPRA' &&
+            order.status === 'COMPLETADA' &&
+            (order.review ? (
+              <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                ★ {order.review.rating}/5 Calificada
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!onRate}
+                onClick={() => onRate?.(order)}
+                className="text-xs font-semibold"
+              >
+                ★ Calificar
+              </Button>
+            ))}
 
           {actionPending && <span role="status">Actualizando orden...</span>}
           {actionError && <p role="alert">{actionError}</p>}

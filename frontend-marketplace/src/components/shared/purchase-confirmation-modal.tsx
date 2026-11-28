@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { PurchaseConfirmationModalProps, PurchaseItemType } from '@/types/order';
 
@@ -62,6 +63,8 @@ export function PurchaseConfirmationModal({
   errorMessage,
 }: PurchaseConfirmationModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [scheduledDate, setScheduledDate] = React.useState('');
+  const [notes, setNotes] = React.useState('');
 
   // Cierre accesible con tecla Escape
   React.useEffect(() => {
@@ -94,7 +97,10 @@ export function PurchaseConfirmationModal({
     if (isLoading || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onConfirm?.();
+      await onConfirm?.({
+        notes: notes.trim() || undefined,
+        scheduledDate: scheduledDate.trim() || undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -194,15 +200,26 @@ export function PurchaseConfirmationModal({
           </div>
         </div>
 
-        {/* Instrucciones o Notas Opcionales */}
-        <Textarea
-          id="purchase-notes"
-          label="Notas no disponibles: el contrato de órdenes no admite este campo."
-          rows={3}
-          value=""
-          placeholder="No disponible"
-          disabled
-        />
+        {/* Fecha / horario y Notas Opcionales */}
+        <div className="space-y-3">
+          <Input
+            id="purchase-scheduled-date"
+            label="Fecha, horario o lugar tentativo (opcional)"
+            value={scheduledDate}
+            onChange={(e) => setScheduledDate(e.target.value.slice(0, 120))}
+            placeholder="Ej: Sábado 10:00 AM · Sector Centro, Temuco"
+            disabled={isLoading || isSubmitting}
+          />
+          <Textarea
+            id="purchase-notes"
+            label="Notas o detalles para el vendedor (opcional)"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value.slice(0, 500))}
+            placeholder="Indica detalles importantes del servicio o entrega. También iniciaremos un chat automático con el vendedor."
+            disabled={isLoading || isSubmitting}
+          />
+        </div>
 
         {errorMessage && (
           <p role="alert" className="text-sm text-content-main">

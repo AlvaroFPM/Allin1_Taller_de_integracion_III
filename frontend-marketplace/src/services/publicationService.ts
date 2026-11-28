@@ -12,10 +12,12 @@ export interface CatalogPublication {
   type: string;
   sellerId: number;
   sellerName?: string;
+  sellerAvatarUrl?: string;
   categoryId: number;
   categoryName?: string;
   categorySlug?: string;
   location?: string;
+  region?: string;
   createdAtRelative: string;
   images?: string[];
 }
@@ -282,8 +284,8 @@ export const publicationService = {
       descripcion: data.description,
       tipo_servicio: mapTipoServicio(data.type),
       precio_base: data.price,
-      ciudad: data.location || 'Santiago',
-      region: 'RM',
+      ciudad: data.location?.trim() || 'Santiago',
+      region: data.region?.trim() || 'RM',
       ...(data.images?.length ? { imagenes_urls: data.images } : {}),
     };
 

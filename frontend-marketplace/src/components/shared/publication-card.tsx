@@ -22,13 +22,23 @@ export function PublicationCard({ publication, onAction }: PublicationCardProps)
   return (
     <article className="bg-surface-main border border-border-base rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-emerald-600/30 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between text-left gap-4 group">
       {publication.coverUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={publication.coverUrl}
-          alt={`Portada de ${publication.title}`}
-          loading="lazy"
-          className="aspect-video w-full rounded-xl object-cover"
-        />
+        <div className="relative aspect-[16/10] w-full rounded-xl bg-surface-base border border-border-base/50 overflow-hidden flex items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={publication.coverUrl}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-25 pointer-events-none select-none"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={publication.coverUrl}
+            alt={`Portada de ${publication.title}`}
+            loading="lazy"
+            className="relative z-10 w-full h-full object-contain p-1"
+          />
+        </div>
       )}
       {/* Cabecera: Badge de tipo y tiempo relativo */}
       <div className="flex items-center justify-between gap-2">

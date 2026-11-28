@@ -32,7 +32,8 @@ export default function PublicarPage() {
     precioBase: '',
     categoriaId: '',
     moneda: 'CLP',
-    ubicacion: 'Temuco',
+    region: '',
+    ubicacion: '',
   });
 
   React.useEffect(() => {
@@ -66,6 +67,8 @@ export default function PublicarPage() {
       !formState.titulo.trim() ||
       !formState.descripcion.trim() ||
       !formState.categoriaId ||
+      !formState.region ||
+      !formState.ubicacion.trim() ||
       !formState.precioBase
     ) {
       setErrorMessage('Por favor completa todos los campos obligatorios');
@@ -137,7 +140,8 @@ export default function PublicarPage() {
         currency: formState.moneda,
         type: formState.tipo,
         sellerId: user.id,
-        location: formState.ubicacion,
+        location: formState.ubicacion.trim(),
+        region: formState.region,
         images: imageUrls,
       });
       if (
